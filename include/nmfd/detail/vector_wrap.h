@@ -96,6 +96,6 @@ struct vector_wrap
 };
 
 }   // namespace detail
-}   // namespace scfd
+}   // namespace nmfd
 
 #endif
