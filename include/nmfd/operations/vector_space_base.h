@@ -19,7 +19,7 @@ public:
     virtual ~vector_space_base() = default;
 };
 
-} // namespace linspace
-} // namespace scfd
+} // namespace operations
+} // namespace nmfd
 
 #endif

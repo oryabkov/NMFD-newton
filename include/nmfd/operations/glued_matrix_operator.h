@@ -14,17 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with NMFD.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef __GLUED_MATRIX_OPERATOR_H__
-#define __GLUED_MATRIX_OPERATOR_H__
+#ifndef __NMFD_GLUED_MATRIX_OPERATOR_H__
+#define __NMFD_GLUED_MATRIX_OPERATOR_H__
 
 #include <memory>
 #include <common/glued_vector_operations.h>
 #include <common/glued_vector_space.h>
 #include "glued_matrix.h"
 
-namespace scfd
+namespace nmfd
 {
-namespace linspace 
+namespace operations
 {
 
 template<class Operations, std::size_t n>
@@ -95,7 +95,7 @@ protected:
     using parent_t::internal_matrices_;
 };
 
-} // namespace linspace 
-} // namespace scfd
+} // namespace operations 
+} // namespace nmfd
 
 #endif

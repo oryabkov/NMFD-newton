@@ -14,14 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with NMFD.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef __MATRIX_OPERATOR_H__
-#define __MATRIX_OPERATOR_H__
+#ifndef __NMFD_MATRIX_OPERATOR_H__
+#define __NMFD_MATRIX_OPERATOR_H__
 
 #include <memory>
 
-namespace scfd
+namespace nmfd
 {
-namespace linspace 
+namespace operations
 {
 
 template<class Operations>
@@ -68,7 +68,7 @@ protected:
     //std::shared_ptr<matrix_t>   matrix_;
 };
 
-} // namespace linspace 
-} // namespace scfd
+} // namespace operations 
+} // namespace nmfd
 
 #endif

@@ -48,6 +48,14 @@ void scale(const scalar_type scale, vector_type& x)
 [[nodiscard]] scalar_type norm_l2_sq(const vector_type &x) const
 /// sqrt(scalar_prod_l2(x,x))
 [[nodiscard]] scalar_type norm_l2(const vector_type &x) const
+/// asum(x)
+[[nodiscard]] scalar_type norm1(const vector_type &x) const
+/// returns some weighted L1/l1 norm (problem dependent)
+[[nodiscard]] scalar_type norm_l1(const vector_type &x) const
+/// returns maximum of all elements absolute values
+[[nodiscard]] scalar_type norm_inf(const vector_type &x) const
+/// returns maximum of all elements absolute weighted values (problem dependent)
+[[nodiscard]] scalar_type norm_l_inf(const vector_type &x) const
 /// May be ommited for now
 [[nodiscard]] vector_type at(multivector_type& x, ordinal_type m, ordinal_type k_)
 /// y<-x*mul_x+y*mul_y

@@ -1,99 +1,55 @@
-#ifndef __cpu_vector_operations_H__
-#define __cpu_vector_operations_H__
+#ifndef __NMFD_STATIC_VECTOR_SPACE_H__
+#define __NMFD_STATIC_VECTOR_SPACE_H__
 
 #include <cmath>
-#include <vector>
+#include <array>
 #include <iterator>
 #include <algorithm>
-#include <common/dot_product.h>
-#include <common/threaded_reduction.h>
 
-// 230707 GLOBAL CHANGE IN THE CONCEPT!
-// All vectors MUST contain size, hence vector_operations don't store size explicitly
+/// TODO systemize size_t behaviour - mb make some Vector dependent type?
+/// TODO multivector - add some generic wrap for multivector (std::vector) and use it here
 
-
-template <typename T>
-struct cpu_vector_operations
+namespace nmfd
 {
-    // typedef T  scalar_type;
-    // typedef T* vector_type;
+namespace operations
+{
+
+template <class T, int Dim, class Vector = std::array<T,Dim>>
+struct static_vector_space
+{
     using scalar_type = T;
-    using vector_type = std::vector<T>;//T*;
-    bool location;
-    dot_product<T, vector_type>* dot = nullptr;
-    threaded_reduction<scalar_type, vector_type>* threaded_dot = nullptr;
-    int use_threaded_dot = 0;
-    size_t sz_default_;
+    using vector_type = Vector;
 
-    cpu_vector_operations(size_t sz_p, int use_high_precision_dot_product_ = 0, int use_threaded_dot_ = 0):
-    sz_default_(sz_p),
-    use_threaded_dot(use_threaded_dot_)
-    {
-        location=false;
-        dot = new dot_product<T, vector_type>(use_high_precision_dot_product_);
-        threaded_dot = new threaded_reduction<scalar_type, vector_type>(use_threaded_dot_, use_high_precision_dot_product_);
-    }
-    ~cpu_vector_operations()
-    {
-        if(dot!=nullptr)
-        {
-            delete dot;
-        }
-        if(threaded_dot!=nullptr)
-        {
-            delete threaded_dot;
-        }
-       
-    }
-
-    size_t get_default_size()const
-    {
-        return sz_default_;
-    }
     size_t size()const
     {
-        return get_default_size();
+        return Dim;
     }
     size_t get_size(const vector_type& x)const
     {
-        return x.size();
-    }
-    bool device_location()const
-    {
-        return location;
+        return Dim;
     }
 
 
-    void init_vector(vector_type& x, const size_t sz_p = 0)const 
+    void init_vector(vector_type& x)const 
     {
-        // x = NULL;
-        size_t sz_l = sz_p>0?sz_p:sz_default_;        
-        x = std::vector<T>(sz_l);
     }
     template<class ...Args>
     void init_vectors(Args&&...args)const
     {
-        std::initializer_list<int>{((void)init_vector(std::forward<Args>(args)), 0 )...};
     } 
     void free_vector(vector_type& x)const 
     {
-        x.resize(0);
     }
     template<class ...Args>
     void free_vectors(Args&&...args) const
     {
-        std::initializer_list<int>{((void)free_vector(std::forward<Args>(args)), 0 )...};
     }    
-    void start_use_vector(vector_type& x, size_t sz_p = 0)const
+    void start_use_vector(vector_type& x)const
     {
-        // if (x == NULL) x = (T*)malloc( (sz_+1)*sizeof(T));
-        size_t sz_l = sz_p>0?sz_p:sz_default_; 
-        x.resize(sz_l);
     }
     template<class ...Args>
     void start_use_vectors(Args&&...args)const
     {
-        std::initializer_list<int>{((void)start_use_vector(std::forward<Args>(args)), 0 )...};
     }   
     void stop_use_vector(vector_type& x)const
     {
@@ -101,12 +57,10 @@ struct cpu_vector_operations
     template<class ...Args>
     void stop_use_vectors(Args&&...args)const
     {
-        std::initializer_list<int>{((void)stop_use_vector(std::forward<Args>(args)), 0 )...};
     }
     bool check_is_valid_number(const vector_type &x)const
     {
-        size_t sz_l = x.size();
-        for (size_t i = 0;i < sz_l;++i)
+        for (size_t i = 0;i < Dim;++i)
         {
             if (std::isinf(x[i]))
             {
@@ -116,41 +70,14 @@ struct cpu_vector_operations
         
         return true;
     }
-    scalar_type scalar_prod(const vector_type &x, const vector_type &y, int use_high_prec_ = -1)const
+    scalar_type scalar_prod(const vector_type &x, const vector_type &y)const
     {
-        // T res(0.f);
-        // for (int i = 0;i < sz_;++i)
-        // {
-        //     res += x[i]*y[i];
-        // }        
-        // return res;
-        scalar_type dot_res = T(0.0);
-
-        if (use_threaded_dot == 0)
+        T res(0.f);
+        for (int i = 0;i < Dim;++i)
         {
-            if(use_high_prec_ == 1)
-            {
-                dot->use_high_prec();
-            }
-            if(use_high_prec_ == 0)
-            {
-                dot->use_normal_prec();
-            }
-            dot_res = dot->dot(x, y);
-        }
-        else
-        {
-            if(use_high_prec_ == 1)
-            {
-                threaded_dot->use_high_prec();
-            }
-            if(use_high_prec_ == 0)
-            {
-                threaded_dot->use_normal_prec();
-            }
-            dot_res = threaded_dot->dot(x, y);            
-        }
-        return dot_res;
+            res += x[i]*y[i];
+        }        
+        return res;
     }
 
     scalar_type norm(const vector_type &x)const
@@ -163,9 +90,8 @@ struct cpu_vector_operations
     }    
     scalar_type norm_inf(const vector_type& x)const
     {
-        size_t sz_l = x.size();
         scalar_type max_val = 0.0;
-        for(size_t j=0;j<sz_l;j++)
+        for(size_t j=0;j<Dim;j++)
         {
             max_val = (max_val<std::abs(x[j]))?std::abs(x[j]):max_val;
         }
@@ -205,15 +131,13 @@ struct cpu_vector_operations
     //calc: x := <vector_type with all elements equal to given scalar value> 
     void assign_scalar(const scalar_type scalar, vector_type& x)const
     {
-        size_t sz_l = x.size();
-        for (size_t i = 0;i<sz_l;++i) 
+        for (size_t i = 0;i<Dim;++i) 
             x[i] = scalar;
     }
     //calc: x := mul_x*x + <vector_type of all scalar value> 
     void add_mul_scalar(const scalar_type scalar, const scalar_type mul_x, vector_type& x)const
     {
-        size_t sz_l = x.size();
-        for (size_t i = 0;i < sz_l;++i) 
+        for (size_t i = 0;i < Dim;++i) 
             x[i] = mul_x*x[i] + scalar;
     }
     void scale(scalar_type scale, vector_type &x)const
@@ -223,13 +147,7 @@ struct cpu_vector_operations
     //copy: y := x
     void assign(const vector_type& x, vector_type& y)const
     {
-        if(x.size() != y.size() )
-        {
-            throw std::logic_error("cpu_vector_operations::assign: incorrect vector sizes provided");
-        }
-
-        size_t sz_l = x.size();
-        for (int i = 0;i < sz_l;++i) 
+        for (int i = 0;i < Dim;++i) 
         {
             y[i] = x[i];
         }
@@ -237,11 +155,7 @@ struct cpu_vector_operations
     //calc: y := mul_x*x
     void assign_mul(scalar_type mul_x, const vector_type& x, vector_type& y)const
     {
-        if(x.size() != y.size() )
-        {
-            throw std::logic_error("cpu_vector_operations::assign_mul: incorrect vector sizes provided");
-        }        
-        for (int i = 0;i < x.size();++i) 
+        for (int i = 0;i < Dim;++i) 
         {
             y[i] = mul_x*x[i];
         }
@@ -251,58 +165,38 @@ struct cpu_vector_operations
     void assign_mul(scalar_type mul_x, const vector_type& x, scalar_type mul_y, const vector_type& y, 
                                vector_type& z)const
     {
-        if((x.size() != y.size() )&&(x.size() != z.size() ))
-        {
-            throw std::logic_error("cpu_vector_operations::assign_mul: incorrect vector sizes provided");
-        }  
-        for (int i = 0;i < x.size();++i) 
+        for (int i = 0;i < Dim;++i) 
             z[i] = mul_x*x[i] + mul_y*y[i];
     }
     //calc: y := mul_x*x + y
     void add_mul(scalar_type mul_x, const vector_type& x, vector_type& y)const
     {
-        if(x.size() != y.size() )
-        {
-            throw std::logic_error("cpu_vector_operations::add_mul: incorrect vector sizes provided");
-        }         
-        for (int i = 0;i < x.size();++i) 
+        for (int i = 0;i < Dim;++i) 
             y[i] += mul_x*x[i];
     }
     //calc: y := mul_x*x + mul_y*y
     void add_mul(scalar_type mul_x, const vector_type& x, scalar_type mul_y, vector_type& y)const
     {
-        if(x.size() != y.size() )
-        {
-            throw std::logic_error("cpu_vector_operations::add_mul: incorrect vector sizes provided");
-        } 
-        for (int i = 0;i < x.size();++i) 
+        for (int i = 0;i < Dim;++i) 
             y[i] = mul_x*x[i] + mul_y*y[i];
     }
     //calc: z := mul_x*x + mul_y*y + mul_z*z
     void add_mul(scalar_type mul_x, const vector_type& x, scalar_type mul_y, const vector_type& y, 
                             scalar_type mul_z, vector_type& z)const
     {
-        if((x.size() != y.size() )&&(x.size() != z.size() ))
-        {
-            throw std::logic_error("cpu_vector_operations::add_mul: incorrect vector sizes provided");
-        }         
-        for (int i = 0;i < x.size();++i) 
+        for (int i = 0;i < Dim;++i) 
             z[i] = mul_x*x[i] + mul_y*y[i] + mul_z*z[i];
     }
     void make_abs_copy(const vector_type& x, vector_type& y)const
     {
-        if(x.size() != y.size() )
-        {
-            throw std::logic_error("cpu_vector_operations::make_abs_copy: incorrect vector sizes provided");
-        }
-        for(size_t j = 0;j<x.size();j++)
+        for(size_t j = 0;j<Dim;j++)
         {
             y[j] = std::abs(x[j]);
         }
     }
     void make_abs(vector_type& x)const
     {
-        for(size_t j=0;j<x.size();j++)
+        for(size_t j=0;j<Dim;j++)
         {
             auto xa = std::abs(x[j]);
             x[j] = xa;
@@ -311,11 +205,7 @@ struct cpu_vector_operations
     // y_j = max(x_j,y_j,sc)
     void max_pointwise(const scalar_type sc, const vector_type& x, vector_type& y)const
     {
-        if(x.size() != y.size() )
-        {
-            throw std::logic_error("cpu_vector_operations::max_pointwise: incorrect vector sizes provided");
-        }        
-        for(size_t j=0;j<x.size();j++)
+        for(size_t j=0;j<Dim;j++)
         {
             y[j] = (x[j]>y[j])?( (x[j]>sc)?x[j]:sc):( (y[j]>sc)?y[j]:sc);
         }
@@ -330,11 +220,7 @@ struct cpu_vector_operations
     // y_j = min(x_j,y_j,sc)
     void min_pointwise(const scalar_type sc, const vector_type& x, vector_type& y)const
     {
-        if(x.size() != y.size() )
-        {
-            throw std::logic_error("cpu_vector_operations::min_pointwise: incorrect vector sizes provided");
-        }         
-        for(size_t j=0;j<x.size();j++)
+        for(size_t j=0;j<Dim;j++)
         {
             y[j] = (x[j]<y[j])?( (x[j]<sc)?x[j]:sc):( (y[j]<sc)?y[j]:sc);
         }
@@ -349,11 +235,7 @@ struct cpu_vector_operations
     //calc: x := x*mul_y*y
     void mul_pointwise(vector_type& x, const scalar_type mul_y, const vector_type& y)const
     {
-        if(x.size() != y.size() )
-        {
-            throw std::logic_error("cpu_vector_operations::mul_pointwise: incorrect vector sizes provided");
-        }           
-        for(size_t j=0;j<x.size();j++)
+        for(size_t j=0;j<Dim;j++)
         {
             x[j] *= mul_y*y[j];
         }        
@@ -362,11 +244,7 @@ struct cpu_vector_operations
     void mul_pointwise(const scalar_type mul_x, const vector_type& x, const scalar_type mul_y, const vector_type& y, 
                         vector_type& z)const
     {
-        if((x.size() != y.size() )&&(x.size() != z.size() ))
-        {
-            throw std::logic_error("cpu_vector_operations::mul_pointwise: incorrect vector sizes provided");
-        }          
-        for(size_t j=0;j<x.size();j++)
+        for(size_t j=0;j<Dim;j++)
         {
             z[j] = (mul_x*x[j])*(mul_y*y[j]);
         }         
@@ -375,11 +253,7 @@ struct cpu_vector_operations
     void div_pointwise(const scalar_type mul_x, const vector_type& x, const scalar_type mul_y, const vector_type& y, 
                         vector_type& z)const
     {
-        if((x.size() != y.size() )&&(x.size() != z.size() ))
-        {
-            throw std::logic_error("cpu_vector_operations::div_pointwise: incorrect vector sizes provided");
-        }     
-        for(size_t j=0;j<x.size();j++)
+        for(size_t j=0;j<Dim;j++)
         {
             z[j] = (mul_x*x[j])/(mul_y*y[j]);
         }
@@ -387,18 +261,14 @@ struct cpu_vector_operations
     //calc: x := x/(mul_y*y)
     void div_pointwise(vector_type& x, const scalar_type mul_y, const vector_type& y)const
     {
-        if(x.size() != y.size())
-        {
-            throw std::logic_error("cpu_vector_operations::div_pointwise: incorrect vector sizes provided");
-        }         
-        for(size_t j=0;j<x.size();j++)
+        for(size_t j=0;j<Dim;j++)
         {
             x[j] /= static_cast<scalar_type>(1.0)/(mul_y*y[j]);
         }
     }  
 
     //TODO:!
-    std::pair<scalar_type, size_t> max_argmax_element(vector_type& y) const
+    /*std::pair<scalar_type, size_t> max_argmax_element(vector_type& y) const
     {
         auto max_iterator = std::max_element(y.begin(), y.end());
         size_t argmax = std::distance(y.begin(), max_iterator);
@@ -416,24 +286,18 @@ struct cpu_vector_operations
     {
         auto ret = max_argmax_element(x);
         return ret.second;
-    }
+    }*/
     
-    // x.size()<= y.size()
     void assign_slices(const vector_type& x, const std::vector< std::pair<size_t,size_t> > slices, vector_type&y)const
     {
-        size_t sz_l = x.size();
-        if( sz_l<y.size() )
-        {
-            throw std::logic_error("cpu_vector_operations::assign_slice: can only be applied to vectors of sizes x.size<=y.size");
-        }
         size_t index_y = 0;
         for(auto& slice: slices)
         {
             size_t begin = slice.first;
             size_t end = slice.second; 
-            if(end>sz_l)
+            if(end>Dim)
             {
-                throw std::logic_error("cpu_vector_operations::assign_slice: provided slice size is greater than input vector size.");
+                throw std::logic_error("static_vector_space::assign_slice: provided slice size is greater than input vector size.");
             }
             for(size_t j = begin; j<end;j++)
             {
@@ -442,16 +306,10 @@ struct cpu_vector_operations
         }      
     }
 
-    // x.size()<= y.size()
     void assign_skip_slices(const vector_type& x, const std::vector< std::pair<size_t,size_t> > skip_slices, vector_type&y)const
     {
-        size_t sz_l = x.size();
-        if( sz_l<y.size() )
-        {
-            throw std::logic_error("cpu_vector_operations::assign_skip_slices: can only be applied to vectors of sizes x.size<=y.size");
-        }        
         size_t index_y = 0;
-        for(size_t j = 0; j<sz_l;j++)
+        for(size_t j = 0; j<Dim;j++)
         {
             for(auto& slice: skip_slices)
             {
@@ -467,7 +325,7 @@ struct cpu_vector_operations
 
 };
 
-
-
+} // namespace operations
+} // namespace nmfd
 
 #endif

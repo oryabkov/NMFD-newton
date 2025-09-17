@@ -14,14 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with NMFD.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef __GLUED_MATRIX_H__
-#define __GLUED_MATRIX_H__
+#ifndef __NMFD_GLUED_MATRIX_H__
+#define __NMFD_GLUED_MATRIX_H__
 
 #include <memory>
 
-namespace scfd
+namespace nmfd
 {
-namespace linspace 
+namespace operations
 {
 
 template<class InternalMatrix, std::size_t n>
@@ -62,7 +62,7 @@ protected:
     std::array<std::array<std::shared_ptr<internal_matrix_t>,n>,n> internal_matrices_;
 };
 
-} // namespace linspace 
-} // namespace scfd
+} // namespace operations 
+} // namespace nmfd
 
 #endif

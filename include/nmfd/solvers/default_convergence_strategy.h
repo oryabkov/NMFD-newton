@@ -8,6 +8,8 @@ convergence rules for Newton iterator for continuation process
 #include <utils/logged_obj_base.h>
 #include <algorithm> // std::min_element
 #include <iterator>  // std::begin, std::end
+#include <nmfd/operations/ident_operator.h>
+#include <nmfd/operations/zero_functional.h>
 
 /// TODO check it!
 /// NOTE originally taken from deflated_continuation timesteppers branch source/continuation/convergence_strategy.h 22.07.2025
@@ -23,8 +25,8 @@ template
     class VectorSpace, 
     class Log, 
     class NonlinearOperator, 
-    class ProjectOperator, 
-    class QualityFunctor
+    class ProjectOperator = operations::ident_operator<VectorSpace>, 
+    class QualityFunctor = operations::zero_functional<VectorSpace>
 >
 class default_convergence_strategy
 {
@@ -80,30 +82,30 @@ public:
 
     void set_convergence_constants(T tolerance_, unsigned int maximum_iterations_, T relax_tolerance_factor_, int relax_tolerance_steps_, T newton_weight_ = T(1), bool store_norms_history_ = false, bool verbose_ = true, unsigned int stagnation_max_ = 10, T maximum_norm_increase_p = 0.0, T newton_weight_threshold_p = 1.0e-12)
     {
-        tolerance = tolerance_;
-        tolerance_0 = tolerance_;
-        maximum_iterations = maximum_iterations_;
+        prm_.tolerance = tolerance_;
+        prm_.tolerance_0 = tolerance_;
+        prm_.maximum_iterations = maximum_iterations_;
         newton_weight = newton_weight_;
-        newton_weight_initial = newton_weight_;
-        store_norms_history = store_norms_history_;
-        verbose = verbose_;
-        stagnation_max = stagnation_max_;
-        relax_tolerance_factor = relax_tolerance_factor_;
+        prm_.newton_weight_initial = newton_weight_;
+        prm_.store_norms_history = store_norms_history_;
+        prm_.verbose = verbose_;
+        prm_.stagnation_max = stagnation_max_;
+        prm_.relax_tolerance_factor = relax_tolerance_factor_;
         // relax_tolerance_steps = relax_tolerance_steps_;
-        current_relax_step = 0;
-        if(store_norms_history)
+        //current_relax_step = 0;
+        if(prm_.store_norms_history)
         {
-            norms_evolution.reserve(maximum_iterations);
+            norms_evolution.reserve(prm_.maximum_iterations);
         } 
         // T d_step = relax_tolerance_factor/T(relax_tolerance_steps);   
         
         // d_step = std::log10(relax_tolerance_factor)/T(relax_tolerance_steps);
         
         // log->info_f("continuation::convergence: check: relax_tolerance_steps = %i, relax_tolerance_factor = %le, d_step = %le, d_step_exp = %le", relax_tolerance_steps, (double)relax_tolerance_factor, (double)d_step, (double)std::pow<T>(T(10), d_step));
-        maximum_norm_increase_ = maximum_norm_increase_p;
+        prm_.maximum_norm_increase = maximum_norm_increase_p;
         prm_.newton_weight_threshold = newton_weight_threshold_p;
 
-        log->info_f("continuation::convergence: check: relax_tolerance_factor = %le, maximum_norm_increase = %le, newton_weight_threshold = %le", (double)relax_tolerance_factor, (double)maximum_norm_increase_, double(newton_weight_threshold_) );
+        log->info_f("continuation::convergence: check: relax_tolerance_factor = %le, maximum_norm_increase = %le, newton_weight_threshold = %le", (double)prm_.relax_tolerance_factor, (double)prm_.maximum_norm_increase, double(prm_.newton_weight_threshold) );
 
     }   
 
@@ -113,13 +115,14 @@ public:
     {
         bool finish = false; //states that the newton process should stop.
         // result_status defines on how this process is stoped.
-        newton_weight = newton_weight_initial;
+        newton_weight = prm_.newton_weight_initial;
         nonlin_op->apply(x, Fx);
         T normFx = vec_ops->norm_l2(Fx);
         if(!std::isfinite(normFx)) //set result_status = 2 if the provided vector is inconsistent
         {
             result_status = 2;
-            finish = true; 
+            //finish = true; 
+            return true;
         }
         if(normFx < tol()) //do nothing is my kind of problem =)
         {
@@ -143,7 +146,7 @@ public:
         {
             //update solution
             normFx1 = update_solution(nonlin_op, project_op, x, delta_x, x1);
-            log->info_f("continuation::convergence: increase threshold: %.01f, weight update from %le to %le with weight: %le and weight threshold: %le ", maximum_norm_increase_, normFx, normFx1, newton_weight,  newton_weight_threshold_);
+            log->info_f("continuation::convergence: increase threshold: %.01f, weight update from %le to %le with weight: %le and weight threshold: %le ", prm_.maximum_norm_increase, normFx, normFx1, newton_weight,  prm_.newton_weight_threshold);
             if(std::isfinite(normFx1))
             {
                 result_status = 1;
@@ -156,21 +159,22 @@ public:
                     finish = true;
                     break;
                 }
-                if ((normFx1 - normFx) <= maximum_norm_increase_*normFx)
+                if ((normFx1 - normFx) <= prm_.maximum_norm_increase*normFx)
                 {
                     vec_ops->assign(x1, x);
                     if( std::abs(normFx1 - normFx) < 1.0e-6*normFx )
                     {
                         stagnation++;
                     }
-                    if(stagnation > stagnation_max)
+                    if(stagnation > prm_.stagnation_max)
                     {
+                        result_status = 5;
                         finish = true;
                     }
                     break;
                 }
             }
-            newton_weight *= newton_weight_mul;
+            newton_weight *= prm_.newton_weight_mul;
             if(newton_weight < prm_.newton_weight_threshold)
             {
                 if (result_status != 3) result_status = 4;
@@ -179,7 +183,7 @@ public:
             }
         } while ( true );
         //store norm only if the step is successfull
-        if(store_norms_history)
+        if(prm_.store_norms_history)
         {
             norms_evolution.push_back(normFx1);
         }
@@ -187,13 +191,13 @@ public:
         //auto min_value = *std::min_element(norms_storage.begin(),norms_storage.end());
         //norms_storage.push_back(normFx1);
         iterations++;
-        if(iterations > maximum_iterations)
+        if(iterations > prm_.maximum_iterations)
         {
             finish = true;         
         }
         auto result_status_string = parse_result_status(result_status);
         auto finish_string = parse_bool(finish);
-        log->info_f("continuation::convergence: iteration: %i, max_iterations: %i, residuals n: %le, n+1: %le, min_value: %le, result_status: %i => %s, is_finished = %s, newton_weight = %le, stagnation = %u ",iterations, maximum_iterations, (double)normFx, (double)normFx1, double(min_value), result_status,  result_status_string.c_str(), finish_string.c_str(), newton_weight, stagnation );
+        log->info_f("continuation::convergence: iteration: %i, max_iterations: %i, residuals n: %le, n+1: %le, min_value: %le, result_status: %i => %s, is_finished = %s, newton_weight = %le, stagnation = %u ",iterations, prm_.maximum_iterations, (double)normFx, (double)normFx1, double(min_value), result_status,  result_status_string.c_str(), finish_string.c_str(), newton_weight, stagnation );
 
         // store this solution point if the norm is the smalles of all
         if( ( (!std::isfinite(Fx1_storage_norm_))||(Fx1_storage_norm_ >= normFx1) )&&( (result_status == 1)||(result_status == 4) ) )
@@ -213,7 +217,7 @@ public:
                 vec_ops->assign(x1_storage, x);
                 normFx1 = Fx1_storage_norm_;
                 //signal that relaxed tolerance converged and put it into vector of signals
-                if( normFx1 <= tol()*relax_tolerance_factor  )
+                if( normFx1 <= tol()*prm_.relax_tolerance_factor  )
                 {
                     log->warning_f("continuation::convergence: Newton is setting relaxed tolerance = %le,  solution with norm = %le", double(tol()*relax_tolerance_factor), (double)normFx1 );
                     result_status = 0;     
@@ -233,7 +237,7 @@ public:
             //this signals that we couldn't set up the solution with the relaxed tolerance
             if (result_status>0)
             {
-                log->error_f("continuation::convergence: newton step failed to finish: relaxed_tolerance_reached.size() = %i, result_status = %i, ||x| = %le, relaxed_tol = %le", relaxed_tolerance_reached.size(), result_status, vec_ops->norm_l2(x), tol()*relax_tolerance_factor );
+                log->error_f("continuation::convergence: newton step failed to finish: relaxed_tolerance_reached.size() = %i, result_status = %i, ||x| = %le, relaxed_tol = %le", relaxed_tolerance_reached.size(), result_status, vec_ops->norm_l2(x), tol()*prm_.relax_tolerance_factor );
             }
 
             if (quality_func)
@@ -323,6 +327,9 @@ private:
                 break;   
             case 4:
                 return{"too small update weight"};
+                break;
+            case 5:
+                return{"stagnation"};
                 break;
             default:
                 return{"unknown state!"};

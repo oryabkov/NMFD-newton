@@ -1,0 +1,3 @@
+[submodule "contrib/SCFD"]
+	path = contrib/SCFD
+	url = https://github.com/oryabkov/SCFD-all.git

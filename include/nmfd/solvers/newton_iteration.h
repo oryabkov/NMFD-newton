@@ -20,8 +20,7 @@ public:
 
     newton_iteration(std::shared_ptr<VectorSpace> vec_ops, std::shared_ptr<LinearSolver> lin_solver):
       vec_ops_(std::move(vec_ops)),
-      lin_solver_(std::move(lin_solver)),
-      sol_storage_(std::move(sol_storage))
+      lin_solver_(std::move(lin_solver))
     {
         vec_ops_->init_vector(f_); 
     }
