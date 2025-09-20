@@ -30,27 +30,27 @@ struct static_vector_space
     }
 
 
-    void init_vector(vector_type& x)const 
+    void init_vector(vector_type& x)const
     {
     }
     template<class ...Args>
     void init_vectors(Args&&...args)const
     {
-    } 
-    void free_vector(vector_type& x)const 
+    }
+    void free_vector(vector_type& x)const
     {
     }
     template<class ...Args>
     void free_vectors(Args&&...args) const
     {
-    }    
+    }
     void start_use_vector(vector_type& x)const
     {
     }
     template<class ...Args>
     void start_use_vectors(Args&&...args)const
     {
-    }   
+    }
     void stop_use_vector(vector_type& x)const
     {
     }
@@ -67,7 +67,7 @@ struct static_vector_space
                 return false;
             }
         }
-        
+
         return true;
     }
     scalar_type scalar_prod(const vector_type &x, const vector_type &y)const
@@ -76,7 +76,7 @@ struct static_vector_space
         for (int i = 0;i < Dim;++i)
         {
             res += x[i]*y[i];
-        }        
+        }
         return res;
     }
 
@@ -87,7 +87,7 @@ struct static_vector_space
     scalar_type norm_sq(const vector_type &x)const
     {
         return scalar_prod(x, x);
-    }    
+    }
     scalar_type norm_inf(const vector_type& x)const
     {
         scalar_type max_val = 0.0;
@@ -127,17 +127,17 @@ struct static_vector_space
     T get_value_at_point(size_t at, const vector_type& x) const
     {
         return x[at];
-    }    
-    //calc: x := <vector_type with all elements equal to given scalar value> 
+    }
+    //calc: x := <vector_type with all elements equal to given scalar value>
     void assign_scalar(const scalar_type scalar, vector_type& x)const
     {
-        for (size_t i = 0;i<Dim;++i) 
+        for (size_t i = 0;i<Dim;++i)
             x[i] = scalar;
     }
-    //calc: x := mul_x*x + <vector_type of all scalar value> 
+    //calc: x := mul_x*x + <vector_type of all scalar value>
     void add_mul_scalar(const scalar_type scalar, const scalar_type mul_x, vector_type& x)const
     {
-        for (size_t i = 0;i < Dim;++i) 
+        for (size_t i = 0;i < Dim;++i)
             x[i] = mul_x*x[i] + scalar;
     }
     void scale(scalar_type scale, vector_type &x)const
@@ -147,7 +147,7 @@ struct static_vector_space
     //copy: y := x
     void assign(const vector_type& x, vector_type& y)const
     {
-        for (int i = 0;i < Dim;++i) 
+        for (int i = 0;i < Dim;++i)
         {
             y[i] = x[i];
         }
@@ -155,38 +155,39 @@ struct static_vector_space
     //calc: y := mul_x*x
     void assign_mul(scalar_type mul_x, const vector_type& x, vector_type& y)const
     {
-        for (int i = 0;i < Dim;++i) 
+        for (int i = 0;i < Dim;++i)
         {
             y[i] = mul_x*x[i];
         }
     }
-    
+
     //calc: z := mul_x*x + mul_y*y
-    void assign_mul(scalar_type mul_x, const vector_type& x, scalar_type mul_y, const vector_type& y, 
+    void assign_mul(scalar_type mul_x, const vector_type& x, scalar_type mul_y, const vector_type& y,
                                vector_type& z)const
     {
-        for (int i = 0;i < Dim;++i) 
+        for (int i = 0;i < Dim;++i)
             z[i] = mul_x*x[i] + mul_y*y[i];
     }
     //calc: y := mul_x*x + y
     void add_mul(scalar_type mul_x, const vector_type& x, vector_type& y)const
     {
-        for (int i = 0;i < Dim;++i) 
+        for (int i = 0;i < Dim;++i)
             y[i] += mul_x*x[i];
     }
     //calc: y := mul_x*x + mul_y*y
     void add_mul(scalar_type mul_x, const vector_type& x, scalar_type mul_y, vector_type& y)const
     {
-        for (int i = 0;i < Dim;++i) 
+        for (int i = 0;i < Dim;++i)
             y[i] = mul_x*x[i] + mul_y*y[i];
     }
     //calc: z := mul_x*x + mul_y*y + mul_z*z
-    void add_mul(scalar_type mul_x, const vector_type& x, scalar_type mul_y, const vector_type& y, 
+    void add_mul(scalar_type mul_x, const vector_type& x, scalar_type mul_y, const vector_type& y,
                             scalar_type mul_z, vector_type& z)const
     {
-        for (int i = 0;i < Dim;++i) 
+        for (int i = 0;i < Dim;++i)
             z[i] = mul_x*x[i] + mul_y*y[i] + mul_z*z[i];
     }
+
     void make_abs_copy(const vector_type& x, vector_type& y)const
     {
         for(size_t j = 0;j<Dim;j++)
@@ -216,7 +217,7 @@ struct static_vector_space
         {
             y[j] = (y[j]>sc)?y[j]:sc;
         }
-    }    
+    }
     // y_j = min(x_j,y_j,sc)
     void min_pointwise(const scalar_type sc, const vector_type& x, vector_type& y)const
     {
@@ -224,33 +225,33 @@ struct static_vector_space
         {
             y[j] = (x[j]<y[j])?( (x[j]<sc)?x[j]:sc):( (y[j]<sc)?y[j]:sc);
         }
-    }  
+    }
     void min_pointwise(const scalar_type sc, vector_type& y)const
     {
         for(size_t j=0;j<y.size();j++)
         {
             y[j] = (y[j]<sc)?y[j]:sc;
         }
-    }        
+    }
     //calc: x := x*mul_y*y
     void mul_pointwise(vector_type& x, const scalar_type mul_y, const vector_type& y)const
     {
         for(size_t j=0;j<Dim;j++)
         {
             x[j] *= mul_y*y[j];
-        }        
-    }   
+        }
+    }
     //calc: z := mul_x*x*mul_y*y
-    void mul_pointwise(const scalar_type mul_x, const vector_type& x, const scalar_type mul_y, const vector_type& y, 
+    void mul_pointwise(const scalar_type mul_x, const vector_type& x, const scalar_type mul_y, const vector_type& y,
                         vector_type& z)const
     {
         for(size_t j=0;j<Dim;j++)
         {
             z[j] = (mul_x*x[j])*(mul_y*y[j]);
-        }         
+        }
     }
     //calc: z := (mul_x*x)/(mul_y*y)
-    void div_pointwise(const scalar_type mul_x, const vector_type& x, const scalar_type mul_y, const vector_type& y, 
+    void div_pointwise(const scalar_type mul_x, const vector_type& x, const scalar_type mul_y, const vector_type& y,
                         vector_type& z)const
     {
         for(size_t j=0;j<Dim;j++)
@@ -263,9 +264,9 @@ struct static_vector_space
     {
         for(size_t j=0;j<Dim;j++)
         {
-            x[j] /= static_cast<scalar_type>(1.0)/(mul_y*y[j]);
+            x[j] *= static_cast<scalar_type>(1.0)/(mul_y*y[j]);
         }
-    }  
+    }
 
     //TODO:!
     /*std::pair<scalar_type, size_t> max_argmax_element(vector_type& y) const
@@ -287,14 +288,14 @@ struct static_vector_space
         auto ret = max_argmax_element(x);
         return ret.second;
     }*/
-    
+
     void assign_slices(const vector_type& x, const std::vector< std::pair<size_t,size_t> > slices, vector_type&y)const
     {
         size_t index_y = 0;
         for(auto& slice: slices)
         {
             size_t begin = slice.first;
-            size_t end = slice.second; 
+            size_t end = slice.second;
             if(end>Dim)
             {
                 throw std::logic_error("static_vector_space::assign_slice: provided slice size is greater than input vector size.");
@@ -303,7 +304,7 @@ struct static_vector_space
             {
                 y[index_y++] = x[j];
             }
-        }      
+        }
     }
 
     void assign_skip_slices(const vector_type& x, const std::vector< std::pair<size_t,size_t> > skip_slices, vector_type&y)const
@@ -314,12 +315,12 @@ struct static_vector_space
             for(auto& slice: skip_slices)
             {
                 size_t begin = slice.first;
-                size_t end = slice.second; 
+                size_t end = slice.second;
                 if((j<=begin)||(j>end))
                 {
                     y[index_y++] = x[j];
                 }
-            } 
+            }
         }
     }
 
