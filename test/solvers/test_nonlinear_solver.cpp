@@ -1,44 +1,85 @@
 #include <memory>
 #include <cmath>
 #include <scfd/utils/log.h>
-#include "cpu_vector_space.h"
+#include <scfd/static_vec/vec.h>
+#include <scfd/static_mat/mat.h>
+#include <nmfd/operations/static_vector_space.h>
 #include <nmfd/solvers/nonlinear_solver.h>
-
-#define M_PIl 3.141592653589793238462643383279502884L
-
+#include <nmfd/solvers/newton_iteration.h>
 
 
 int main(int argc, char const *args[])
 {
     using log_t = scfd::utils::log_std;
     using T = double;
-    using T_vec = double*;
-    using T_mvec = double*;
-    using vec_ops_t = nmfd::cpu_vector_space<T, T_vec, T_mvec, log_t>;
+    static const int dim = 2;
+    using vec_t = scfd::static_vec::vec<T,dim>;
+    using mat_t = scfd::static_mat::mat<T,dim,dim>;
+    //using T_mvec = double*;
+    using vec_sp_t = nmfd::operations::static_vector_space<T, dim, vec_t>;
+    struct linsolver_t
+    {
+        using vector_type = vec_t;
+        using operator_type = mat_t;
+
+        mat_t a_inv;
+        void set_operator(const std::shared_ptr<const mat_t> &a)
+        {
+            a_inv = inv(*a);
+        }
+        bool solve(const vec_t &rhs, vec_t &x)const
+        {
+            x = a_inv*rhs;
+            return true;
+        }
+    };
+    struct system_op_t
+    {
+        using scalar_type = T;
+        using vector_type = vec_t;
+        using jacobi_operator_type = mat_t;
+
+        system_op_t() : jacobi(std::make_shared<mat_t>())
+        {
+        }
+
+        void apply(const vec_t &x, vec_t &f)const
+        {
+            f[0] = x[0]*x[0] + x[1]*x[1] - 2.;
+            f[1] = x[0]*x[1] - 1.;
+        }
+
+        void set_linearization_point(const vec_t &x)
+        {
+            (*jacobi)(0,0) = 2*x[0]; (*jacobi)(0,1) = 2*x[1];
+            (*jacobi)(1,0) =   x[1]; (*jacobi)(1,1) =   x[0];
+        }
+        std::shared_ptr<const mat_t> get_jacobi_operator()const
+        {
+            return jacobi;
+        }
+
+        std::shared_ptr<mat_t> jacobi;
+    };
+    using newton_iteration_t = nmfd::solvers::newton_iteration<vec_sp_t,system_op_t,linsolver_t>;
+    using newton_solver_t = nmfd::solvers::nonlinear_solver<vec_sp_t, log_t, system_op_t, newton_iteration_t>;
 
 
 
     int error = 0;
     log_t log;
-    log.info("test gmres");
-    std::size_t N_with_preconds = 500;
-    std::size_t N_with_no_preconds = 50;
-    std::shared_ptr<vec_ops_t> vec_ops;
-
-    auto get_residual = [&log, &vec_ops](auto& A, auto& x, auto &y) 
-    {
-        T_vec resid;
-        vec_ops->init_vector(resid);
-        vec_ops->start_use_vector(resid);
-        A.apply(x,resid);
-        vec_ops->add_lin_comb(1,y,-1,resid);
-        log.info_f("||Lx-y|| = %e", vec_ops->norm(resid) );
-        vec_ops->stop_use_vector(resid);
-        vec_ops->free_vector(resid);
-    };
+    log.info("test newton");
+    std::shared_ptr<vec_sp_t> vec_sp = std::make_shared<vec_sp_t>();
+    std::shared_ptr<linsolver_t> lin_solver = std::make_shared<linsolver_t>();
+    std::shared_ptr<newton_iteration_t> newton_iteration = std::make_shared<newton_iteration_t>(vec_sp, lin_solver);
+    std::shared_ptr<newton_solver_t> newton_solver = std::make_shared<newton_solver_t>(vec_sp, &log, newton_iteration);
+    system_op_t system_op;
+    vec_t x(10.,2.);
+    newton_solver->solve(&system_op, nullptr, nullptr, x);
+    log.info_f("result vector x: %f %f", x[0], x[1]);
 
     //testing left and right preconditioners
-    {
+    /*{
         std::size_t N = N_with_preconds;
         vec_ops = std::make_shared<vec_ops_t>(N);
         auto prec_diff = std::make_shared<prec_diff_t>(vec_ops, 15);
@@ -147,147 +188,8 @@ int main(int argc, char const *args[])
         vec_ops->stop_use_vector(y);
         vec_ops->free_vector(x);
         vec_ops->free_vector(y);
-    }
-    {
-        std::size_t N = N_with_no_preconds;
-        vec_ops = std::make_shared<vec_ops_t>(N);
-        T tau = 1.0;
-        T a = 1.0;
-        T_vec x,y,resid;
-        vec_ops->init_vector(x);
-        vec_ops->init_vector(y);        
-        vec_ops->start_use_vector(x);
-        vec_ops->start_use_vector(y);
-
-        log.info_f("=>diffusion with size %i, timestep %.02f.", vec_ops->size(), tau ); 
-        auto lin_op_diff = std::make_shared<lin_op_diff_t>(*vec_ops, tau); //with time step 5
-
-        for(int j=0;j<N;j++)
-        {
-            y[j] = std::sin(1.0*j/(N-1)*M_PIl);
-            // x[j] = 0.1*std::sin(1.0*j/(N-1)*M_PIl);
-        }
-        y[0] = y[N-1] = 0;
-        gmres_diff_noprec_t::params params_diff;
-        params_diff.monitor.rel_tol = 1.0e-10;
-        params_diff.monitor.max_iters_num = 50;
-        params_diff.basis_size = 30;        
-        gmres_diff_noprec_t gmres_diff(lin_op_diff, vec_ops, &log, params_diff);
-
-        vec_ops->assign_scalar(0.0, x);
-        log.info("no preconditioner");        
-        bool res = gmres_diff.solve(y, x);
-        error += (!res);
-
-        log.info_f("gmres res: %s", res?"true":"false");
-        log.info("reusing the solution...");
-        vec_ops->add_mul_scalar(0.0, 0.9999999, x);
-        res = gmres_diff.solve(y, x);
-        error += (!res);
-        log.info_f("gmres res with x0: %s", res?"true":"false");
-        get_residual(*lin_op_diff, x, y);        
-
-
-        log.info_f("=>advection with size %i, speed %.02f, timestep %.02f.", vec_ops->size(), a, tau ); 
-        gmres_adv_noprec_t::params params_adv;
-        params_adv.monitor.rel_tol = 1.0e-10;
-        params_adv.monitor.max_iters_num = 50;
-        params_adv.basis_size = 50;    
-
-        auto lin_op_adv = std::make_shared<lin_op_adv_t>(*vec_ops, a, tau);
-        gmres_adv_noprec_t gmres_adv(lin_op_adv, vec_ops, &log, params_adv);
-        vec_ops->assign_scalar(0.0, x);
-        log.info("no preconditioner");        
-        res = gmres_adv.solve(y, x);
-        error += (!res);
-        log.info_f("gmres res: %s", res?"true":"false");
-        log.info("reusing the solution...");
-        vec_ops->add_mul_scalar(0.0, 0.9999999, x);
-        res = gmres_adv.solve(y, x);
-        error += (!res);
-        log.info_f("gmres res with x0: %s", res?"true":"false");
-        get_residual(*lin_op_adv, x, y);  
-        // for(int j=0;j<N;j++)
-        // {
-        //     std::cout << (1.0*j+0.5)/N << "," << x[j] << std::endl;
-        // }
-        vec_ops->stop_use_vector(x);
-        vec_ops->stop_use_vector(y);
-        vec_ops->free_vector(x);
-        vec_ops->free_vector(y);
-
-    }
+    }*/
     
-
-
-
-    //testing elliptic operator with constant kernel
-    {
-        std::size_t N = N_with_preconds;
-        vec_ops = std::make_shared<vec_ops_t>(N);
-        auto prec_elliptic = std::make_shared<prec_elliptic_t>(vec_ops, 15);
-        auto residual_reg = std::make_shared<residual_reg_t>(vec_ops);//, &log); //use log to see the action of the residual regularization
-
-        T_vec x,y,resid;
-        vec_ops->init_vector(x);
-        vec_ops->init_vector(y);        
-        vec_ops->start_use_vector(x);
-        vec_ops->start_use_vector(y);
-
-        log.info_f("=>elliptic with size %i", vec_ops->size() ); 
-        auto lin_op_elliptic = std::make_shared<lin_op_elliptic_t>(*vec_ops); //with time step 5
-
-
-        for(int j=0;j<N;j++)
-        {
-            y[j] = std::sin(2.0*j/(N-1)*M_PIl);
-        }
-
-        gmres_elliptic_w_reg_t::params params_elliptic;
-        params_elliptic.monitor.rel_tol = 1.0e-10;
-        params_elliptic.monitor.max_iters_num = 300;
-        params_elliptic.basis_size = 25;
-        {
-            log.info("left preconditioner");
-            params_elliptic.preconditioner_side = 'L';
-            gmres_elliptic_w_reg_t gmres(lin_op_elliptic, vec_ops, &log, params_elliptic, prec_elliptic, residual_reg);
-
-            vec_ops->assign_scalar(0.0, x);
-            bool res = gmres.solve(y, x);
-            error += (!res);
-
-            log.info_f("pLgmres res: %s", res?"true":"false");
-            log.info(" reusing the solution...");
-            vec_ops->add_mul_scalar(0.0, 0.99999, x);
-            res = gmres.solve(y, x);
-            error += (!res);
-            log.info_f("pLgmres res with x0: %s", res?"true":"false");
-            log.info_f("solution final norm = %e", vec_ops->norm(x) );
-            get_residual(*lin_op_elliptic, x, y);
-        }
-        {
-            log.info("right preconditioner");
-            params_elliptic.preconditioner_side = 'R';
-            gmres_elliptic_w_reg_t gmres(lin_op_elliptic, vec_ops, &log, params_elliptic, prec_elliptic, residual_reg);
-
-            vec_ops->assign_scalar(0.0, x);
-            bool res = gmres.solve(y, x);
-            error += (!res);
-            log.info_f("pRgmres res: %s", res?"true":"false");
-            log.info(" reusing the solution...");
-            vec_ops->add_mul_scalar(0.0, 0.99999, x);
-            res = gmres.solve(y, x);
-            error += (!res);
-            log.info_f("pRgmres res with x0: %s", res?"true":"false");
-            log.info_f("solution final norm = %e", vec_ops->norm(x) );
-            get_residual(*lin_op_elliptic, x, y);
-        }
-        
-        vec_ops->stop_use_vector(x);
-        vec_ops->stop_use_vector(y);
-        vec_ops->free_vector(x);
-        vec_ops->free_vector(y);
-    }
 
  
     if(error > 0)
