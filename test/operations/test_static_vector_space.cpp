@@ -137,7 +137,77 @@ int main(int argc, char const *args[])
     }
 
     // ====================================================================
-    // GROUP 3: Element Access and Point-wise Operations
+    // GROUP 3: New Norm/Inner-Product Aliases
+    // ====================================================================
+    log.info("=== Testing Norm/Inner-Product Aliases ===");
+    {
+        static_vector_space_t vs;
+        vector_type xa = {1, 2, 3};
+        vector_type ya = {4, 5, 6};
+
+        // scalar_prod_l2 should match scalar_prod
+        T sp = vs.scalar_prod(xa, ya);
+        T sp_l2 = vs.scalar_prod_l2(xa, ya);
+        if (std::abs(sp - 32) < eps && std::abs(sp_l2 - sp) < eps) {
+            log.info("✓ `scalar_prod_l2(x, y)` matches `scalar_prod(x, y)`");
+            passed_counter++;
+        } else {
+            log.error("✗ `scalar_prod_l2` mismatch: sp=" + std::to_string(sp) + ", sp_l2=" + std::to_string(sp_l2));
+            failed_counter++;
+        }
+
+        // norm2/norm_l2 should match norm; *_sq should match norm_sq
+        T n = vs.norm(xa);
+        T n2 = vs.norm2(xa);
+        T nl2 = vs.norm_l2(xa);
+        T nsq = vs.norm_sq(xa);
+        T n2sq = vs.norm2_sq(xa);
+        T nl2sq = vs.norm_l2_sq(xa);
+        if (std::abs(n - std::sqrt(14)) < eps && std::abs(n2 - n) < eps && std::abs(nl2 - n) < eps &&
+            std::abs(nsq - 14) < eps && std::abs(n2sq - nsq) < eps && std::abs(nl2sq - nsq) < eps) {
+            log.info("✓ `norm2`, `norm_l2` and their *_sq variants match base L2");
+            passed_counter++;
+        } else {
+            log.error("✗ L2 alias norms mismatch");
+            failed_counter++;
+        }
+
+        // norm1/norm_l1 should match asum
+        vector_type xb = {1, -2, 3};
+        T a1 = vs.asum(xb);
+        T n1 = vs.norm1(xb);
+        T nl1 = vs.norm_l1(xb);
+        if (std::abs(a1 - 6) < eps && std::abs(n1 - a1) < eps && std::abs(nl1 - a1) < eps) {
+            log.info("✓ `norm1` and `norm_l1` match `asum`");
+            passed_counter++;
+        } else {
+            log.error("✗ L1 alias norms mismatch");
+            failed_counter++;
+        }
+
+        // norm_l_inf should match norm_inf
+        T ni = vs.norm_inf(xb);
+        T nli = vs.norm_l_inf(xb);
+        if (std::abs(ni - 3) < eps && std::abs(nli - ni) < eps) {
+            log.info("✓ `norm_l_inf` matches `norm_inf`");
+            passed_counter++;
+        } else {
+            log.error("✗ L_inf alias norm mismatch");
+            failed_counter++;
+        }
+
+        // sum on a positive vector
+        if (std::abs(vs.sum(xa) - 6) < eps) {
+            log.info("✓ `sum(x)` correct");
+            passed_counter++;
+        } else {
+            log.error("✗ `sum(x)` incorrect");
+            failed_counter++;
+        }
+    }
+
+    // ====================================================================
+    // GROUP 4: Element Access and Point-wise Operations
     // ====================================================================
     log.info("=== Testing Element Access and Point-wise Operations ===");
 
@@ -174,7 +244,7 @@ int main(int argc, char const *args[])
     }
 
     // ====================================================================
-    // GROUP 4: Scalar-Vector Operations
+    // GROUP 5: Scalar-Vector Operations
     // ====================================================================
     log.info("=== Testing Scalar-Vector Operations ===");
 
@@ -211,7 +281,7 @@ int main(int argc, char const *args[])
     }
 
     // ====================================================================
-    // GROUP 5: Vector Assignment and Basic Operations
+    // GROUP 6: Vector Assignment and Basic Operations
     // ====================================================================
     log.info("=== Testing Vector Assignment and Basic Operations ===");
 
@@ -268,7 +338,7 @@ int main(int argc, char const *args[])
     }
 
     // ====================================================================
-    // GROUP 6: Add-Multiply Operations (In-place Linear Combinations)
+    // GROUP 7: Add-Multiply Operations (In-place Linear Combinations)
     // ====================================================================
     log.info("=== Testing Add-Multiply Operations ===");
 
@@ -325,7 +395,7 @@ int main(int argc, char const *args[])
     }
 
     // ====================================================================
-    // GROUP 7: Absolute Value Operations
+    // GROUP 8: Absolute Value Operations
     // ====================================================================
     log.info("=== Testing Absolute Value Operations ===");
 
@@ -363,7 +433,7 @@ int main(int argc, char const *args[])
     }
 
     // ====================================================================
-    // GROUP 8: Min/Max Point-wise Operations
+    // GROUP 9: Min/Max Point-wise Operations
     // ====================================================================
     log.info("=== Testing Min/Max Point-wise Operations ===");
 
@@ -434,7 +504,7 @@ int main(int argc, char const *args[])
     }
 
     // ====================================================================
-    // GROUP 9: Point-wise Multiplication and Division
+    // GROUP 10: Point-wise Multiplication and Division
     // ====================================================================
     log.info("=== Testing Point-wise Multiplication and Division ===");
 
@@ -508,8 +578,11 @@ int main(int argc, char const *args[])
         }
     }
 
-    // Additional tests: Slice Operations
+    // ====================================================================
+    // GROUP 11: Slice Operations
+    // ====================================================================
     log.info("=== Testing Slice Operations ===");
+
     {
         static_vector_space_t vec_space2;
         vector_type x2 = {1, 2, 3};

@@ -84,33 +84,65 @@ public:
         return res;
     }
 
-    scalar_type norm(const vector_type &x)const
+    [[nodiscard]] scalar_type scalar_prod_l2(const vector_type &x, const vector_type &y)const
+    {
+        return scalar_prod(x, y);
+    }
+
+    [[nodiscard]] scalar_type norm(const vector_type &x)const
     {
         return std::sqrt(scalar_prod(x, x));
     }
-    scalar_type norm_sq(const vector_type &x)const
+    [[nodiscard]] scalar_type norm_sq(const vector_type &x)const
     {
         return scalar_prod(x, x);
+    }
+    [[nodiscard]] scalar_type norm2_sq(const vector_type& x)const
+    {
+        return norm_sq(x);
+    }
+    [[nodiscard]] scalar_type norm2(const vector_type &x)const
+    {
+        return std::sqrt(scalar_prod(x, x));
+    }
+    [[nodiscard]] scalar_type norm_l2_sq(const vector_type& x)const
+    {
+        return norm_sq(x);
+    }
+    [[nodiscard]] scalar_type norm_l2(const vector_type &x)const
+    {
+        return std::sqrt(scalar_prod(x, x));
+    }
+    // asum(x)
+    [[nodiscard]] scalar_type norm1(const vector_type &x) const
+    {
+        return asum(x);
+    }
+    // returns some weighted L1/l1 norm (problem dependent)
+    [[nodiscard]] scalar_type norm_l1(const vector_type &x) const
+    {
+        return norm1(x);
     }
     scalar_type norm_inf(const vector_type& x)const
     {
         scalar_type max_val1 = vs1.norm_inf(x.first);
         scalar_type max_val2 = vs2.norm_inf(x.second);
-        scalar_type max_val = (max_val1<max_val2)?max_val2:max_val1;
 
-        return max_val;
+        return (max_val1<max_val2)?max_val2:max_val1;
     }
-    scalar_type norm2_sq(const vector_type& x)const
+    // returns maximum of all elements absolute weighted values (problem dependent)
+    [[nodiscard]] scalar_type norm_l_inf(const vector_type &x) const
     {
-        return norm_sq(x);
+        return norm_inf(x);
     }
-    scalar_type sum(const vector_type &x)
+
+    [[nodiscard]] scalar_type sum(const vector_type &x)const
     {
-        return 0;
+        return vs1.sum(x.first) + vs2.sum(x.second);
     }
-    scalar_type asum(const vector_type &x)
+    [[nodiscard]] scalar_type asum(const vector_type &x)const
     {
-        return 0;
+        return vs1.asum(x.first) + vs2.asum(x.second);
     }
 
     scalar_type normalize(vector_type& x)const

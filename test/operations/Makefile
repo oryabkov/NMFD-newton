@@ -29,9 +29,10 @@ HOSTCOMPILER = g++
 IPROJECT = ${INCLUDE_CONTRIB}
 LPROJECT = -ldl
 
+all: test_static_vector_space test_pair_vector_space
 
-test_static_vector_space.bin: test_static_vector_space.cpp
+test_static_vector_space: test_static_vector_space.cpp
 	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) test_static_vector_space.cpp -o test_static_vector_space.bin
 
-# test_pair_vector_space.bin: test_pair_vector_space.cpp
-# 	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) test_pair_vector_space.cpp -o test_pair_vector_space.bin
+test_pair_vector_space: test_pair_vector_space.cpp
+	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) test_pair_vector_space.cpp -o test_pair_vector_space.bin
