@@ -42,15 +42,19 @@ public:
     typedef typename VectorSpace::vector_type  vector_type;
 
     nonlinear_solver(
-        std::shared_ptr<VectorSpace> vec_ops, 
+        std::shared_ptr<VectorSpace> vec_ops, Log *log,
         std::shared_ptr<IterationOperator> iter_op, 
-        std::shared_ptr<ConvergenceStrategy> conv_strat
+        std::shared_ptr<ConvergenceStrategy> conv_strat = nullptr
     ) :
       vec_ops_(std::move(vec_ops)),
       iter_op_(std::move(iter_op)),
       conv_strat_(std::move(conv_strat)),
       delta_x_(*vec_ops_)
     {
+        if (!conv_strat_)
+        {
+            conv_strat_ = std::make_shared<ConvergenceStrategy>(vec_ops_,log);
+        }
         //vec_ops_->init_vector(delta_x_); vec_ops_->start_use_vector(delta_x_);
     }
     
@@ -75,11 +79,11 @@ public:
             /// TODO some how react to non-converged linsolver maybe??
             /// Think to add parameter to calibrate this behaviour
         }
-        if(result_status==0)
+        if(conv_strat_->get_result_status()==0)
         {
             converged = true;
         }
-        if( (result_status == 2)||(result_status == 3) ) //inf or nan
+        if( (conv_strat_->get_result_status() == 2)||(conv_strat_->get_result_status() == 3) ) //inf or nan
         {
             throw std::runtime_error(std::string("nonlinear_solver: " __FILE__ " " __STR(__LINE__) " invalid number returned from update.") );            
         }
@@ -104,12 +108,12 @@ public:
     ///ISSUE???
     ConvergenceStrategy* get_convergence_strategy_handle()
     {
-        return conv_strat->get();
+        return conv_strat_->get();
     }
 
     const std::shared_ptr<ConvergenceStrategy> &convergence_strategy()
     {
-        return conv_strat;
+        return conv_strat_;
     }
 
 private:

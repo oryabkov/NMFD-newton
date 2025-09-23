@@ -5,7 +5,7 @@ convergence rules for Newton iterator for continuation process
 */
 #include <cmath>
 #include <vector>
-#include <utils/logged_obj_base.h>
+#include <scfd/utils/logged_obj_base.h>
 #include <algorithm> // std::min_element
 #include <iterator>  // std::begin, std::end
 #include <nmfd/operations/ident_operator.h>
@@ -33,7 +33,7 @@ class default_convergence_strategy
 private:
     typedef typename VectorSpace::scalar_type  T;
     typedef typename VectorSpace::vector_type  T_vec;
-    typedef utils::logged_obj_base<Log> logged_obj_t;
+    typedef scfd::utils::logged_obj_base<Log> logged_obj_t;
 
 public:    
     struct params
@@ -42,7 +42,7 @@ public:
         unsigned int maximum_iterations = 100;
         T tolerance = T(1.0e-6);
         T tolerance_0;
-        T maximum_norm_increase_ = 0.0;
+        T maximum_norm_increase = 0.0;
         T newton_weight_threshold = 1.0e-12;
         T newton_weight_initial = T(1);
         T newton_weight_mul = T(0.5);
@@ -54,14 +54,14 @@ public:
       prm_(prm),
       vec_ops(std::move(vec_ops_)),
       log(log_),
-      iterations(0),
+      iterations(0)
     {
         vec_ops->init_vector(x1); vec_ops->start_use_vector(x1);
         vec_ops->init_vector(x1_storage); vec_ops->start_use_vector(x1_storage);
         vec_ops->init_vector(Fx); vec_ops->start_use_vector(Fx);
-        if(store_norms_history)
+        if(prm_.store_norms_history)
         {
-            norms_evolution.reserve(maximum_iterations);
+            norms_evolution.reserve(prm_.maximum_iterations);
         }
     }
     ~default_convergence_strategy()
@@ -197,7 +197,7 @@ public:
         }
         auto result_status_string = parse_result_status(result_status);
         auto finish_string = parse_bool(finish);
-        log->info_f("continuation::convergence: iteration: %i, max_iterations: %i, residuals n: %le, n+1: %le, min_value: %le, result_status: %i => %s, is_finished = %s, newton_weight = %le, stagnation = %u ",iterations, prm_.maximum_iterations, (double)normFx, (double)normFx1, double(min_value), result_status,  result_status_string.c_str(), finish_string.c_str(), newton_weight, stagnation );
+        log->info_f("continuation::convergence: iteration: %i, max_iterations: %i, residuals n: %le, n+1: %le, min_value: %le, result_status: %i => %s, is_finished = %s, newton_weight = %le, stagnation = %u ",iterations, prm_.maximum_iterations, (double)normFx, (double)normFx1, double(Fx1_storage_norm_), result_status,  result_status_string.c_str(), finish_string.c_str(), newton_weight, stagnation );
 
         // store this solution point if the norm is the smalles of all
         if( ( (!std::isfinite(Fx1_storage_norm_))||(Fx1_storage_norm_ >= normFx1) )&&( (result_status == 1)||(result_status == 4) ) )
@@ -219,7 +219,7 @@ public:
                 //signal that relaxed tolerance converged and put it into vector of signals
                 if( normFx1 <= tol()*prm_.relax_tolerance_factor  )
                 {
-                    log->warning_f("continuation::convergence: Newton is setting relaxed tolerance = %le,  solution with norm = %le", double(tol()*relax_tolerance_factor), (double)normFx1 );
+                    log->warning_f("continuation::convergence: Newton is setting relaxed tolerance = %le,  solution with norm = %le", double(tol()*prm_.relax_tolerance_factor), (double)normFx1 );
                     result_status = 0;     
                 }
             }
@@ -237,7 +237,7 @@ public:
             //this signals that we couldn't set up the solution with the relaxed tolerance
             if (result_status>0)
             {
-                log->error_f("continuation::convergence: newton step failed to finish: relaxed_tolerance_reached.size() = %i, result_status = %i, ||x| = %le, relaxed_tol = %le", relaxed_tolerance_reached.size(), result_status, vec_ops->norm_l2(x), tol()*prm_.relax_tolerance_factor );
+                log->error_f("continuation::convergence: newton step failed to finish: result_status = %i, ||x| = %le, relaxed_tol = %le", result_status, vec_ops->norm_l2(x), tol()*prm_.relax_tolerance_factor );
             }
 
             if (quality_func)
