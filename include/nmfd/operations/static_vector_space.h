@@ -5,6 +5,7 @@
 #include <array>
 #include <iterator>
 #include <algorithm>
+#include <vector>
 
 /// TODO systemize size_t behaviour - mb make some Vector dependent type?
 /// TODO multivector - add some generic wrap for multivector (std::vector) and use it here

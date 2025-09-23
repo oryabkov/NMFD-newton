@@ -508,6 +508,38 @@ int main(int argc, char const *args[])
         }
     }
 
+    // Additional tests: Slice Operations
+    log.info("=== Testing Slice Operations ===");
+    {
+        static_vector_space_t vec_space2;
+        vector_type x2 = {1, 2, 3};
+        vector_type y2 = {0, 0, 0};
+        std::vector<std::pair<size_t,size_t>> slices = {{0,2},{2,3}}; // copy 0,1 then 2 -> all
+        vec_space2.assign_slices(x2, slices, y2);
+        if ((y2[0]-1)<eps && (y2[1]-2)<eps && (y2[2]-3)<eps) {
+            log.info("✓ `assign_slices(x, slices, y)` method test passed");
+            passed_counter++;
+        } else {
+            log.error("✗ `assign_slices(x, slices, y)` method failed.");
+            failed_counter++;
+        }
+    }
+
+    {
+        static_vector_space_t vec_space3;
+        vector_type x3 = {1, 2, 3};
+        vector_type y3 = {0, 0, 0};
+        std::vector<std::pair<size_t,size_t>> skip = {{1,2}}; // skip 1..2 -> keep 0
+        vec_space3.assign_skip_slices(x3, skip, y3);
+        if ((y3[0]-1)<eps) {
+            log.info("✓ `assign_skip_slices(x, skip_slices, y)` method test passed");
+            passed_counter++;
+        } else {
+            log.error("✗ `assign_skip_slices(x, skip_slices, y)` method failed.");
+            failed_counter++;
+        }
+    }
+
     // ====================================================================
     // FINAL SUMMARY
     // ====================================================================

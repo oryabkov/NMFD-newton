@@ -10,8 +10,6 @@ int main(int argc, char const *args[])
 {
     using log_t = scfd::utils::log_std;
     using T = double;
-    using scalar_type = std::pair<T, T>;
-    using at_type = std::pair<size_t, size_t>;
     static const int Dim1 = 3;
     static const int Dim2 = 2;
     using vector1_type = std::array<T, Dim1>;
@@ -154,13 +152,11 @@ int main(int argc, char const *args[])
     // ====================================================================
     log.info("=== Testing Element Access and Point-wise Operations ===");
 
-    // Test setting value at specific index
+    // Test setting value at specific global index
     {
         vector_type x = vector_type(vector1_type{1, 2, 3}, vector2_type{4, 5});
-        at_type at1 = at_type(0, 1);
-        at_type at2 = at_type(1, 0);
-        pair_vec_space.set_value_at_point(10, at1, x);
-        pair_vec_space.set_value_at_point(11, at2, x);
+        pair_vec_space.set_value_at_point(10, 1, x);
+        pair_vec_space.set_value_at_point(11, 3, x);
         if ((x.first[0] - 1) < eps && (x.first[1] - 10) < eps && (x.first[2] - 3) < eps &&
             (x.second[0] - 11) < eps && (x.second[1] - 5) < eps)
         {
@@ -174,13 +170,11 @@ int main(int argc, char const *args[])
         }
     }
 
-    // Test getting value at specific index
+    // Test getting value at specific global index
     {
         vector_type x = vector_type(vector1_type{1, 2, 3}, vector2_type{4, 5});
-        at_type at1 = at_type(0, 1);
-        at_type at2 = at_type(1, 0);
-        T value1 = pair_vec_space.get_value_at_point(at1, x);
-        T value2 = pair_vec_space.get_value_at_point(at2, x);
+        T value1 = pair_vec_space.get_value_at_point(1, x);
+        T value2 = pair_vec_space.get_value_at_point(3, x);
         if ((value1 - 2) < eps && (value2 - 4) < eps)
         {
             log.info("✓ `get_value_at_point(at, x)` method test passed");
@@ -198,39 +192,36 @@ int main(int argc, char const *args[])
     // ====================================================================
     log.info("=== Testing Scalar-Vector Operations ===");
 
-    // Test assigning scalar to all elements
+    // Test assigning scalar to all elements (single scalar for both subvectors)
     {
         vector_type x = vector_type(vector1_type{1, 2, 3}, vector2_type{4, 5});
-        pair_vec_space.assign_scalar(scalar_type(10, 11), x);
-        if (
-            (x.first[0] - 10) < eps && (x.first[1] - 10) < eps && (x.first[2] - 10) < eps &&
-            (x.second[0] - 11) < eps && (x.second[1] - 11) < eps)
+        pair_vec_space.assign_scalar(10, x);
+        if ((x.first[0] - 10) < eps && (x.first[1] - 10) < eps && (x.first[2] - 10) < eps &&
+            (x.second[0] - 10) < eps && (x.second[1] - 10) < eps)
         {
             log.info("✓ `assign_scalar(scalar, x)` method test passed");
             passed_counter++;
         }
         else
         {
-            log.error("✗ `assign_scalar(scalar, x)` method test failed. Expected {{10, 10, 10}, {11, 11}} but got {" + std::to_string(x.first[0]) + ", " + std::to_string(x.first[1]) + ", " + std::to_string(x.first[2]) + ", " + std::to_string(x.second[0]) + ", " + std::to_string(x.second[1]) + "}");
+            log.error("✗ `assign_scalar(scalar, x)` method test failed. Expected {{10, 10, 10}, {10, 10}} but got {" + std::to_string(x.first[0]) + ", " + std::to_string(x.first[1]) + ", " + std::to_string(x.first[2]) + ", " + std::to_string(x.second[0]) + ", " + std::to_string(x.second[1]) + "}");
             failed_counter++;
         }
     }
 
-    // Test scalar multiplication and addition: x = mul_x * x + scalar
+    // Test scalar multiplication and addition: x = mul_x * x + scalar (single scalars)
     {
         vector_type x = vector_type(vector1_type{1, 2, 3}, vector2_type{4, 5});
-        scalar_type scalar = scalar_type(-1, -2);
-        scalar_type mul_x = scalar_type(2, 2);
-        pair_vec_space.add_mul_scalar(scalar, mul_x, x);  // x = 2*x + 10 = {2*1+10, 2*2+10, 2*3+10} = {12, 14, 16}
+        pair_vec_space.add_mul_scalar(-1, 2, x);  // x = 2*x - 1
         if ((x.first[0] - 1) < eps && (x.first[1] - 3) < eps && (x.first[2] - 5) < eps &&
-            (x.second[0] - 6) < eps && (x.second[1] - 8) < eps)
+            (x.second[0] - 7) < eps && (x.second[1] - 9) < eps)
         {
             log.info("✓ `add_mul_scalar(scalar, mul_x, x)` method test passed");
             passed_counter++;
         }
         else
         {
-            log.error("✗ `add_mul_scalar(scalar, mul_x, x)` method test failed. Expected {{12, 14, 16}, {6, 8}} but got {" + std::to_string(x.first[0]) + ", " + std::to_string(x.first[1]) + ", " + std::to_string(x.first[2]) + ", " + std::to_string(x.second[0]) + ", " + std::to_string(x.second[1]) + "}");
+            log.error("✗ `add_mul_scalar(scalar, mul_x, x)` method failed. Expected {{1, 3, 5}, {7, 9}} but got {" + std::to_string(x.first[0]) + ", " + std::to_string(x.first[1]) + ", " + std::to_string(x.first[2]) + ", " + std::to_string(x.second[0]) + ", " + std::to_string(x.second[1]) + "}");
             failed_counter++;
         }
     }
@@ -262,17 +253,16 @@ int main(int argc, char const *args[])
     {
         vector_type x = vector_type(vector1_type{1, 2, 3}, vector2_type{4, 5});
         vector_type y = vector_type(vector1_type{0, 0, 0}, vector2_type{0, 0});
-        scalar_type mul_x = scalar_type(2, 3);
-        pair_vec_space.assign_mul(mul_x, x, y);  // y = {2*{1,2,3}, 3*{4,5}} = {{2,4,6}, {12,15}}
+        pair_vec_space.assign_mul(2, x, y);  // y = 2*x (both subvectors)
         if ((y.first[0] - 2) < eps && (y.first[1] - 4) < eps && (y.first[2] - 6) < eps &&
-            (y.second[0] - 12) < eps && (y.second[1] - 15) < eps)
+            (y.second[0] - 8) < eps && (y.second[1] - 10) < eps)
         {
             log.info("✓ `assign_mul(mul_x, x, y)` method test passed");
             passed_counter++;
         }
         else
         {
-            log.error("✗ `assign_mul(mul_x, x, y)` method test failed. Expected {{2, 4, 6}, {12, 15}} but got {" + std::to_string(y.first[0]) + ", " + std::to_string(y.first[1]) + ", " + std::to_string(y.first[2]) + ", " + std::to_string(y.second[0]) + ", " + std::to_string(y.second[1]) + "}");
+            log.error("✗ `assign_mul(mul_x, x, y)` method test failed. Expected {{2, 4, 6}, {8, 10}} but got {" + std::to_string(y.first[0]) + ", " + std::to_string(y.first[1]) + ", " + std::to_string(y.first[2]) + ", " + std::to_string(y.second[0]) + ", " + std::to_string(y.second[1]) + "}");
             failed_counter++;
         }
     }
@@ -282,18 +272,16 @@ int main(int argc, char const *args[])
         vector_type x = vector_type(vector1_type{1, 2, 3}, vector2_type{4, 5});
         vector_type y = vector_type(vector1_type{6, 7, 8}, vector2_type{9, 10});
         vector_type z = vector_type(vector1_type{0, 0, 0}, vector2_type{0, 0});
-        scalar_type mul_x = scalar_type(2, 3);
-        scalar_type mul_y = scalar_type(3, 4);
-        pair_vec_space.assign_mul(mul_x, x, mul_y, y, z);  // z = {2*{1,2,3}, 3*{4,5}} + {3*{6,7,8}, 4*{9,10}} = {{2,4,6}, {12,15}} + {{18,21,24}, {36,40}} = {{20,25,30}, {48,55}}
+        pair_vec_space.assign_mul(2, x, 3, y, z);
         if ((z.first[0] - 20) < eps && (z.first[1] - 25) < eps && (z.first[2] - 30) < eps &&
-            (z.second[0] - 48) < eps && (z.second[1] - 55) < eps)
+            (z.second[0] - 35) < eps && (z.second[1] - 40) < eps)
         {
             log.info("✓ `assign_mul(mul_x, x, mul_y, y, z)` method test passed");
             passed_counter++;
         }
         else
         {
-            log.error("✗ `assign_mul(mul_x, x, mul_y, y, z)` method test failed. Expected {{20, 25, 30}, {48, 55}} but got {" + std::to_string(z.first[0]) + ", " + std::to_string(z.first[1]) + ", " + std::to_string(z.first[2]) + ", " + std::to_string(z.second[0]) + ", " + std::to_string(z.second[1]) + "}");
+            log.error("✗ `assign_mul(mul_x, x, mul_y, y, z)` method failed. Expected {{20, 25, 30}, {35, 40}} but got {" + std::to_string(z.first[0]) + ", " + std::to_string(z.first[1]) + ", " + std::to_string(z.first[2]) + ", " + std::to_string(z.second[0]) + ", " + std::to_string(z.second[1]) + "}");
             failed_counter++;
         }
     }
@@ -307,17 +295,16 @@ int main(int argc, char const *args[])
     {
         vector_type x = vector_type(vector1_type{1, 2, 3}, vector2_type{4, 5});
         vector_type y = vector_type(vector1_type{6, 7, 8}, vector2_type{9, 10});
-        scalar_type mul_x = scalar_type(2, 3);
-        pair_vec_space.add_mul(mul_x, x, y);  // y = {{6,7,8}, {9,10}} + {2*{1,2,3}, 3*{4,5}} = {{8,11,14}, {21,25}}
+        pair_vec_space.add_mul(2, x, y);  // y = y + 2*x
         if ((y.first[0] - 8) < eps && (y.first[1] - 11) < eps && (y.first[2] - 14) < eps &&
-            (y.second[0] - 21) < eps && (y.second[1] - 25) < eps)
+            (y.second[0] - 17) < eps && (y.second[1] - 20) < eps)
         {
             log.info("✓ `add_mul(mul_x, x, y)` method test passed");
             passed_counter++;
         }
         else
         {
-            log.error("✗ `add_mul(mul_x, x, y)` method test failed. Expected {{8, 11, 14}, {21, 25}} but got {" + std::to_string(y.first[0]) + ", " + std::to_string(y.first[1]) + ", " + std::to_string(y.first[2]) + ", " + std::to_string(y.second[0]) + ", " + std::to_string(y.second[1]) + "}");
+            log.error("✗ `add_mul(mul_x, x, y)` method failed. Expected {{8, 11, 14}, {17, 20}} but got {" + std::to_string(y.first[0]) + ", " + std::to_string(y.first[1]) + ", " + std::to_string(y.first[2]) + ", " + std::to_string(y.second[0]) + ", " + std::to_string(y.second[1]) + "}");
             failed_counter++;
         }
     }
@@ -326,18 +313,16 @@ int main(int argc, char const *args[])
     {
         vector_type x = vector_type(vector1_type{1, 2, 3}, vector2_type{4, 5});
         vector_type y = vector_type(vector1_type{6, 7, 8}, vector2_type{9, 10});
-        scalar_type mul_x = scalar_type(2, 3);
-        scalar_type mul_y = scalar_type(3, 4);
-        pair_vec_space.add_mul(mul_x, x, mul_y, y);  // y = {2*{1,2,3}, 3*{4,5}} + {3*{6,7,8}, 4*{9,10}} = {{2,4,6}, {12,15}} + {{18,21,24}, {36,40}} = {{20,25,30}, {48,55}}
+        pair_vec_space.add_mul(2, x, 3, y);
         if ((y.first[0] - 20) < eps && (y.first[1] - 25) < eps && (y.first[2] - 30) < eps &&
-            (y.second[0] - 48) < eps && (y.second[1] - 55) < eps)
+            (y.second[0] - 35) < eps && (y.second[1] - 40) < eps)
         {
             log.info("✓ `add_mul(mul_x, x, mul_y, y)` method test passed");
             passed_counter++;
         }
         else
         {
-            log.error("✗ `add_mul(mul_x, x, mul_y, y)` method test failed. Expected {{20, 25, 30}, {48, 55}} but got {" + std::to_string(y.first[0]) + ", " + std::to_string(y.first[1]) + ", " + std::to_string(y.first[2]) + ", " + std::to_string(y.second[0]) + ", " + std::to_string(y.second[1]) + "}");
+            log.error("✗ `add_mul(mul_x, x, mul_y, y)` method failed. Expected {{20, 25, 30}, {35, 40}} but got {" + std::to_string(y.first[0]) + ", " + std::to_string(y.first[1]) + ", " + std::to_string(y.first[2]) + ", " + std::to_string(y.second[0]) + ", " + std::to_string(y.second[1]) + "}");
             failed_counter++;
         }
     }
@@ -347,19 +332,16 @@ int main(int argc, char const *args[])
         vector_type x = vector_type(vector1_type{1, 2, 3}, vector2_type{4, 5});
         vector_type y = vector_type(vector1_type{6, 7, 8}, vector2_type{9, 10});
         vector_type z = vector_type(vector1_type{11, 12, 13}, vector2_type{14, 15});
-        scalar_type mul_x = scalar_type(2, 3);
-        scalar_type mul_y = scalar_type(3, 4);
-        scalar_type mul_z = scalar_type(4, 5);
-        pair_vec_space.add_mul(mul_x, x, mul_y, y, mul_z, z);  // z = {2*{1,2,3}, 3*{4,5}} + {3*{6,7,8}, 4*{9,10}} + {4*{11,12,13}, 5*{14,15}} = {{2,4,6}, {12,15}} + {{18,21,24}, {36,40}} + {{44,48,52}, {70,75}} = {{64,73,84}, {118,135}}
-        if ((z.first[0] - 64) < eps && (z.first[1] - 73) < eps && (z.first[2] - 84) < eps &&
-            (z.second[0] - 118) < eps && (z.second[1] - 135) < eps)
+        pair_vec_space.add_mul(2, x, 3, y, 4, z);
+        if ((z.first[0] - 64) < eps && (z.first[1] - 73) < eps && (z.first[2] - 82) < eps &&
+            (z.second[0] - 91) < eps && (z.second[1] - 100) < eps)
         {
             log.info("✓ `add_mul(mul_x, x, mul_y, y, mul_z, z)` method test passed");
             passed_counter++;
         }
         else
         {
-            log.error("✗ `add_mul(mul_x, x, mul_y, y, mul_z, z)` method test failed. Expected {{42, 51, 60}, {126, 130}} but got {" + std::to_string(z.first[0]) + ", " + std::to_string(z.first[1]) + ", " + std::to_string(z.first[2]) + ", " + std::to_string(z.second[0]) + ", " + std::to_string(z.second[1]) + "}");
+            log.error("✗ `add_mul(mul_x, x, mul_y, y, mul_z, z)` method failed. Expected {{64, 73, 82}, {91, 100}} but got {" + std::to_string(z.first[0]) + ", " + std::to_string(z.first[1]) + ", " + std::to_string(z.first[2]) + ", " + std::to_string(z.second[0]) + ", " + std::to_string(z.second[1]) + "}");
             failed_counter++;
         }
     }
@@ -413,17 +395,16 @@ int main(int argc, char const *args[])
     {
         vector_type x = vector_type(vector1_type{1, 2, -3}, vector2_type{-9, 10});
         vector_type y = vector_type(vector1_type{6, 7, 8}, vector2_type{4, 5});
-        scalar_type sc = scalar_type(7, 8);
-        pair_vec_space.max_pointwise(sc, x, y);  // y = max({7, 8}, {{1,2,-3}, {-9,10}}, {{6,7,8}, {4,5}}) = {{7, 7, 8}, {8, 10}}
+        pair_vec_space.max_pointwise(7, x, y);  // y = max(7, x, y)
         if ((y.first[0] - 7) < eps && (y.first[1] - 7) < eps && (y.first[2] - 8) < eps &&
-            (y.second[0] - 8) < eps && (y.second[1] - 10) < eps)
+            (y.second[0] - 7) < eps && (y.second[1] - 10) < eps)
         {
             log.info("✓ `max_pointwise(sc, x, y)` method test passed");
             passed_counter++;
         }
         else
         {
-            log.error("✗ `max_pointwise(sc, x, y)` method test failed. Expected {{7, 7, 8}, {8, 10}} but got {" + std::to_string(y.first[0]) + ", " + std::to_string(y.first[1]) + ", " + std::to_string(y.first[2]) + ", " + std::to_string(y.second[0]) + ", " + std::to_string(y.second[1]) + "}");
+            log.error("✗ `max_pointwise(sc, x, y)` method failed. Expected {{7, 7, 8}, {7, 10}} but got {" + std::to_string(y.first[0]) + ", " + std::to_string(y.first[1]) + ", " + std::to_string(y.first[2]) + ", " + std::to_string(y.second[0]) + ", " + std::to_string(y.second[1]) + "}");
             failed_counter++;
         }
     }
@@ -431,17 +412,16 @@ int main(int argc, char const *args[])
     // Test max point-wise with scalar: x = max(sc, x)
     {
         vector_type x = vector_type(vector1_type{-1, 2, 3}, vector2_type{-9, 10});
-        scalar_type sc = scalar_type(2, 3);
-        pair_vec_space.max_pointwise(sc, x);  // x = max({2,3}, {{1,-2,3}, {-9,10}}) = {{2, 2, 3}, {3, 10}}
+        pair_vec_space.max_pointwise(2, x);  // x = max(2, x)
         if ((x.first[0] - 2) < eps && (x.first[1] - 2) < eps && (x.first[2] - 3) < eps &&
-            (x.second[0] - 3) < eps && (x.second[1] - 10) < eps)
+            (x.second[0] - 2) < eps && (x.second[1] - 10) < eps)
         {
             log.info("✓ `max_pointwise(sc, x)` method test passed");
             passed_counter++;
         }
         else
         {
-            log.error("✗ `max_pointwise(sc, x)` method test failed. Expected {{2, 2, 3}, {3, 10}} but got {" + std::to_string(x.first[0]) + ", " + std::to_string(x.first[1]) + ", " + std::to_string(x.first[2]) + ", " + std::to_string(x.second[0]) + ", " + std::to_string(x.second[1]) + "}");
+            log.error("✗ `max_pointwise(sc, x)` method failed. Expected {{2, 2, 3}, {2, 10}} but got {" + std::to_string(x.first[0]) + ", " + std::to_string(x.first[1]) + ", " + std::to_string(x.first[2]) + ", " + std::to_string(x.second[0]) + ", " + std::to_string(x.second[1]) + "}");
             failed_counter++;
         }
     }
@@ -450,17 +430,16 @@ int main(int argc, char const *args[])
     {
         vector_type x = vector_type(vector1_type{1, 2, -3}, vector2_type{-9, 10});
         vector_type y = vector_type(vector1_type{6, 7, 8}, vector2_type{4, 5});
-        scalar_type sc = scalar_type(7, 8);
-        pair_vec_space.min_pointwise(sc, x, y);  // y = min({7, 8}, {{1,2,-3}, {-9,10}}, {{6,7,8}, {4,5}}) = {{1, 2, -3}, {-9, 5}}
-        if ((y.first[0] - 1) < eps && (y.first[1] - 2) < eps && (y.first[2] - 3) < eps &&
-            (y.second[0] - 8) < eps && (y.second[1] - 10) < eps)
+        pair_vec_space.min_pointwise(7, x, y);
+        if ((y.first[0] - 1) < eps && (y.first[1] - 2) < eps && (y.first[2] + 3) < eps &&
+            (y.second[0] + 9) < eps && (y.second[1] - 5) < eps)
         {
             log.info("✓ `min_pointwise(sc, x, y)` method test passed");
             passed_counter++;
         }
         else
         {
-            log.error("✗ `min_pointwise(sc, x, y)` method test failed. Expected {{1, 2, -3}, {-9, 5}} but got {" + std::to_string(y.first[0]) + ", " + std::to_string(y.first[1]) + ", " + std::to_string(y.first[2]) + ", " + std::to_string(y.second[0]) + ", " + std::to_string(y.second[1]) + "}");
+            log.error("✗ `min_pointwise(sc, x, y)` method failed.");
             failed_counter++;
         }
     }
@@ -468,17 +447,16 @@ int main(int argc, char const *args[])
     // Test min point-wise with scalar: x = min(sc, x)
     {
         vector_type x = vector_type(vector1_type{-1, 2, 3}, vector2_type{-9, 10});
-        scalar_type sc = scalar_type(2, 3);
-        pair_vec_space.min_pointwise(sc, x);  // x = min({2, 3}, {{-1,2,3}, {-9,10}}) = {{-1, 2, 2}, {-9, 3}}
+        pair_vec_space.min_pointwise(2, x);
         if ((x.first[0] + 1) < eps && (x.first[1] - 2) < eps && (x.first[2] - 2) < eps &&
-            (x.second[0] + 9) < eps && (x.second[1] - 3) < eps)
+            (x.second[0] + 9) < eps && (x.second[1] - 2) < eps)
         {
             log.info("✓ `min_pointwise(sc, x)` method test passed");
             passed_counter++;
         }
         else
         {
-            log.error("✗ `min_pointwise(sc, x)` method test failed. Expected {{1, -2, 2}, {-9, 3}} but got {" + std::to_string(x.first[0]) + ", " + std::to_string(x.first[1]) + ", " + std::to_string(x.first[2]) + ", " + std::to_string(x.second[0]) + ", " + std::to_string(x.second[1]) + "}");
+            log.error("✗ `min_pointwise(sc, x)` method failed.");
             failed_counter++;
         }
     }
@@ -492,17 +470,16 @@ int main(int argc, char const *args[])
     {
         vector_type x = vector_type(vector1_type{1, 2, 3}, vector2_type{4, 5});
         vector_type y = vector_type(vector1_type{6, 7, 8}, vector2_type{9, 10});
-        scalar_type mul_y = scalar_type(2, 3);
-        pair_vec_space.mul_pointwise(x, mul_y, y);  // x = {{1,2,3},{4,5}} * {2,3} * {{6,7,8},{9,10}} = {2*{1,2,3}*{6,7,8},3*{4,5}*{9,10}} = {{12,28,48},{108,150}}
+        pair_vec_space.mul_pointwise(x, 2, y);
         if ((x.first[0] - 12) < eps && (x.first[1] - 28) < eps && (x.first[2] - 48) < eps &&
-            (x.second[0] - 108) < eps && (x.second[1] - 150) < eps)
+            (x.second[0] - 72) < eps && (x.second[1] - 100) < eps)
         {
             log.info("✓ `mul_pointwise(x, mul_y, y)` method test passed");
             passed_counter++;
         }
         else
         {
-            log.error("✗ `mul_pointwise(x, mul_y, y)` method test failed. Expected {{12, 28, 48}, {108, 150}} but got {" + std::to_string(x.first[0]) + ", " + std::to_string(x.first[1]) + ", " + std::to_string(x.first[2]) + ", " + std::to_string(x.second[0]) + ", " + std::to_string(x.second[1]) + "}");
+            log.error("✗ `mul_pointwise(x, mul_y, y)` method failed.");
             failed_counter++;
         }
     }
@@ -512,18 +489,16 @@ int main(int argc, char const *args[])
         vector_type x = vector_type(vector1_type{1, 2, 3}, vector2_type{4, 5});
         vector_type y = vector_type(vector1_type{6, 7, 8}, vector2_type{9, 10});
         vector_type z = vector_type(vector1_type{0, 0, 0}, vector2_type{0, 0});
-        scalar_type mul_x = scalar_type(2, 3);
-        scalar_type mul_y = scalar_type(3, 4);
-        pair_vec_space.mul_pointwise(mul_x, x, mul_y, y, z);  // z = {2,3}*{{1,2,3},{4,5}} * {3,4}*{{6,7,8},{9,10}} = {2*3*{1,2,3}*{6,7,8},3*4*{4,5}*{9,10}} = {{36,84,168},{432,600}}
-        if ((z.first[0] - 36) < eps && (z.first[1] - 84) < eps && (z.first[2] - 168) < eps &&
-            (z.second[0] - 432) < eps && (z.second[1] - 600) < eps)
+        pair_vec_space.mul_pointwise(2, x, 3, y, z);
+        if ((z.first[0] - 36) < eps && (z.first[1] - 84) < eps && (z.first[2] - 144) < eps &&
+            (z.second[0] - 216) < eps && (z.second[1] - 300) < eps)
         {
             log.info("✓ `mul_pointwise(mul_x, x, mul_y, y, z)` method test passed");
             passed_counter++;
         }
         else
         {
-            log.error("✗ `mul_pointwise(mul_x, x, mul_y, y, z)` method test failed. Expected {{36, 84, 168}, {432, 600}} but got {" + std::to_string(z.first[0]) + ", " + std::to_string(z.first[1]) + ", " + std::to_string(z.first[2]) + ", " + std::to_string(z.second[0]) + ", " + std::to_string(z.second[1]) + "}");
+            log.error("✗ `mul_pointwise(mul_x, x, mul_y, y, z)` method failed.");
             failed_counter++;
         }
     }
@@ -533,18 +508,16 @@ int main(int argc, char const *args[])
         vector_type x = vector_type(vector1_type{1, 2, 3}, vector2_type{4, 5});
         vector_type y = vector_type(vector1_type{6, 7, 8}, vector2_type{9, 10});
         vector_type z = vector_type(vector1_type{0, 0, 0}, vector2_type{0, 0});
-        scalar_type mul_x = scalar_type(2, 3);
-        scalar_type mul_y = scalar_type(3, 4);
-        pair_vec_space.div_pointwise(mul_x, x, mul_y, y, z);  // z = {2,3}*{{1,2,3},{4,5}} / {3,4}*{{6,7,8},{9,10}} = {{2/18,4/21,6/24},{12/36,20/40}} = {{1/9,4/21,1/4}, {1/3,1/2}}
+        pair_vec_space.div_pointwise(2, x, 3, y, z);
         if ((9 * z.first[0] - 1) < eps && (21 * z.first[1] - 4) < eps && (4 * z.first[2] - 1) < eps &&
-            (3 * z.second[0] - 1) < eps && (2 * z.second[1] - 1) < eps)
+            (27 * z.second[0] - 8) < eps && (3 * z.second[1] - 1) < eps)
         {
             log.info("✓ `div_pointwise(mul_x, x, mul_y, y, z)` method test passed");
             passed_counter++;
         }
         else
         {
-            log.error("✗ `div_pointwise(mul_x, x, mul_y, y, z)` method test failed. Expected {{1/9,4/21,1/4}, {1/3,1/2}} but got {" + std::to_string(z.first[0]) + ", " + std::to_string(z.first[1]) + ", " + std::to_string(z.first[2]) + ", " + std::to_string(z.second[0]) + ", " + std::to_string(z.second[1]) + "}");
+            log.error("✗ `div_pointwise(mul_x, x, mul_y, y, z)` method failed.");
             failed_counter++;
         }
     }
@@ -553,17 +526,58 @@ int main(int argc, char const *args[])
     {
         vector_type x = vector_type(vector1_type{1, 2, 3}, vector2_type{4, 5});
         vector_type y = vector_type(vector1_type{6, 7, 8}, vector2_type{9, 10});
-        scalar_type mul_y = scalar_type(2, 3);
-        pair_vec_space.div_pointwise(x, mul_y, y);  // x = {{1,2,3},{4,5}} / ({2,3} * {{6,7,8},{9,10}}) = {{1/12,2/14,3/16},{4/27,5/30}} = {{1/12,1/7,3/16},{4/27,1/6}}
+        pair_vec_space.div_pointwise(x, 2, y);
         if ((12 * x.first[0] - 1) < eps && (7 * x.first[1] - 1) < eps && (16 * x.first[2] - 3) < eps &&
-            (27 * x.second[0] - 4) < eps && (6 * x.second[1] - 1) < eps)
+            (18 * x.second[0] - 4) < eps && (20 * x.second[1] - 5) < eps)
         {
             log.info("✓ `div_pointwise(x, mul_y, y)` method test passed");
             passed_counter++;
         }
         else
         {
-            log.error("✗ `div_pointwise(x, mul_y, y)` method test failed. Expected {{1/12,1/7,1/6}, {4/27,1/6}} but got {" + std::to_string(x.first[0]) + ", " + std::to_string(x.first[1]) + ", " + std::to_string(x.first[2]) + ", " + std::to_string(x.second[0]) + ", " + std::to_string(x.second[1]) + "}");
+            log.error("✗ `div_pointwise(x, mul_y, y)` method failed.");
+            failed_counter++;
+        }
+    }
+
+    // ====================================================================
+    // GROUP 10: Slice Operations
+    // ====================================================================
+    log.info("=== Testing Slice Operations ===");
+
+    // assign_slices should copy selected ranges into y sequentially (global indices)
+    {
+        vector_type x = vector_type(vector1_type{1, 2, 3}, vector2_type{4, 5});
+        vector_type y = vector_type(vector1_type{0, 0, 0}, vector2_type{0, 0});
+        std::vector<std::pair<size_t,size_t>> slices = {{0, 2}, {2, 5}}; // [0,1] + [2,3,4] -> all elements
+        pair_vec_space.assign_slices(x, slices, y);
+        if ((y.first[0] - 1) < eps && (y.first[1] - 2) < eps && (y.first[2] - 3) < eps &&
+            (y.second[0] - 4) < eps && (y.second[1] - 5) < eps)
+        {
+            log.info("✓ `assign_slices(x, slices, y)` method test passed");
+            passed_counter++;
+        }
+        else
+        {
+            log.error("✗ `assign_slices(x, slices, y)` method failed.");
+            failed_counter++;
+        }
+    }
+
+    // assign_skip_slices with skip range [1,3] should copy 0 and 4
+    {
+        vector_type x = vector_type(vector1_type{1, 2, 3}, vector2_type{4, 5});
+        vector_type y = vector_type(vector1_type{0, 0, 0}, vector2_type{0, 0});
+        std::vector<std::pair<size_t,size_t>> skip_slices = {{1, 3}}; // skip indices 1..3
+        pair_vec_space.assign_skip_slices(x, skip_slices, y);
+        if ((y.first[0] - 1) < eps && (y.first[1] - 5) < eps)
+        {
+            log.info("✓ `assign_skip_slices(x, skip_slices, y)` method test passed");
+            passed_counter++;
+        }
+        else
+        {
+            log.error("✗ `assign_skip_slices(x, skip_slices, y)` method failed.");
             failed_counter++;
         }
     }
