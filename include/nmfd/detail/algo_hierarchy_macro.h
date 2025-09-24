@@ -18,8 +18,13 @@
 #define __NMFD_ALGO_HIERARCHY_MACRO_H__
 
 //#include "for_each_config.h"
+#ifdef NMFD_ENABLE_NLOHMANN
+#include <nlohmann/json.hpp>
+#endif
 #include <nmfd/detail/algo_utils_hierarchy.h>
 #include <nmfd/detail/algo_params_hierarchy.h>
+#include <nmfd/detail/str_source_helper.h>
+
 
 //TODO not working for MSVC 2008
 //i suppose we can use boost instead?
@@ -40,15 +45,15 @@
 
 #define NMFD_ALGO_HIERARCHY_INIT_LIST_0(...)
 #define NMFD_ALGO_HIERARCHY_INIT_LIST_1(subalgo_type, subalgo_name, ...) \
-  this->subalgo_name(subalgo_name)
+  subalgo_name(subalgo_name)
 #define NMFD_ALGO_HIERARCHY_INIT_LIST_2(subalgo_type, subalgo_name, ...) \
-  this->subalgo_name(subalgo_name),                                      \
+  subalgo_name(subalgo_name),                                            \
   NMFD_ALGO_HIERARCHY_INIT_LIST_1(__VA_ARGS__)
 #define NMFD_ALGO_HIERARCHY_INIT_LIST_3(subalgo_type, subalgo_name, ...) \
-  this->subalgo_name(subalgo_name),                                      \
+  subalgo_name(subalgo_name),                                            \
   NMFD_ALGO_HIERARCHY_INIT_LIST_2(__VA_ARGS__)
 #define NMFD_ALGO_HIERARCHY_INIT_LIST_4(subalgo_type, subalgo_name, ...) \
-  this->subalgo_name(subalgo_name),                                      \
+  subalgo_name(subalgo_name),                                            \
   NMFD_ALGO_HIERARCHY_INIT_LIST_3(__VA_ARGS__)
 
 #define NMFD_ALGO_HIERARCHY_INIT_LIST_(N, ...) NMFD_ALGO_HIERARCHY_CONCATENATE(NMFD_ALGO_HIERARCHY_INIT_LIST_, N)(__VA_ARGS__)
@@ -104,6 +109,73 @@
 #define NMFD_ALGO_HIERARCHY_PARAMS_PASS_(N, ...) NMFD_ALGO_HIERARCHY_CONCATENATE(NMFD_ALGO_HIERARCHY_PARAMS_PASS_, N)(__VA_ARGS__)
 #define NMFD_ALGO_HIERARCHY_PARAMS_PASS(...) NMFD_ALGO_HIERARCHY_PARAMS_PASS_(NMFD_ALGO_HIERARCHY_NARG(__VA_ARGS__), __VA_ARGS__)
 
+#define NMFD_ALGO_HIERARCHY_PARAMS_INIT_LIST_0(...)
+#define NMFD_ALGO_HIERARCHY_PARAMS_INIT_LIST_1(subalgo_type, subalgo_name, ...) \
+  subalgo_name(this->log_msg_prefix)
+#define NMFD_ALGO_HIERARCHY_PARAMS_INIT_LIST_2(subalgo_type, subalgo_name, ...) \
+  subalgo_name(this->log_msg_prefix),                                           \
+  NMFD_ALGO_HIERARCHY_PARAMS_INIT_LIST_1(__VA_ARGS__)
+#define NMFD_ALGO_HIERARCHY_PARAMS_INIT_LIST_3(subalgo_type, subalgo_name, ...) \
+  subalgo_name(this->log_msg_prefix),                                           \
+  NMFD_ALGO_HIERARCHY_PARAMS_INIT_LIST_2(__VA_ARGS__)
+#define NMFD_ALGO_HIERARCHY_PARAMS_INIT_LIST_4(subalgo_type, subalgo_name, ...) \
+  subalgo_name(this->log_msg_prefix),                                           \
+  NMFD_ALGO_HIERARCHY_PARAMS_INIT_LIST_3(__VA_ARGS__)
+
+#define NMFD_ALGO_HIERARCHY_PARAMS_INIT_LIST_(N, ...) NMFD_ALGO_HIERARCHY_CONCATENATE(NMFD_ALGO_HIERARCHY_PARAMS_INIT_LIST_, N)(__VA_ARGS__)
+#define NMFD_ALGO_HIERARCHY_PARAMS_INIT_LIST(...) NMFD_ALGO_HIERARCHY_PARAMS_INIT_LIST_(NMFD_ALGO_HIERARCHY_NARG(__VA_ARGS__), __VA_ARGS__)
+
+/************************************ Params-json-specific macros ***********************/
+
+#define NMFD_ALGO_HIERARCHY_PARAMS_TOJSON_0(...)
+#define NMFD_ALGO_HIERARCHY_PARAMS_TOJSON_1(subalgo_type, subalgo_name, ...)                   \
+  j[__STR(subalgo_name)] = subalgo_name.to_json();
+#define NMFD_ALGO_HIERARCHY_PARAMS_TOJSON_2(subalgo_type, subalgo_name, ...)                   \
+  j[__STR(subalgo_name)] = subalgo_name.to_json();                                             \
+  NMFD_ALGO_HIERARCHY_PARAMS_TOJSON_1(__VA_ARGS__)
+#define NMFD_ALGO_HIERARCHY_PARAMS_TOJSON_3(subalgo_type, subalgo_name, ...)                   \
+  j[__STR(subalgo_name)] = subalgo_name.to_json();                                             \
+  NMFD_ALGO_HIERARCHY_PARAMS_TOJSON_2(__VA_ARGS__)
+#define NMFD_ALGO_HIERARCHY_PARAMS_TOJSON_4(subalgo_type, subalgo_name, ...)                   \
+  j[__STR(subalgo_name)] = subalgo_name.to_json();                                             \
+  NMFD_ALGO_HIERARCHY_PARAMS_TOJSON_3(__VA_ARGS__)
+
+#define NMFD_ALGO_HIERARCHY_PARAMS_TOJSON_(N, ...) NMFD_ALGO_HIERARCHY_CONCATENATE(NMFD_ALGO_HIERARCHY_PARAMS_TOJSON_, N)(__VA_ARGS__)
+#define NMFD_ALGO_HIERARCHY_PARAMS_TOJSON(...) NMFD_ALGO_HIERARCHY_PARAMS_TOJSON_(NMFD_ALGO_HIERARCHY_NARG(__VA_ARGS__), __VA_ARGS__)
+
+#define NMFD_ALGO_HIERARCHY_PARAMS_FROMJSON_0(...)
+#define NMFD_ALGO_HIERARCHY_PARAMS_FROMJSON_1(subalgo_type, subalgo_name, ...)                   \
+  subalgo_name.from_json(j.at(__STR(subalgo_name)));
+#define NMFD_ALGO_HIERARCHY_PARAMS_FROMJSON_2(subalgo_type, subalgo_name, ...)                   \
+  subalgo_name.from_json(j.at(__STR(subalgo_name)));                                             \
+  NMFD_ALGO_HIERARCHY_PARAMS_FROMJSON_1(__VA_ARGS__)
+#define NMFD_ALGO_HIERARCHY_PARAMS_FROMJSON_3(subalgo_type, subalgo_name, ...)                   \
+  subalgo_name.from_json(j.at(__STR(subalgo_name)));                                             \
+  NMFD_ALGO_HIERARCHY_PARAMS_FROMJSON_2(__VA_ARGS__)
+#define NMFD_ALGO_HIERARCHY_PARAMS_FROMJSON_4(subalgo_type, subalgo_name, ...)                   \
+  subalgo_name.from_json(j.at(__STR(subalgo_name)));                                             \
+  NMFD_ALGO_HIERARCHY_PARAMS_FROMJSON_3(__VA_ARGS__)
+
+#define NMFD_ALGO_HIERARCHY_PARAMS_FROMJSON_(N, ...) NMFD_ALGO_HIERARCHY_CONCATENATE(NMFD_ALGO_HIERARCHY_PARAMS_FROMJSON_, N)(__VA_ARGS__)
+#define NMFD_ALGO_HIERARCHY_PARAMS_FROMJSON(...) NMFD_ALGO_HIERARCHY_PARAMS_FROMJSON_(NMFD_ALGO_HIERARCHY_NARG(__VA_ARGS__), __VA_ARGS__)
+
+#ifdef NMFD_ENABLE_NLOHMANN
+#define NMFD_ALGO_HIERARCHY_PARAMS_JSON_METHODS(...)    \
+  void from_json(const nlohmann::json& j)               \
+  {                                                     \
+      params::from_json(j);                             \
+      NMFD_ALGO_HIERARCHY_PARAMS_FROMJSON(__VA_ARGS__)  \
+  }                                                     \
+  nlohmann::json to_json() const                        \
+  {                                                     \
+      nlohmann::json  j = params::to_json();            \
+      NMFD_ALGO_HIERARCHY_PARAMS_TOJSON(__VA_ARGS__)    \
+      return j;                                         \
+  }
+#else
+#define NMFD_ALGO_HIERARCHY_PARAMS_JSON_METHODS(...)
+#endif
+
 /************************************ Utils-specific macros *****************************/
 
 #define NMFD_ALGO_HIERARCHY_UTILS_TYPES_DECL_0(...)
@@ -153,6 +225,79 @@
 
 #define NMFD_ALGO_HIERARCHY_UTILS_PASS_(N, ...) NMFD_ALGO_HIERARCHY_CONCATENATE(NMFD_ALGO_HIERARCHY_UTILS_PASS_, N)(__VA_ARGS__)
 #define NMFD_ALGO_HIERARCHY_UTILS_PASS(...) NMFD_ALGO_HIERARCHY_UTILS_PASS_(NMFD_ALGO_HIERARCHY_NARG(__VA_ARGS__), __VA_ARGS__)
+
+/************************************ General macros ************************************/
+
+#define NMFD_ALGO_HIERARCHY_TYPES_DEFINE(algo_type, ...)    \
+  NMFD_ALGO_HIERARCHY_PARAMS_TYPES_DECL(__VA_ARGS__)        \
+  struct params_hierarchy : public params                   \
+  {                                                         \
+      NMFD_ALGO_HIERARCHY_PARAMS_DEF(__VA_ARGS__)           \
+      params_hierarchy(                                     \
+          const std::string &log_prefix = "",               \
+          const std::string &log_name = __STR(algo_type)"::"\
+      ) :                                                   \
+        params(log_prefix, log_name),                       \
+        NMFD_ALGO_HIERARCHY_PARAMS_INIT_LIST(__VA_ARGS__)   \
+      {                                                     \
+      }                                                     \
+      params_hierarchy(                                     \
+          const params &prm_,                               \
+          NMFD_ALGO_HIERARCHY_PARAMS_PASS(__VA_ARGS__)      \
+      ) :                                                   \
+        params(prm_),                                       \
+        NMFD_ALGO_HIERARCHY_INIT_LIST(__VA_ARGS__)          \
+      {                                                     \
+      }                                                     \
+      NMFD_ALGO_HIERARCHY_PARAMS_JSON_METHODS(__VA_ARGS__)  \
+  };                                                        \
+  NMFD_ALGO_HIERARCHY_UTILS_TYPES_DECL(__VA_ARGS__)         \
+  struct utils_hierarchy : public utils                     \
+  {                                                         \
+      NMFD_ALGO_HIERARCHY_UTILS_DEF(__VA_ARGS__)            \
+      utils_hierarchy() = default;                          \
+      template<class ...Args>                               \
+      utils_hierarchy(                                      \
+          NMFD_ALGO_HIERARCHY_UTILS_PASS(__VA_ARGS__),      \
+          Args... args                                      \
+      ) :                                                   \
+        utils(args...),                                     \
+        NMFD_ALGO_HIERARCHY_INIT_LIST(__VA_ARGS__)          \
+      {                                                     \
+      }                                                     \
+  };
+
+#ifdef NMFD_ENABLE_NLOHMANN
+#define NMFD_ALGO_EMPTY_PARAMS_JSON_METHODS(algo_type)  \
+  void from_json(const nlohmann::json& j)               \
+  {                                                     \
+  }                                                     \
+  nlohmann::json to_json() const                        \
+  {                                                     \
+      return                                            \
+          nlohmann::json{{"type", __STR(algo_type)}};   \
+  }
+#else
+#define NMFD_ALGO_EMPTY_PARAMS_JSON_METHODS(algo_type)
+#endif
+
+#define NMFD_ALGO_EMPTY_PARAMS_TYPE_DEFINE(algo_type)        \
+  struct params                                              \
+  {                                                          \
+      std::string log_msg_prefix;                            \
+                                                             \
+      params(                                                \
+          const std::string &log_prefix = "",                \
+          const std::string &log_name = __STR(algo_type)"::" \
+      )                                                      \
+      {                                                      \
+      }                                                      \
+      NMFD_ALGO_EMPTY_PARAMS_JSON_METHODS(algo_type)         \
+  };
+#define NMFD_ALGO_EMPTY_UTILS_TYPE_DEFINE(algo_type)         \
+  struct utils                                               \
+  {                                                          \
+  };
 
 /*#define NMFD_ALGO_HIERARCHY_PARAMS_LIST_1(subalgo_type, subalgo_name, ...) subalgo_type NMFD_ALGO_HIERARCHY_CONCATENATE(_,subalgo_name)
 #define NMFD_ALGO_HIERARCHY_PARAMS_LIST_2(subalgo_type, subalgo_name, ...)                                                            \

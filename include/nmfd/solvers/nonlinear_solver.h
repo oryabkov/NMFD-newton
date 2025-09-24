@@ -36,10 +36,35 @@ template
 >
 class nonlinear_solver
 {
-    typedef typename VectorSpace::scalar_type  T;
+    using T = typename VectorSpace::scalar_type;
+    using logged_obj_t = scfd::utils::logged_obj_base<Log>;
+    using logged_obj_params_t = typename logged_obj_t::params;
 public:
-    typedef typename VectorSpace::scalar_type  scalar_type;
-    typedef typename VectorSpace::vector_type  vector_type;
+    using scalar_type = typename VectorSpace::scalar_type;
+    using vector_type = typename VectorSpace::vector_type;
+
+    struct params : public logged_obj_t::params
+    {
+        params(
+            const std::string &log_pefix = "", const std::string &log_name = "nonlinear_solver::"
+        ) : logged_obj_t::params(0, log_pefix + log_name)
+        {
+        }
+        /// TODO add json
+    };
+    struct utils
+    {
+        std::shared_ptr<VectorSpace> vec_space;
+        Log *log;
+        utils() = default;
+        utils(
+            std::shared_ptr<VectorSpace> vec_space_, Log *log_ = nullptr,
+        ) : 
+            vec_space(vec_space_), log(log_)
+        {
+        }
+    };
+    NMFD_ALGO_HIERARCHY_TYPES_DEFINE(nonlinear_solver,IterationOperator,iter_op,ConvergenceStrategy,conv_strat)
 
     nonlinear_solver(
         std::shared_ptr<VectorSpace> vec_ops, Log *log,
@@ -53,6 +78,7 @@ public:
     {
         if (!conv_strat_)
         {
+            /// TODO this only should work for default convergence strategy - make creator!
             conv_strat_ = std::make_shared<ConvergenceStrategy>(vec_ops_,log);
         }
         //vec_ops_->init_vector(delta_x_); vec_ops_->start_use_vector(delta_x_);

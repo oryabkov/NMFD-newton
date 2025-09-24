@@ -17,12 +17,35 @@ public:
     typedef typename VectorSpace::vector_type  vector_type;
     typedef typename NonlinearOperator::jacobi_operator_type  linear_operator;
     
+    NMFD_ALGO_EMPTY_PARAMS_TYPE_DEFINE(newton_iteration)
+    struct utils
+    {
+        std::shared_ptr<VectorSpace> vec_space;
+        utils() = default;
+        utils(
+            std::shared_ptr<VectorSpace> vec_space_
+        ) : 
+            vec_space(vec_space_)
+        {
+        }
+    };
+    NMFD_ALGO_HIERARCHY_TYPES_DEFINE(newton_iteration,LinearSolver,lin_solver)
 
     newton_iteration(std::shared_ptr<VectorSpace> vec_ops, std::shared_ptr<LinearSolver> lin_solver):
       vec_ops_(std::move(vec_ops)),
       lin_solver_(std::move(lin_solver))
     {
         vec_ops_->init_vector(f_); 
+    }
+    newton_iteration(  
+        const utils_hierarchy& utils,
+        const params_hierarchy& prm = params_hierarchy()      
+    ) : 
+        newton_iteration(  
+            utils.vec_space,
+            nmfd::detail::algo_hierarchy_creator<LinearSolver>::get(utils.lin_solver,prm.lin_solver)
+        )
+    {
     }
     ~newton_iteration()
     {

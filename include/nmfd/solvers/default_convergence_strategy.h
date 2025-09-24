@@ -31,12 +31,12 @@ template
 class default_convergence_strategy
 {
 private:
-    typedef typename VectorSpace::scalar_type  T;
-    typedef typename VectorSpace::vector_type  T_vec;
-    typedef scfd::utils::logged_obj_base<Log> logged_obj_t;
+    using T = typename VectorSpace::scalar_type;
+    using T_vec = typename VectorSpace::vector_type;
+    using logged_obj_t = scfd::utils::logged_obj_base<Log>;
 
 public:    
-    struct params
+    struct params : public logged_obj_type::params
     {
         unsigned int stagnation_max = 10;  
         unsigned int maximum_iterations = 100;
@@ -48,27 +48,56 @@ public:
         T newton_weight_mul = T(0.5);
         T relax_tolerance_factor;
         bool verbose = true, store_norms_history = false;
-    };
 
-    default_convergence_strategy(std::shared_ptr<VectorSpace> vec_ops_, Log* log_, params prm = params()) :
+        params(
+            const std::string &log_pefix = "", const std::string &log_name = "default_convergence_strategy::"
+        ) : logged_obj_type::params(0, log_pefix + log_name)
+        {
+        }
+        /// TODO add json
+    };
+    struct utils
+    {
+        std::shared_ptr<VectorSpace> vec_space;
+        Log *log;
+        utils() = default;
+        utils(
+            std::shared_ptr<VectorSpace> vec_space_, Log *log_ = nullptr,
+        ) : 
+            vec_space(vec_space_), log(log_)
+        {
+        }
+    };
+    NMFD_ALGO_HIERARCHY_TYPES_DEFINE(default_convergence_strategy)
+
+    default_convergence_strategy(std::shared_ptr<VectorSpace> vec_space, Log* log_, params prm = params()) :
       prm_(prm),
-      vec_ops(std::move(vec_ops_)),
+      vec_space_(std::move(vec_space)),
       log(log_),
       iterations(0)
     {
-        vec_ops->init_vector(x1); vec_ops->start_use_vector(x1);
-        vec_ops->init_vector(x1_storage); vec_ops->start_use_vector(x1_storage);
-        vec_ops->init_vector(Fx); vec_ops->start_use_vector(Fx);
+        vec_space_->init_vector(x1); vec_space_->start_use_vector(x1);
+        vec_space_->init_vector(x1_storage); vec_space_->start_use_vector(x1_storage);
+        vec_space_->init_vector(Fx); vec_space_->start_use_vector(Fx);
         if(prm_.store_norms_history)
         {
             norms_evolution.reserve(prm_.maximum_iterations);
         }
     }
+    default_convergence_strategy(  
+        const utils_hierarchy& utils,
+        const params_hierarchy& prm = params_hierarchy()      
+    ) : 
+        default_convergence_strategy(  
+            utils.vec_space, utils.log, prm
+        )
+    {
+    }
     ~default_convergence_strategy()
     {
-        vec_ops->stop_use_vector(x1); vec_ops->free_vector(x1);
-        vec_ops->stop_use_vector(x1_storage); vec_ops->free_vector(x1_storage);
-        vec_ops->stop_use_vector(Fx); vec_ops->free_vector(Fx);
+        vec_space_->stop_use_vector(x1); vec_space_->free_vector(x1);
+        vec_space_->stop_use_vector(x1_storage); vec_space_->free_vector(x1_storage);
+        vec_space_->stop_use_vector(Fx); vec_space_->free_vector(Fx);
     }
 
     //T rel_tol()const { return prm_.rel_tol; }
@@ -117,7 +146,7 @@ public:
         // result_status defines on how this process is stoped.
         newton_weight = prm_.newton_weight_initial;
         nonlin_op->apply(x, Fx);
-        T normFx = vec_ops->norm_l2(Fx);
+        T normFx = vec_space_->norm_l2(Fx);
         if(!std::isfinite(normFx)) //set result_status = 2 if the provided vector is inconsistent
         {
             result_status = 2;
@@ -133,7 +162,7 @@ public:
         if(iterations == 0)
         {
             /// stores initial solution and norm
-            vec_ops->assign(x, x1_storage);
+            vec_space_->assign(x, x1_storage);
             Fx1_storage_norm_ = normFx;
             /// postulate continue (other cases checked earlier) and continue
             result_status = 1;
@@ -154,14 +183,14 @@ public:
                 if(normFx1 < tol()) //converged
                 {
                     //norms_storage.push_back(normFx1);
-                    vec_ops->assign(x1, x);
+                    vec_space_->assign(x1, x);
                     result_status = 0;
                     finish = true;
                     break;
                 }
                 if ((normFx1 - normFx) <= prm_.maximum_norm_increase*normFx)
                 {
-                    vec_ops->assign(x1, x);
+                    vec_space_->assign(x1, x);
                     if( std::abs(normFx1 - normFx) < 1.0e-6*normFx )
                     {
                         stagnation++;
@@ -202,7 +231,7 @@ public:
         // store this solution point if the norm is the smalles of all
         if( ( (!std::isfinite(Fx1_storage_norm_))||(Fx1_storage_norm_ >= normFx1) )&&( (result_status == 1)||(result_status == 4) ) )
         {
-            vec_ops->assign(x1, x1_storage);
+            vec_space_->assign(x1, x1_storage);
             Fx1_storage_norm_ = normFx1;
         }
 
@@ -213,8 +242,8 @@ public:
             if( ( (std::isfinite(Fx1_storage_norm_))&&(Fx1_storage_norm_ < normFx1) ) )
             {
                 /// NOTE x1 is actually not needed anymore just for convinience (mb delete it?)
-                vec_ops->assign(x1_storage, x1);
-                vec_ops->assign(x1_storage, x);
+                vec_space_->assign(x1_storage, x1);
+                vec_space_->assign(x1_storage, x);
                 normFx1 = Fx1_storage_norm_;
                 //signal that relaxed tolerance converged and put it into vector of signals
                 if( normFx1 <= tol()*prm_.relax_tolerance_factor  )
@@ -237,7 +266,7 @@ public:
             //this signals that we couldn't set up the solution with the relaxed tolerance
             if (result_status>0)
             {
-                log->error_f("continuation::convergence: newton step failed to finish: result_status = %i, ||x| = %le, relaxed_tol = %le", result_status, vec_ops->norm_l2(x), tol()*prm_.relax_tolerance_factor );
+                log->error_f("continuation::convergence: newton step failed to finish: result_status = %i, ||x| = %le, relaxed_tol = %le", result_status, vec_space_->norm_l2(x), tol()*prm_.relax_tolerance_factor );
             }
 
             if (quality_func)
@@ -278,7 +307,7 @@ public:
 private:
     params prm_;
       
-    std::shared_ptr<VectorSpace> vec_ops;
+    std::shared_ptr<VectorSpace> vec_space_;
     Log* log;
     
     unsigned int iterations;
@@ -298,13 +327,13 @@ private:
     //updates a solution with a newton weight value provided
     T inline update_solution(NonlinearOperator *nonlin_op, ProjectOperator *project_op, T_vec& x, T_vec& delta_x, T_vec& x1)
     {
-        vec_ops->assign_mul(static_cast<T>(1.0), x, newton_weight, delta_x, x1);
+        vec_space_->assign_mul(static_cast<T>(1.0), x, newton_weight, delta_x, x1);
         if (project_op)
         {
             project_op->apply(x1); // project to invariant solution subspace. Should be blank if nothing is needed to be projected.
         }
         nonlin_op->apply(x1, Fx);
-        T normFx1 = vec_ops->norm_l2(Fx);
+        T normFx1 = vec_space_->norm_l2(Fx);
         return normFx1;
     }
 
