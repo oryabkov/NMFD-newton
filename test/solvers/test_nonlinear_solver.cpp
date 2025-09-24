@@ -89,11 +89,11 @@ int main(int argc, char const *args[])
         T a = 1.0;
         T_vec x,y,resid;
         vec_ops->init_vector(x);
-        vec_ops->init_vector(y);        
+        vec_ops->init_vector(y);
         vec_ops->start_use_vector(x);
         vec_ops->start_use_vector(y);
 
-        log.info_f("=>diffusion with size %i, timestep %.02f.", vec_ops->size(), tau ); 
+        log.info_f("=>diffusion with size %i, timestep %.02f.", vec_ops->size(), tau );
         auto lin_op_diff = std::make_shared<lin_op_diff_t>(*vec_ops, tau); //with time step 5
 
 
@@ -141,18 +141,18 @@ int main(int argc, char const *args[])
             log.info_f("pRgmres res with x0: %s", res?"true":"false");
             get_residual(*lin_op_diff, x, y);
         }
-        
-        log.info_f("=>advection with size %i, speed %.02f, timestep %.02f.", vec_ops->size(), a, tau ); 
+
+        log.info_f("=>advection with size %i, speed %.02f, timestep %.02f.", vec_ops->size(), a, tau );
         gmres_adv_t::params params_adv;
         params_adv.monitor.rel_tol = 1.0e-10;
         params_adv.monitor.max_iters_num = 300;
-        params_adv.basis_size = 15;    
+        params_adv.basis_size = 15;
         auto lin_op_adv = std::make_shared<lin_op_adv_t>(*vec_ops, a, tau);
         {
             gmres_adv_t gmres(lin_op_adv, vec_ops, &log, params_adv, prec_adv);
             log.info("left preconditioner");
             params_adv.preconditioner_side = 'L';
-            vec_ops->assign_scalar(0.0, x);       
+            vec_ops->assign_scalar(0.0, x);
             bool res = gmres.solve(y, x);
             error += (!res);
             log.info_f("pLgmres res: %s", res?"true":"false");
@@ -161,13 +161,13 @@ int main(int argc, char const *args[])
             res = gmres.solve(y, x);
             error += (!res);
             log.info_f("pLgmres res with x0: %s", res?"true":"false");
-            get_residual(*lin_op_adv, x, y);             
+            get_residual(*lin_op_adv, x, y);
         }
         {
             gmres_adv_t gmres(lin_op_adv, vec_ops, &log, params_adv, prec_adv);
             log.info("left preconditioner");
             params_adv.preconditioner_side = 'R';
-            vec_ops->assign_scalar(0.0, x);       
+            vec_ops->assign_scalar(0.0, x);
             bool res = gmres.solve(y, x);
             error += (!res);
             log.info_f("pRgmres res: %s", res?"true":"false");
@@ -176,7 +176,7 @@ int main(int argc, char const *args[])
             res = gmres.solve(y, x);
             error += (!res);
             log.info_f("pRgmres res with x0: %s", res?"true":"false");
-            get_residual(*lin_op_adv, x, y);             
+            get_residual(*lin_op_adv, x, y);
             // for(int j=0;j<N;j++)
             // {
             //     std::cout << (1.0*j+0.5)/N << "," << x[j] << std::endl;
@@ -189,16 +189,16 @@ int main(int argc, char const *args[])
         vec_ops->free_vector(x);
         vec_ops->free_vector(y);
     }*/
-    
 
- 
+
+
     if(error > 0)
     {
         log.error_f("Got error = %e.", error ) ;
     }
     else
     {
-        log.info("No errors.") ;   
+        log.info("No errors.") ;
     }
 
     return error;
