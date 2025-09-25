@@ -10,6 +10,8 @@ convergence rules for Newton iterator for continuation process
 #include <iterator>  // std::begin, std::end
 #include <nmfd/operations/ident_operator.h>
 #include <nmfd/operations/zero_functional.h>
+#include <nmfd/detail/algo_hierarchy_macro.h>
+#include <nmfd/detail/algo_hierarchy_creator.h>
 
 /// TODO check it!
 /// NOTE originally taken from deflated_continuation timesteppers branch source/continuation/convergence_strategy.h 22.07.2025
@@ -36,7 +38,7 @@ private:
     using logged_obj_t = scfd::utils::logged_obj_base<Log>;
 
 public:    
-    struct params : public logged_obj_type::params
+    struct params : public logged_obj_t::params
     {
         unsigned int stagnation_max = 10;  
         unsigned int maximum_iterations = 100;
@@ -51,7 +53,7 @@ public:
 
         params(
             const std::string &log_pefix = "", const std::string &log_name = "default_convergence_strategy::"
-        ) : logged_obj_type::params(0, log_pefix + log_name)
+        ) : logged_obj_t::params(0, log_pefix + log_name)
         {
         }
         /// TODO add json
@@ -62,7 +64,7 @@ public:
         Log *log;
         utils() = default;
         utils(
-            std::shared_ptr<VectorSpace> vec_space_, Log *log_ = nullptr,
+            std::shared_ptr<VectorSpace> vec_space_, Log *log_ = nullptr
         ) : 
             vec_space(vec_space_), log(log_)
         {

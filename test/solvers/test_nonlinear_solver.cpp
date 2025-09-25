@@ -22,6 +22,15 @@ int main(int argc, char const *args[])
         using vector_type = vec_t;
         using operator_type = mat_t;
 
+        linsolver_t() = default;
+        NMFD_ALGO_ALL_EMPTY_DEFINE(linsolver_t)
+        linsolver_t(  
+            const utils_hierarchy& utils,
+            const params_hierarchy& prm = params_hierarchy()      
+        )
+        {
+        }
+
         mat_t a_inv;
         void set_operator(const std::shared_ptr<const mat_t> &a)
         {
@@ -68,15 +77,31 @@ int main(int argc, char const *args[])
 
     int error = 0;
     log_t log;
-    log.info("test newton");
     std::shared_ptr<vec_sp_t> vec_sp = std::make_shared<vec_sp_t>();
-    std::shared_ptr<linsolver_t> lin_solver = std::make_shared<linsolver_t>();
-    std::shared_ptr<newton_iteration_t> newton_iteration = std::make_shared<newton_iteration_t>(vec_sp, lin_solver);
-    std::shared_ptr<newton_solver_t> newton_solver = std::make_shared<newton_solver_t>(vec_sp, &log, newton_iteration);
-    system_op_t system_op;
-    vec_t x(10.,2.);
-    newton_solver->solve(&system_op, nullptr, nullptr, x);
-    log.info_f("result vector x: %f %f", x[0], x[1]);
+    {
+        log.info("test newton with manual construction");
+        std::shared_ptr<linsolver_t> lin_solver = std::make_shared<linsolver_t>();
+        std::shared_ptr<newton_iteration_t> newton_iteration = std::make_shared<newton_iteration_t>(vec_sp, lin_solver);
+        std::shared_ptr<newton_solver_t> newton_solver = std::make_shared<newton_solver_t>(vec_sp, &log, newton_iteration);
+        system_op_t system_op;
+        vec_t x(10.,2.);
+        newton_solver->solve(&system_op, nullptr, nullptr, x);
+        log.info_f("result vector x: %f %f", x[0], x[1]);
+    }
+
+    {
+        log.info("test newton with hierarchic construction");
+        newton_solver_t::utils_hierarchy u_h{
+            {{},vec_sp},    /// iteration_operator
+            {vec_sp,&log},  /// convergence_strategy
+            vec_sp,&log     /// newton utils itself
+        };
+        std::shared_ptr<newton_solver_t> newton_solver = std::make_shared<newton_solver_t>(u_h);
+        system_op_t system_op;
+        vec_t x(10.,2.);
+        newton_solver->solve(&system_op, nullptr, nullptr, x);
+        log.info_f("result vector x: %f %f", x[0], x[1]);
+    }
 
     //testing left and right preconditioners
     /*{

@@ -1,6 +1,9 @@
 #ifndef __NMFD_NEWTON_ITERATION_H__
 #define __NMFD_NEWTON_ITERATION_H__
 
+#include <nmfd/detail/algo_hierarchy_macro.h>
+#include <nmfd/detail/algo_hierarchy_creator.h>
+
 /// NOTE originally taken from deflated_continuation master branch source/deflation/system_operator_deflation.h 22.07.2025
 
 namespace nmfd

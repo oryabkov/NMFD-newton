@@ -39,21 +39,21 @@
 #define NMFD_ALGO_HIERARCHY_NARG(...) NMFD_ALGO_HIERARCHY_NARG_(__VA_ARGS__, NMFD_ALGO_HIERARCHY_RSEQ_N())
 #define NMFD_ALGO_HIERARCHY_NARG_(...) NMFD_ALGO_HIERARCHY_ARG_N(__VA_ARGS__) 
 #define NMFD_ALGO_HIERARCHY_ARG_N(_11, _12, _21, _22, _31, _32, _41, _42, N, ...) N 
-#define NMFD_ALGO_HIERARCHY_RSEQ_N() 4, 4, 3, 3, 2, 2, 1, 1, 0, 0
+#define NMFD_ALGO_HIERARCHY_RSEQ_N() 4, 4, 3, 3, 2, 2, 1, 0, 0, 0
 
 /************************************ Common utils/params macros ************************/
 
 #define NMFD_ALGO_HIERARCHY_INIT_LIST_0(...)
 #define NMFD_ALGO_HIERARCHY_INIT_LIST_1(subalgo_type, subalgo_name, ...) \
-  subalgo_name(subalgo_name)
+  ,subalgo_name(subalgo_name)
 #define NMFD_ALGO_HIERARCHY_INIT_LIST_2(subalgo_type, subalgo_name, ...) \
-  subalgo_name(subalgo_name),                                            \
+  ,subalgo_name(subalgo_name)                                            \
   NMFD_ALGO_HIERARCHY_INIT_LIST_1(__VA_ARGS__)
 #define NMFD_ALGO_HIERARCHY_INIT_LIST_3(subalgo_type, subalgo_name, ...) \
-  subalgo_name(subalgo_name),                                            \
+  ,subalgo_name(subalgo_name)                                            \
   NMFD_ALGO_HIERARCHY_INIT_LIST_2(__VA_ARGS__)
 #define NMFD_ALGO_HIERARCHY_INIT_LIST_4(subalgo_type, subalgo_name, ...) \
-  subalgo_name(subalgo_name),                                            \
+  ,subalgo_name(subalgo_name)                                            \
   NMFD_ALGO_HIERARCHY_INIT_LIST_3(__VA_ARGS__)
 
 #define NMFD_ALGO_HIERARCHY_INIT_LIST_(N, ...) NMFD_ALGO_HIERARCHY_CONCATENATE(NMFD_ALGO_HIERARCHY_INIT_LIST_, N)(__VA_ARGS__)
@@ -95,15 +95,15 @@
 
 #define NMFD_ALGO_HIERARCHY_PARAMS_PASS_0(...)
 #define NMFD_ALGO_HIERARCHY_PARAMS_PASS_1(subalgo_type, subalgo_name, ...)                   \
-  const NMFD_ALGO_HIERARCHY_CONCATENATE(subalgo_name,_params_hierarchy_type) &subalgo_name
+  ,const NMFD_ALGO_HIERARCHY_CONCATENATE(subalgo_name,_params_hierarchy_type) &subalgo_name
 #define NMFD_ALGO_HIERARCHY_PARAMS_PASS_2(subalgo_type, subalgo_name, ...)                   \
-  const NMFD_ALGO_HIERARCHY_CONCATENATE(subalgo_name,_params_hierarchy_type) &subalgo_name,  \
+  ,const NMFD_ALGO_HIERARCHY_CONCATENATE(subalgo_name,_params_hierarchy_type) &subalgo_name  \
   NMFD_ALGO_HIERARCHY_PARAMS_PASS_1(__VA_ARGS__)
 #define NMFD_ALGO_HIERARCHY_PARAMS_PASS_3(subalgo_type, subalgo_name, ...)                   \
-  const NMFD_ALGO_HIERARCHY_CONCATENATE(subalgo_name,_params_hierarchy_type) &subalgo_name,  \
+  ,const NMFD_ALGO_HIERARCHY_CONCATENATE(subalgo_name,_params_hierarchy_type) &subalgo_name  \
   NMFD_ALGO_HIERARCHY_PARAMS_PASS_2(__VA_ARGS__)
 #define NMFD_ALGO_HIERARCHY_PARAMS_PASS_4(subalgo_type, subalgo_name, ...)                   \
-  const NMFD_ALGO_HIERARCHY_CONCATENATE(subalgo_name,_params_hierarchy_type) &subalgo_name,  \
+  ,const NMFD_ALGO_HIERARCHY_CONCATENATE(subalgo_name,_params_hierarchy_type) &subalgo_name  \
   NMFD_ALGO_HIERARCHY_PARAMS_PASS_3(__VA_ARGS__)
 
 #define NMFD_ALGO_HIERARCHY_PARAMS_PASS_(N, ...) NMFD_ALGO_HIERARCHY_CONCATENATE(NMFD_ALGO_HIERARCHY_PARAMS_PASS_, N)(__VA_ARGS__)
@@ -111,15 +111,15 @@
 
 #define NMFD_ALGO_HIERARCHY_PARAMS_INIT_LIST_0(...)
 #define NMFD_ALGO_HIERARCHY_PARAMS_INIT_LIST_1(subalgo_type, subalgo_name, ...) \
-  subalgo_name(this->log_msg_prefix)
+  ,subalgo_name(this->log_msg_prefix)
 #define NMFD_ALGO_HIERARCHY_PARAMS_INIT_LIST_2(subalgo_type, subalgo_name, ...) \
-  subalgo_name(this->log_msg_prefix),                                           \
+  ,subalgo_name(this->log_msg_prefix)                                           \
   NMFD_ALGO_HIERARCHY_PARAMS_INIT_LIST_1(__VA_ARGS__)
 #define NMFD_ALGO_HIERARCHY_PARAMS_INIT_LIST_3(subalgo_type, subalgo_name, ...) \
-  subalgo_name(this->log_msg_prefix),                                           \
+  ,subalgo_name(this->log_msg_prefix)                                           \
   NMFD_ALGO_HIERARCHY_PARAMS_INIT_LIST_2(__VA_ARGS__)
 #define NMFD_ALGO_HIERARCHY_PARAMS_INIT_LIST_4(subalgo_type, subalgo_name, ...) \
-  subalgo_name(this->log_msg_prefix),                                           \
+  ,subalgo_name(this->log_msg_prefix)                                           \
   NMFD_ALGO_HIERARCHY_PARAMS_INIT_LIST_3(__VA_ARGS__)
 
 #define NMFD_ALGO_HIERARCHY_PARAMS_INIT_LIST_(N, ...) NMFD_ALGO_HIERARCHY_CONCATENATE(NMFD_ALGO_HIERARCHY_PARAMS_INIT_LIST_, N)(__VA_ARGS__)
@@ -212,7 +212,7 @@
 
 #define NMFD_ALGO_HIERARCHY_UTILS_PASS_0(...)
 #define NMFD_ALGO_HIERARCHY_UTILS_PASS_1(subalgo_type, subalgo_name, ...)            \
-  NMFD_ALGO_HIERARCHY_CONCATENATE(subalgo_name,_utils_hierarchy_type) subalgo_name
+  NMFD_ALGO_HIERARCHY_CONCATENATE(subalgo_name,_utils_hierarchy_type) subalgo_name,
 #define NMFD_ALGO_HIERARCHY_UTILS_PASS_2(subalgo_type, subalgo_name, ...)            \
   NMFD_ALGO_HIERARCHY_CONCATENATE(subalgo_name,_utils_hierarchy_type) subalgo_name,  \
   NMFD_ALGO_HIERARCHY_UTILS_PASS_1(__VA_ARGS__)
@@ -226,6 +226,22 @@
 #define NMFD_ALGO_HIERARCHY_UTILS_PASS_(N, ...) NMFD_ALGO_HIERARCHY_CONCATENATE(NMFD_ALGO_HIERARCHY_UTILS_PASS_, N)(__VA_ARGS__)
 #define NMFD_ALGO_HIERARCHY_UTILS_PASS(...) NMFD_ALGO_HIERARCHY_UTILS_PASS_(NMFD_ALGO_HIERARCHY_NARG(__VA_ARGS__), __VA_ARGS__)
 
+#define NMFD_ALGO_HIERARCHY_UTILS_INIT_LIST_0(...)
+#define NMFD_ALGO_HIERARCHY_UTILS_INIT_LIST_1(subalgo_type, subalgo_name, ...) \
+  ,subalgo_name(subalgo_name)
+#define NMFD_ALGO_HIERARCHY_UTILS_INIT_LIST_2(subalgo_type, subalgo_name, ...) \
+  ,subalgo_name(subalgo_name)                                                  \
+  NMFD_ALGO_HIERARCHY_UTILS_INIT_LIST_1(__VA_ARGS__)
+#define NMFD_ALGO_HIERARCHY_UTILS_INIT_LIST_3(subalgo_type, subalgo_name, ...) \
+  ,subalgo_name(subalgo_name)                                                  \
+  NMFD_ALGO_HIERARCHY_UTILS_INIT_LIST_2(__VA_ARGS__)
+#define NMFD_ALGO_HIERARCHY_UTILS_INIT_LIST_4(subalgo_type, subalgo_name, ...) \
+  ,subalgo_name(subalgo_name)                                                  \
+  NMFD_ALGO_HIERARCHY_UTILS_INIT_LIST_3(__VA_ARGS__)
+
+#define NMFD_ALGO_HIERARCHY_UTILS_INIT_LIST_(N, ...) NMFD_ALGO_HIERARCHY_CONCATENATE(NMFD_ALGO_HIERARCHY_UTILS_INIT_LIST_, N)(__VA_ARGS__)
+#define NMFD_ALGO_HIERARCHY_UTILS_INIT_LIST(...) NMFD_ALGO_HIERARCHY_UTILS_INIT_LIST_(NMFD_ALGO_HIERARCHY_NARG(__VA_ARGS__), __VA_ARGS__)
+
 /************************************ General macros ************************************/
 
 #define NMFD_ALGO_HIERARCHY_TYPES_DEFINE(algo_type, ...)    \
@@ -237,15 +253,15 @@
           const std::string &log_prefix = "",               \
           const std::string &log_name = __STR(algo_type)"::"\
       ) :                                                   \
-        params(log_prefix, log_name),                       \
+        params(log_prefix, log_name)                        \
         NMFD_ALGO_HIERARCHY_PARAMS_INIT_LIST(__VA_ARGS__)   \
       {                                                     \
       }                                                     \
       params_hierarchy(                                     \
-          const params &prm_,                               \
+          const params &prm_                                \
           NMFD_ALGO_HIERARCHY_PARAMS_PASS(__VA_ARGS__)      \
       ) :                                                   \
-        params(prm_),                                       \
+        params(prm_)                                        \
         NMFD_ALGO_HIERARCHY_INIT_LIST(__VA_ARGS__)          \
       {                                                     \
       }                                                     \
@@ -258,11 +274,11 @@
       utils_hierarchy() = default;                          \
       template<class ...Args>                               \
       utils_hierarchy(                                      \
-          NMFD_ALGO_HIERARCHY_UTILS_PASS(__VA_ARGS__),      \
+          NMFD_ALGO_HIERARCHY_UTILS_PASS(__VA_ARGS__)       \
           Args... args                                      \
       ) :                                                   \
-        utils(args...),                                     \
-        NMFD_ALGO_HIERARCHY_INIT_LIST(__VA_ARGS__)          \
+        utils(args...)                                      \
+        NMFD_ALGO_HIERARCHY_UTILS_INIT_LIST(__VA_ARGS__)    \
       {                                                     \
       }                                                     \
   };
@@ -297,6 +313,31 @@
 #define NMFD_ALGO_EMPTY_UTILS_TYPE_DEFINE(algo_type)         \
   struct utils                                               \
   {                                                          \
+  };
+
+#define NMFD_ALGO_ALL_EMPTY_DEFINE(algo_type)               \
+  NMFD_ALGO_EMPTY_PARAMS_TYPE_DEFINE(algo_type)             \
+  NMFD_ALGO_EMPTY_UTILS_TYPE_DEFINE(algo_type)              \
+  struct params_hierarchy : public params                   \
+  {                                                         \
+      params_hierarchy(                                     \
+          const std::string &log_prefix = "",               \
+          const std::string &log_name = __STR(algo_type)"::"\
+      ) :                                                   \
+        params(log_prefix, log_name)                        \
+      {                                                     \
+      }                                                     \
+      params_hierarchy(                                     \
+          const params &prm_                                \
+      ) :                                                   \
+        params(prm_)                                        \
+      {                                                     \
+      }                                                     \
+      NMFD_ALGO_HIERARCHY_PARAMS_JSON_METHODS(__VA_ARGS__)  \
+  };                                                        \
+  struct utils_hierarchy : public utils                     \
+  {                                                         \
+      utils_hierarchy() = default;                          \
   };
 
 /*#define NMFD_ALGO_HIERARCHY_PARAMS_LIST_1(subalgo_type, subalgo_name, ...) subalgo_type NMFD_ALGO_HIERARCHY_CONCATENATE(_,subalgo_name)

@@ -14,6 +14,8 @@
 #include <stdexcept>
 #include <nmfd/operations/ident_operator.h>
 #include <nmfd/operations/zero_functional.h>
+#include <nmfd/detail/algo_hierarchy_macro.h>
+#include <nmfd/detail/algo_hierarchy_creator.h>
 #include "../detail/str_source_helper.h"
 #include "../detail/vector_wrap.h"
 #include "default_convergence_strategy.h"
@@ -58,13 +60,13 @@ public:
         Log *log;
         utils() = default;
         utils(
-            std::shared_ptr<VectorSpace> vec_space_, Log *log_ = nullptr,
+            std::shared_ptr<VectorSpace> vec_space_, Log *log_ = nullptr
         ) : 
             vec_space(vec_space_), log(log_)
         {
         }
     };
-    NMFD_ALGO_HIERARCHY_TYPES_DEFINE(nonlinear_solver,IterationOperator,iter_op,ConvergenceStrategy,conv_strat)
+    NMFD_ALGO_HIERARCHY_TYPES_DEFINE(nonlinear_solver,IterationOperator,iteration_operator,ConvergenceStrategy,convergence_strategy)
 
     nonlinear_solver(
         std::shared_ptr<VectorSpace> vec_ops, Log *log,
@@ -83,7 +85,17 @@ public:
         }
         //vec_ops_->init_vector(delta_x_); vec_ops_->start_use_vector(delta_x_);
     }
-    
+    nonlinear_solver(  
+        const utils_hierarchy& utils,
+        const params_hierarchy& prm = params_hierarchy()      
+    ) : 
+        nonlinear_solver(  
+            utils.vec_space, utils.log, 
+            nmfd::detail::algo_hierarchy_creator<IterationOperator>::get(utils.iteration_operator,prm.iteration_operator),
+            nmfd::detail::algo_hierarchy_creator<ConvergenceStrategy>::get(utils.convergence_strategy,prm.convergence_strategy)
+        )
+    {
+    }
     ~nonlinear_solver()
     {
         //vec_ops_->stop_use_vector(delta_x_); vec_ops_->free_vector(delta_x_); 
