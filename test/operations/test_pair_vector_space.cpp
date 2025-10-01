@@ -25,7 +25,9 @@ int main(int argc, char const *args[])
     size_t failed_counter = 0;
 
     // Initialize vector space and test vectors
-    pair_vector_space_type pair_vec_space;
+    auto vs1 = std::make_shared<static_vector_space1_type>();
+    auto vs2 = std::make_shared<static_vector_space2_type>();
+    pair_vector_space_type pair_vec_space(vs1, vs2);
 
     // ====================================================================
     // GROUP 1: Basic Vector Space Properties and Validation
