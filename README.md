@@ -19,15 +19,15 @@ using vector_type = ...;
 /// y<-x
 void assign(const vector_type& x, vector_type& y) const
 
-void assign_scalar(const scalar_type val, vector_type& x)const 
+void assign_scalar(const scalar_type val, vector_type& x)const
 /// x<-mul_x*x+scalar
 void add_mul_scalar(const scalar_type scalar, const scalar_type mul_x, vector_type& x)
 
-void assign_random(vector_type& x)const 
+void assign_random(vector_type& x)const
 /// x<-x*scale
 void scale(const scalar_type scale, vector_type& x)
 /// returns sum of all elements
-[[nodiscard]] scalar_type sum(const vector_type& x)const 
+[[nodiscard]] scalar_type sum(const vector_type& x)const
 /// returns sum of all elements absolute values
 [[nodiscard]] scalar_type asum(const vector_type &x)const
 /// returns either all elements are valid numbers (not nans or infs)
@@ -87,21 +87,21 @@ start_use/stop_use pair is supposed to be used around actual vector usage code s
 start_use/stop_use pair garantees that between these calls vector values won't be lost and we can actually use them. Simplest way is to call this pair in the begining and end of method that implements an algorithm (like solve method). But may be used in more delicate way inside algorithm - to mark regions where temporal buffer values are actually needed.
 
 This conventions allow user to implement different strategies of memory managment. If, for example, memory capacity is not a problem but we want to accelerate our calculation by reducing the number of allocation calls (which can be rather expensive, for example, for CUDA) - we may implement init/free strategy for allocation/deallocation. This also gives us benefit: if there is not enough memory in the system for algorithm to run we will know it right after calc starts - instead of getting not enough memory after hours of calculations.
-On the other hand if memory storage is our priority we may use start_use/stop_use pair to allocate deallocate memory - to allow reusage of the memory between different parts in different algorithms - or ever reusage of memory inside single algorithm if start_use/stop_use pair is well embedded into logic. This strategy may be combined with well written memory manager that utulizes the fact that all vectors in space have the same lenght - so we may implement some sort of pool of vectors or 'equal elements' memory manager to accelerate memory allocation. 
-In another scenario we may allocate memory once in start_use_vector if vectors was not allocated yet and do nothing otherwise. In this case we may use free_vector to free memomry if it was allocated earlier - or use RAII objects as vectors. In this case all memory will be allocated once when algorithm starts without futher reallocations - but if some algorithms for some reason are not invoked in current calculation memory wont be allocated. Another important case - adaptive mesh algorithms. In such a case we may proceed some time with vectors of one size and then suddenly - when mesh adapts - need to reallocate buffers. This may be performed inside start_use_vector by comparing the size of the current buffer already allocated with the space vector size - and if they differ - reallocate buffer. 
+On the other hand if memory storage is our priority we may use start_use/stop_use pair to allocate deallocate memory - to allow reusage of the memory between different parts in different algorithms - or ever reusage of memory inside single algorithm if start_use/stop_use pair is well embedded into logic. This strategy may be combined with well written memory manager that utulizes the fact that all vectors in space have the same lenght - so we may implement some sort of pool of vectors or 'equal elements' memory manager to accelerate memory allocation.
+In another scenario we may allocate memory once in start_use_vector if vectors was not allocated yet and do nothing otherwise. In this case we may use free_vector to free memomry if it was allocated earlier - or use RAII objects as vectors. In this case all memory will be allocated once when algorithm starts without futher reallocations - but if some algorithms for some reason are not invoked in current calculation memory wont be allocated. Another important case - adaptive mesh algorithms. In such a case we may proceed some time with vectors of one size and then suddenly - when mesh adapts - need to reallocate buffers. This may be performed inside start_use_vector by comparing the size of the current buffer already allocated with the space vector size - and if they differ - reallocate buffer.
 Any way i beleive there are different situation and there is no one 'absolutly correct' strategy, while this overwhelming interface allows user to decide which is correct in current case.
 
 ## MatrixVectorOperations + MatrixMatrixOperations + LinalOperations
 
-TODO 
+TODO
 
 MatrixVectorOperations is basically BLAS2 interface.
 MatrixMatrixOperations is basically BLAS3 interface.
 
-LinalOperations (or simply Operations when there is no confusion with something else) is 
+LinalOperations (or simply Operations when there is no confusion with something else) is
 simply combination of VectorOperations, MatrixVectorOperations, MatrixMatrixOperations. In other words is BLAS synonim.
 
-## Operator 
+## Operator
 
 ```
 class OperatorName
@@ -116,7 +116,7 @@ public:
 
 In Operator there is a garantee that initial value of out doesnot affects result.
 
-## InplaceOperator 
+## InplaceOperator
 
 ```
 class InplaceOperatorName
@@ -149,7 +149,7 @@ public:
 
 In Operator there is a garantee that initial value of out doesnot affects result.
 
-## InplaceOperatorWithSpaces 
+## InplaceOperatorWithSpaces
 
 ```
 class InplaceOperatorWithSpacesName
@@ -202,7 +202,7 @@ public:
 };
 ```
 
-## Solver 
+## Solver
 
 ```
 class SolverName
@@ -277,7 +277,7 @@ public:
 };
 ```
 
-Also params_hierarchy and utils_hierarchy supposed to be DefaultConstructable 
+Also params_hierarchy and utils_hierarchy supposed to be DefaultConstructable
 Plus for now params_hierarchy must have that following constructors:
 ```
 params_hierarchy(const std::string &log_prefix);
@@ -347,7 +347,7 @@ Preconditioner here is subalgorithm. But how IterativeSolve can create instance 
 template<class Preconditioner>
 class IterativeSolver
 {
-    struct params_hierarchy 
+    struct params_hierarchy
     {
         typename Preconditioner::params_hierarchy prec;
         ...
@@ -374,7 +374,7 @@ However if one wants to use this IterativeSolver with Preconditioner that is not
 template<class Preconditioner>
 class IterativeSolver
 {
-    struct params_hierarchy 
+    struct params_hierarchy
     {
         typename nmfd::detail::algo_params_hierarchy<Preconditioner>::type prec;
         ...
@@ -476,7 +476,48 @@ struct pair_vector_space
 };
 ```
 
-## Dense Extended Operator
+## Dense1 Extended Operator
+
+Class represents operator of form
+(A   u)
+(v^t w)
+where A is some origin operator extended with vector u row v^t and number w.
+
+Implements OperatorWithSpaces interface.
+
+```
+template<class OrigOperator, class OrigVectorSpace>
+class dense1_extended_operator
+{
+    ///TODO add static assert for scalar_type and vector_type coincidence
+public:
+    using orig_vector_type = typename OrigOperator::vector_type;
+    using orig_vector_space_type = OrigVectorSpace;
+    using scalar_space_type = operations::static_vector_space<scalar_type,1>;
+
+    using scalar_type = typename OrigOperator::scalar_type;
+    using vector_space_type = operations::pair_vector_space<OrigVectorSpace,scalar_space_type>;
+    using vector_type = typename vector_space_type::vector_type;
+
+    dense1_extended_operator(std::shared_ptr<OrigVectorSpace> orig_vec_space, std::shared_ptr<const OrigOperator> orig_op = nullptr);
+    /// Also sets extended values at once
+    dense1_extended_operator(std::shared_ptr<OrigVectorSpace> orig_vec_space, std::shared_ptr<const OrigOperator> orig_op, const vector_type &u, const vector_type &v, scalar_type w);
+
+    /// Use to set or reset origin A operator
+    void set_orig_operator(std::shared_ptr<const OrigOperator> orig_op);
+
+    ///These can be used to reset dense extension values
+    vector_type &u();
+    vector_type &v();
+    scalar_type &w();
+
+    ///Issue add const versions of u() v() w()?
+
+    void apply(const vector_type &in, vector_type &out);
+    std::shared_ptr<vector_space_type> get_im_space() const;
+    std::shared_ptr<vector_space_type> get_dom_space() const;
+};
+```
 
 ## Tuple Vector Space
 
@@ -555,9 +596,9 @@ class mg
 ```
 template
 <
-    class VectorSpace, 
-    class NonlinearOperator, 
-    class IterationOperator, 
+    class VectorSpace,
+    class NonlinearOperator,
+    class IterationOperator,
     class ConvergenceStrategy
 >
 class nonlinear_solver
