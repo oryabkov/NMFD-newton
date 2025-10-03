@@ -266,15 +266,15 @@ int main(int argc, char const *args[])
     // Test scalar multiplication and addition: x = mul_x * x + scalar
     {
         vector_type tmp_x = {1, 2, 3};
-        vec_space->add_mul_scalar(10, 2, tmp_x);  // x = 2*x + 10 = {2*1+10, 2*2+10, 2*3+10} = {12, 14, 16}
+        vec_space->add_lin_comb_scalar(10, 2, tmp_x);  // x = 2*x + 10 = {2*1+10, 2*2+10, 2*3+10} = {12, 14, 16}
         if ((tmp_x[0] - 12) < eps && (tmp_x[1] - 14) < eps && (tmp_x[2] - 16) < eps)
         {
-            log.info("✓ `add_mul_scalar(scalar, mul_x, x)` method test passed");
+            log.info("✓ `add_lin_comb_scalar(scalar, mul_x, x)` method test passed");
             passed_counter++;
         }
         else
         {
-            log.error("✗ `add_mul_scalar(scalar, mul_x, x)` method test failed. Expected {12, 14, 16} but got {" + std::to_string(tmp_x[0]) + ", " + std::to_string(tmp_x[1]) + ", " + std::to_string(tmp_x[2]) + "}");
+            log.error("✗ `add_lin_comb_scalar(scalar, mul_x, x)` method test failed. Expected {12, 14, 16} but got {" + std::to_string(tmp_x[0]) + ", " + std::to_string(tmp_x[1]) + ", " + std::to_string(tmp_x[2]) + "}");
             failed_counter++;
         }
     }
@@ -305,15 +305,15 @@ int main(int argc, char const *args[])
     {
         vector_type tmp_x = {1, 2, 3};
         vector_type tmp_y = {0, 0, 0};
-        vec_space->assign_mul(2, tmp_x, tmp_y);  // y = 2 * {1, 2, 3} = {2, 4, 6}
+        vec_space->assign_lin_comb(2, tmp_x, tmp_y);  // y = 2 * {1, 2, 3} = {2, 4, 6}
         if ((tmp_y[0] - 2) < eps && (tmp_y[1] - 4) < eps && (tmp_y[2] - 6) < eps)
         {
-            log.info("✓ `assign_mul(mul_x, x, y)` method test passed");
+            log.info("✓ `assign_lin_comb(mul_x, x, y)` method test passed");
             passed_counter++;
         }
         else
         {
-            log.error("✗ `assign_mul(mul_x, x, y)` method test failed. Expected {2, 4, 6} but got {" + std::to_string(tmp_y[0]) + ", " + std::to_string(tmp_y[1]) + ", " + std::to_string(tmp_y[2]) + "}");
+            log.error("✗ `assign_lin_comb(mul_x, x, y)` method test failed. Expected {2, 4, 6} but got {" + std::to_string(tmp_y[0]) + ", " + std::to_string(tmp_y[1]) + ", " + std::to_string(tmp_y[2]) + "}");
             failed_counter++;
         }
     }
@@ -323,15 +323,15 @@ int main(int argc, char const *args[])
         vector_type tmp_x = {1, 2, 3};
         vector_type tmp_y = {4, 5, 6};
         vector_type tmp_z = {0, 0, 0};
-        vec_space->assign_mul(2, tmp_x, 3, tmp_y, tmp_z);  // z = 2*{1,2,3} + 3*{4,5,6} = {2,4,6} + {12,15,18} = {14,19,24}
+        vec_space->assign_lin_comb(2, tmp_x, 3, tmp_y, tmp_z);  // z = 2*{1,2,3} + 3*{4,5,6} = {2,4,6} + {12,15,18} = {14,19,24}
         if ((tmp_z[0] - 14) < eps && (tmp_z[1] - 19) < eps && (tmp_z[2] - 24) < eps)
         {
-            log.info("✓ `assign_mul(mul_x, x, mul_y, y, z)` method test passed");
+            log.info("✓ `assign_lin_comb(mul_x, x, mul_y, y, z)` method test passed");
             passed_counter++;
         }
         else
         {
-            log.error("✗ `assign_mul(mul_x, x, mul_y, y, z)` method test failed. Expected {14, 19, 24} but got {" + std::to_string(tmp_z[0]) + ", " + std::to_string(tmp_z[1]) + ", " + std::to_string(tmp_z[2]) + "}");
+            log.error("✗ `assign_lin_comb(mul_x, x, mul_y, y, z)` method test failed. Expected {14, 19, 24} but got {" + std::to_string(tmp_z[0]) + ", " + std::to_string(tmp_z[1]) + ", " + std::to_string(tmp_z[2]) + "}");
             failed_counter++;
         }
     }
@@ -345,15 +345,15 @@ int main(int argc, char const *args[])
     {
         vector_type tmp_x = {1, 2, 3};
         vector_type tmp_y = {4, 5, 6};
-        vec_space->add_mul(2, tmp_x, tmp_y);  // y = {4,5,6} + 2*{1,2,3} = {4,5,6} + {2,4,6} = {6,9,12}
+        vec_space->add_lin_comb(2, tmp_x, tmp_y);  // y = {4,5,6} + 2*{1,2,3} = {4,5,6} + {2,4,6} = {6,9,12}
         if ((tmp_y[0] - 6) < eps && (tmp_y[1] - 9) < eps && (tmp_y[2] - 12) < eps)
         {
-            log.info("✓ `add_mul(mul_x, x, y)` method test passed");
+            log.info("✓ `add_lin_comb(mul_x, x, y)` method test passed");
             passed_counter++;
         }
         else
         {
-            log.error("✗ `add_mul(mul_x, x, y)` method test failed. Expected {6, 9, 12} but got {" + std::to_string(tmp_y[0]) + ", " + std::to_string(tmp_y[1]) + ", " + std::to_string(tmp_y[2]) + "}");
+            log.error("✗ `add_lin_comb(mul_x, x, y)` method test failed. Expected {6, 9, 12} but got {" + std::to_string(tmp_y[0]) + ", " + std::to_string(tmp_y[1]) + ", " + std::to_string(tmp_y[2]) + "}");
             failed_counter++;
         }
     }
@@ -362,15 +362,15 @@ int main(int argc, char const *args[])
     {
         vector_type tmp_x = {1, 2, 3};
         vector_type tmp_y = {4, 5, 6};
-        vec_space->add_mul(2, tmp_x, 3, tmp_y);  // y = 2*{1,2,3} + 3*{4,5,6} = {2,4,6} + {12,15,18} = {14,19,24}
+        vec_space->add_lin_comb(2, tmp_x, 3, tmp_y);  // y = 2*{1,2,3} + 3*{4,5,6} = {2,4,6} + {12,15,18} = {14,19,24}
         if ((tmp_y[0] - 14) < eps && (tmp_y[1] - 19) < eps && (tmp_y[2] - 24) < eps)
         {
-            log.info("✓ `add_mul(mul_x, x, mul_y, y)` method test passed");
+            log.info("✓ `add_lin_comb(mul_x, x, mul_y, y)` method test passed");
             passed_counter++;
         }
         else
         {
-            log.error("✗ `add_mul(mul_x, x, mul_y, y)` method test failed. Expected {14, 19, 24} but got {" + std::to_string(tmp_y[0]) + ", " + std::to_string(tmp_y[1]) + ", " + std::to_string(tmp_y[2]) + "}");
+            log.error("✗ `add_lin_comb(mul_x, x, mul_y, y)` method test failed. Expected {14, 19, 24} but got {" + std::to_string(tmp_y[0]) + ", " + std::to_string(tmp_y[1]) + ", " + std::to_string(tmp_y[2]) + "}");
             failed_counter++;
         }
     }
@@ -380,15 +380,15 @@ int main(int argc, char const *args[])
         vector_type tmp_x = {1, 2, 3};
         vector_type tmp_y = {4, 5, 6};
         vector_type tmp_z = {7, 8, 9};
-        vec_space->add_mul(2, tmp_x, 3, tmp_y, 4, tmp_z);  // z = 2*{1,2,3} + 3*{4,5,6} + 4*{7,8,9} = {2,4,6} + {12,15,18} + {28,32,36} = {42,51,60}
+        vec_space->add_lin_comb(2, tmp_x, 3, tmp_y, 4, tmp_z);  // z = 2*{1,2,3} + 3*{4,5,6} + 4*{7,8,9} = {2,4,6} + {12,15,18} + {28,32,36} = {42,51,60}
         if ((tmp_z[0] - 42) < eps && (tmp_z[1] - 51) < eps && (tmp_z[2] - 60) < eps)
         {
-            log.info("✓ `add_mul(mul_x, x, mul_y, y, mul_z, z)` method test passed");
+            log.info("✓ `add_lin_comb(mul_x, x, mul_y, y, mul_z, z)` method test passed");
             passed_counter++;
         }
         else
         {
-            log.error("✗ `add_mul(mul_x, x, mul_y, y, mul_z, z)` method test failed. Expected {42, 51, 60} but got {" + std::to_string(tmp_z[0]) + ", " + std::to_string(tmp_z[1]) + ", " + std::to_string(tmp_z[2]) + "}");
+            log.error("✗ `add_lin_comb(mul_x, x, mul_y, y, mul_z, z)` method test failed. Expected {42, 51, 60} but got {" + std::to_string(tmp_z[0]) + ", " + std::to_string(tmp_z[1]) + ", " + std::to_string(tmp_z[2]) + "}");
             failed_counter++;
         }
     }

@@ -232,16 +232,16 @@ public:
     }
 
     //calc: x := mul_x*x + <vector_type of all scalar value>
-    void add_mul_scalar(const scalar_type scalar, const scalar_type mul_x, vector_type& x)const
+    void add_lin_comb_scalar(const scalar_type scalar, const scalar_type mul_x, vector_type& x)const
     {
-        vs1->add_mul_scalar(scalar, mul_x, x.first);
-        vs2->add_mul_scalar(scalar, mul_x, x.second);
+        vs1->add_lin_comb_scalar(scalar, mul_x, x.first);
+        vs2->add_lin_comb_scalar(scalar, mul_x, x.second);
     }
 
     //calc: x := scale*x
     void scale(scalar_type scale, vector_type &x)const
     {
-        add_mul_scalar(scalar_type(0.0), scale, x);
+        add_lin_comb_scalar(scalar_type(0.0), scale, x);
     }
 
     //copy: y := x
@@ -251,36 +251,36 @@ public:
         vs2->assign(x.second, y.second);
     }
     //calc: y := mul_x*x
-    void assign_mul(scalar_type mul_x, const vector_type& x, vector_type& y)const
+    void assign_lin_comb(scalar_type mul_x, const vector_type& x, vector_type& y)const
     {
-        vs1->assign_mul(mul_x, x.first, y.first);
-        vs2->assign_mul(mul_x, x.second, y.second);
+        vs1->assign_lin_comb(mul_x, x.first, y.first);
+        vs2->assign_lin_comb(mul_x, x.second, y.second);
     }
     //calc: z := mul_x*x + mul_y*y
-    void assign_mul(scalar_type mul_x, const vector_type& x, scalar_type mul_y, const vector_type& y, vector_type& z)const
+    void assign_lin_comb(scalar_type mul_x, const vector_type& x, scalar_type mul_y, const vector_type& y, vector_type& z)const
     {
-        vs1->assign_mul(mul_x, x.first, mul_y, y.first, z.first);
-        vs2->assign_mul(mul_x, x.second, mul_y, y.second, z.second);
+        vs1->assign_lin_comb(mul_x, x.first, mul_y, y.first, z.first);
+        vs2->assign_lin_comb(mul_x, x.second, mul_y, y.second, z.second);
     }
 
     //calc: y := mul_x*x + y
-    void add_mul(scalar_type mul_x, const vector_type& x, vector_type& y)const
+    void add_lin_comb(scalar_type mul_x, const vector_type& x, vector_type& y)const
     {
-        vs1->add_mul(mul_x, x.first, y.first);
-        vs2->add_mul(mul_x, x.second, y.second);
+        vs1->add_lin_comb(mul_x, x.first, y.first);
+        vs2->add_lin_comb(mul_x, x.second, y.second);
     }
     //calc: y := mul_x*x + mul_y*y
-    void add_mul(scalar_type mul_x, const vector_type& x, scalar_type mul_y, vector_type& y)const
+    void add_lin_comb(scalar_type mul_x, const vector_type& x, scalar_type mul_y, vector_type& y)const
     {
-        vs1->add_mul(mul_x, x.first, mul_y, y.first);
-        vs2->add_mul(mul_x, x.second, mul_y, y.second);
+        vs1->add_lin_comb(mul_x, x.first, mul_y, y.first);
+        vs2->add_lin_comb(mul_x, x.second, mul_y, y.second);
     }
     //calc: z := mul_x*x + mul_y*y + mul_z*z
-    void add_mul(scalar_type mul_x, const vector_type& x, scalar_type mul_y, const vector_type& y,
+    void add_lin_comb(scalar_type mul_x, const vector_type& x, scalar_type mul_y, const vector_type& y,
                             scalar_type mul_z, vector_type& z)const
     {
-        vs1->add_mul(mul_x, x.first, mul_y, y.first, mul_z, z.first);
-        vs2->add_mul(mul_x, x.second, mul_y, y.second, mul_z, z.second);
+        vs1->add_lin_comb(mul_x, x.first, mul_y, y.first, mul_z, z.first);
+        vs2->add_lin_comb(mul_x, x.second, mul_y, y.second, mul_z, z.second);
     }
 
     void make_abs_copy(const vector_type& x, vector_type& y)const

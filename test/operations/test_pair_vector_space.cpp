@@ -274,16 +274,16 @@ int main(int argc, char const *args[])
     // Test scalar multiplication and addition: x = mul_x * x + scalar (single scalars)
     {
         vector_type x = vector_type(vector1_type{1, 2, 3}, vector2_type{4, 5});
-        pair_vec_space.add_mul_scalar(-1, 2, x);  // x = 2*x - 1
+        pair_vec_space.add_lin_comb_scalar(-1, 2, x);  // x = 2*x - 1
         if ((x.first[0] - 1) < eps && (x.first[1] - 3) < eps && (x.first[2] - 5) < eps &&
             (x.second[0] - 7) < eps && (x.second[1] - 9) < eps)
         {
-            log.info("✓ `add_mul_scalar(scalar, mul_x, x)` method test passed");
+            log.info("✓ `add_lin_comb_scalar(scalar, mul_x, x)` method test passed");
             passed_counter++;
         }
         else
         {
-            log.error("✗ `add_mul_scalar(scalar, mul_x, x)` method failed. Expected {{1, 3, 5}, {7, 9}} but got {" + std::to_string(x.first[0]) + ", " + std::to_string(x.first[1]) + ", " + std::to_string(x.first[2]) + ", " + std::to_string(x.second[0]) + ", " + std::to_string(x.second[1]) + "}");
+            log.error("✗ `add_lin_comb_scalar(scalar, mul_x, x)` method failed. Expected {{1, 3, 5}, {7, 9}} but got {" + std::to_string(x.first[0]) + ", " + std::to_string(x.first[1]) + ", " + std::to_string(x.first[2]) + ", " + std::to_string(x.second[0]) + ", " + std::to_string(x.second[1]) + "}");
             failed_counter++;
         }
     }
@@ -315,16 +315,16 @@ int main(int argc, char const *args[])
     {
         vector_type x = vector_type(vector1_type{1, 2, 3}, vector2_type{4, 5});
         vector_type y = vector_type(vector1_type{0, 0, 0}, vector2_type{0, 0});
-        pair_vec_space.assign_mul(2, x, y);  // y = 2*x (both subvectors)
+        pair_vec_space.assign_lin_comb(2, x, y);  // y = 2*x (both subvectors)
         if ((y.first[0] - 2) < eps && (y.first[1] - 4) < eps && (y.first[2] - 6) < eps &&
             (y.second[0] - 8) < eps && (y.second[1] - 10) < eps)
         {
-            log.info("✓ `assign_mul(mul_x, x, y)` method test passed");
+            log.info("✓ `assign_lin_comb(mul_x, x, y)` method test passed");
             passed_counter++;
         }
         else
         {
-            log.error("✗ `assign_mul(mul_x, x, y)` method test failed. Expected {{2, 4, 6}, {8, 10}} but got {" + std::to_string(y.first[0]) + ", " + std::to_string(y.first[1]) + ", " + std::to_string(y.first[2]) + ", " + std::to_string(y.second[0]) + ", " + std::to_string(y.second[1]) + "}");
+            log.error("✗ `assign_lin_comb(mul_x, x, y)` method test failed. Expected {{2, 4, 6}, {8, 10}} but got {" + std::to_string(y.first[0]) + ", " + std::to_string(y.first[1]) + ", " + std::to_string(y.first[2]) + ", " + std::to_string(y.second[0]) + ", " + std::to_string(y.second[1]) + "}");
             failed_counter++;
         }
     }
@@ -334,16 +334,16 @@ int main(int argc, char const *args[])
         vector_type x = vector_type(vector1_type{1, 2, 3}, vector2_type{4, 5});
         vector_type y = vector_type(vector1_type{6, 7, 8}, vector2_type{9, 10});
         vector_type z = vector_type(vector1_type{0, 0, 0}, vector2_type{0, 0});
-        pair_vec_space.assign_mul(2, x, 3, y, z);
+        pair_vec_space.assign_lin_comb(2, x, 3, y, z);
         if ((z.first[0] - 20) < eps && (z.first[1] - 25) < eps && (z.first[2] - 30) < eps &&
             (z.second[0] - 35) < eps && (z.second[1] - 40) < eps)
         {
-            log.info("✓ `assign_mul(mul_x, x, mul_y, y, z)` method test passed");
+            log.info("✓ `assign_lin_comb(mul_x, x, mul_y, y, z)` method test passed");
             passed_counter++;
         }
         else
         {
-            log.error("✗ `assign_mul(mul_x, x, mul_y, y, z)` method failed. Expected {{20, 25, 30}, {35, 40}} but got {" + std::to_string(z.first[0]) + ", " + std::to_string(z.first[1]) + ", " + std::to_string(z.first[2]) + ", " + std::to_string(z.second[0]) + ", " + std::to_string(z.second[1]) + "}");
+            log.error("✗ `assign_lin_comb(mul_x, x, mul_y, y, z)` method failed. Expected {{20, 25, 30}, {35, 40}} but got {" + std::to_string(z.first[0]) + ", " + std::to_string(z.first[1]) + ", " + std::to_string(z.first[2]) + ", " + std::to_string(z.second[0]) + ", " + std::to_string(z.second[1]) + "}");
             failed_counter++;
         }
     }
@@ -357,16 +357,16 @@ int main(int argc, char const *args[])
     {
         vector_type x = vector_type(vector1_type{1, 2, 3}, vector2_type{4, 5});
         vector_type y = vector_type(vector1_type{6, 7, 8}, vector2_type{9, 10});
-        pair_vec_space.add_mul(2, x, y);  // y = y + 2*x
+        pair_vec_space.add_lin_comb(2, x, y);  // y = y + 2*x
         if ((y.first[0] - 8) < eps && (y.first[1] - 11) < eps && (y.first[2] - 14) < eps &&
             (y.second[0] - 17) < eps && (y.second[1] - 20) < eps)
         {
-            log.info("✓ `add_mul(mul_x, x, y)` method test passed");
+            log.info("✓ `add_lin_comb(mul_x, x, y)` method test passed");
             passed_counter++;
         }
         else
         {
-            log.error("✗ `add_mul(mul_x, x, y)` method failed. Expected {{8, 11, 14}, {17, 20}} but got {" + std::to_string(y.first[0]) + ", " + std::to_string(y.first[1]) + ", " + std::to_string(y.first[2]) + ", " + std::to_string(y.second[0]) + ", " + std::to_string(y.second[1]) + "}");
+            log.error("✗ `add_lin_comb(mul_x, x, y)` method failed. Expected {{8, 11, 14}, {17, 20}} but got {" + std::to_string(y.first[0]) + ", " + std::to_string(y.first[1]) + ", " + std::to_string(y.first[2]) + ", " + std::to_string(y.second[0]) + ", " + std::to_string(y.second[1]) + "}");
             failed_counter++;
         }
     }
@@ -375,16 +375,16 @@ int main(int argc, char const *args[])
     {
         vector_type x = vector_type(vector1_type{1, 2, 3}, vector2_type{4, 5});
         vector_type y = vector_type(vector1_type{6, 7, 8}, vector2_type{9, 10});
-        pair_vec_space.add_mul(2, x, 3, y);
+        pair_vec_space.add_lin_comb(2, x, 3, y);
         if ((y.first[0] - 20) < eps && (y.first[1] - 25) < eps && (y.first[2] - 30) < eps &&
             (y.second[0] - 35) < eps && (y.second[1] - 40) < eps)
         {
-            log.info("✓ `add_mul(mul_x, x, mul_y, y)` method test passed");
+            log.info("✓ `add_lin_comb(mul_x, x, mul_y, y)` method test passed");
             passed_counter++;
         }
         else
         {
-            log.error("✗ `add_mul(mul_x, x, mul_y, y)` method failed. Expected {{20, 25, 30}, {35, 40}} but got {" + std::to_string(y.first[0]) + ", " + std::to_string(y.first[1]) + ", " + std::to_string(y.first[2]) + ", " + std::to_string(y.second[0]) + ", " + std::to_string(y.second[1]) + "}");
+            log.error("✗ `add_lin_comb(mul_x, x, mul_y, y)` method failed. Expected {{20, 25, 30}, {35, 40}} but got {" + std::to_string(y.first[0]) + ", " + std::to_string(y.first[1]) + ", " + std::to_string(y.first[2]) + ", " + std::to_string(y.second[0]) + ", " + std::to_string(y.second[1]) + "}");
             failed_counter++;
         }
     }
@@ -394,16 +394,16 @@ int main(int argc, char const *args[])
         vector_type x = vector_type(vector1_type{1, 2, 3}, vector2_type{4, 5});
         vector_type y = vector_type(vector1_type{6, 7, 8}, vector2_type{9, 10});
         vector_type z = vector_type(vector1_type{11, 12, 13}, vector2_type{14, 15});
-        pair_vec_space.add_mul(2, x, 3, y, 4, z);
+        pair_vec_space.add_lin_comb(2, x, 3, y, 4, z);
         if ((z.first[0] - 64) < eps && (z.first[1] - 73) < eps && (z.first[2] - 82) < eps &&
             (z.second[0] - 91) < eps && (z.second[1] - 100) < eps)
         {
-            log.info("✓ `add_mul(mul_x, x, mul_y, y, mul_z, z)` method test passed");
+            log.info("✓ `add_lin_comb(mul_x, x, mul_y, y, mul_z, z)` method test passed");
             passed_counter++;
         }
         else
         {
-            log.error("✗ `add_mul(mul_x, x, mul_y, y, mul_z, z)` method failed. Expected {{64, 73, 82}, {91, 100}} but got {" + std::to_string(z.first[0]) + ", " + std::to_string(z.first[1]) + ", " + std::to_string(z.first[2]) + ", " + std::to_string(z.second[0]) + ", " + std::to_string(z.second[1]) + "}");
+            log.error("✗ `add_lin_comb(mul_x, x, mul_y, y, mul_z, z)` method failed. Expected {{64, 73, 82}, {91, 100}} but got {" + std::to_string(z.first[0]) + ", " + std::to_string(z.first[1]) + ", " + std::to_string(z.first[2]) + ", " + std::to_string(z.second[0]) + ", " + std::to_string(z.second[1]) + "}");
             failed_counter++;
         }
     }
