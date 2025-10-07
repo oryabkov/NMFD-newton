@@ -1,18 +1,18 @@
-// Copyright © 2016-2020 Ryabkov Oleg Igorevich, Evstigneev Nikolay Mikhaylovitch
+// Copyright © 2016-2025 Ryabkov Oleg Igorevich, Evstigneev Nikolay Mikhaylovitch
 
-// This file is subalgot of SCFD.
+// This file is part of NMFD.
 
-// SCFD is free software: you can redistribute it and/or modify
+// NMFD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, version 2 only of the License.
 
-// SCFD is distributed in the hope that it will be useful,
+// NMFD is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with SCFD.  If not, see <http://www.gnu.org/licenses/>.
+// along with NMFD.  If not, see <http://www.gnu.org/licenses/>.
 
 #ifndef __NMFD_ALGO_HIERARCHY_MACRO_H__
 #define __NMFD_ALGO_HIERARCHY_MACRO_H__
@@ -228,15 +228,15 @@
 
 #define NMFD_ALGO_HIERARCHY_UTILS_INIT_LIST_0(...)
 #define NMFD_ALGO_HIERARCHY_UTILS_INIT_LIST_1(subalgo_type, subalgo_name, ...) \
-  ,subalgo_name(subalgo_name)
+  ,subalgo_name(backend, vec_space)
 #define NMFD_ALGO_HIERARCHY_UTILS_INIT_LIST_2(subalgo_type, subalgo_name, ...) \
-  ,subalgo_name(subalgo_name)                                                  \
+  ,subalgo_name(backend, vec_space)                                            \
   NMFD_ALGO_HIERARCHY_UTILS_INIT_LIST_1(__VA_ARGS__)
 #define NMFD_ALGO_HIERARCHY_UTILS_INIT_LIST_3(subalgo_type, subalgo_name, ...) \
-  ,subalgo_name(subalgo_name)                                                  \
+  ,subalgo_name(backend, vec_space)                                            \
   NMFD_ALGO_HIERARCHY_UTILS_INIT_LIST_2(__VA_ARGS__)
 #define NMFD_ALGO_HIERARCHY_UTILS_INIT_LIST_4(subalgo_type, subalgo_name, ...) \
-  ,subalgo_name(subalgo_name)                                                  \
+  ,subalgo_name(backend, vec_space)                                            \
   NMFD_ALGO_HIERARCHY_UTILS_INIT_LIST_3(__VA_ARGS__)
 
 #define NMFD_ALGO_HIERARCHY_UTILS_INIT_LIST_(N, ...) NMFD_ALGO_HIERARCHY_CONCATENATE(NMFD_ALGO_HIERARCHY_UTILS_INIT_LIST_, N)(__VA_ARGS__)
@@ -278,6 +278,15 @@
           Args... args                                      \
       ) :                                                   \
         utils(args...)                                      \
+        NMFD_ALGO_HIERARCHY_INIT_LIST(__VA_ARGS__)          \
+      {                                                     \
+      }                                                     \
+      template<class Backend>                               \
+      utils_hierarchy(                                      \
+          Backend &backend,                                 \
+          std::shared_ptr<vector_space_type> vec_space      \
+      ) :                                                   \
+        utils(backend, vec_space)                           \
         NMFD_ALGO_HIERARCHY_UTILS_INIT_LIST(__VA_ARGS__)    \
       {                                                     \
       }                                                     \
@@ -313,6 +322,14 @@
 #define NMFD_ALGO_EMPTY_UTILS_TYPE_DEFINE(algo_type)         \
   struct utils                                               \
   {                                                          \
+      utils() = default;                                     \
+      template<class Backend>                                \
+      utils(                                                 \
+          Backend &backend,                                  \
+          std::shared_ptr<vector_space_type> vec_space       \
+      )                                                      \
+      {                                                      \
+      }                                                      \
   };
 
 #define NMFD_ALGO_ALL_EMPTY_DEFINE(algo_type)               \
@@ -338,7 +355,20 @@
   struct utils_hierarchy : public utils                     \
   {                                                         \
       utils_hierarchy() = default;                          \
-  };
+      template<class Backend>                               \
+      utils_hierarchy(                                      \
+          Backend &backend,                                 \
+          std::shared_ptr<vector_space_type> vec_space      \
+      )                                                     \
+      {                                                     \
+      }                                                     \
+  };                                                        \
+  algo_type(                                                \
+      const utils_hierarchy& utils,                         \
+      const params_hierarchy& prm = params_hierarchy()      \
+  )                                                         \
+  {                                                         \
+  }
 
 /*#define NMFD_ALGO_HIERARCHY_PARAMS_LIST_1(subalgo_type, subalgo_name, ...) subalgo_type NMFD_ALGO_HIERARCHY_CONCATENATE(_,subalgo_name)
 #define NMFD_ALGO_HIERARCHY_PARAMS_LIST_2(subalgo_type, subalgo_name, ...)                                                            \

@@ -1,3 +1,19 @@
+// Copyright © 2016-2025 Ryabkov Oleg Igorevich, Evstigneev Nikolay Mikhaylovitch
+
+// This file is part of NMFD.
+
+// NMFD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, version 2 only of the License.
+
+// NMFD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with NMFD.  If not, see <http://www.gnu.org/licenses/>.
+
 #ifndef __NMFD_NONLINEAR_SOLVER_H__
 #define __NMFD_NONLINEAR_SOLVER_H__
 
@@ -44,6 +60,7 @@ class nonlinear_solver
 public:
     using scalar_type = typename VectorSpace::scalar_type;
     using vector_type = typename VectorSpace::vector_type;
+    using vector_space_type = VectorSpace;
 
     struct params : public logged_obj_t::params
     {
@@ -63,6 +80,10 @@ public:
             std::shared_ptr<VectorSpace> vec_space_, Log *log_ = nullptr
         ) : 
             vec_space(vec_space_), log(log_)
+        {
+        }
+        template<class Backend>
+        utils(Backend &backend, std::shared_ptr<VectorSpace> vec_space) : utils(vec_space, &backend.log())
         {
         }
     };

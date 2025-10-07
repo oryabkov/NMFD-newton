@@ -1,4 +1,4 @@
-// Copyright © 2020-2025 Ryabkov Oleg Igorevich, Evstigneev Nikolay Mikhaylovitch
+// Copyright © 2016-2025 Ryabkov Oleg Igorevich, Evstigneev Nikolay Mikhaylovitch
 
 // This file is part of NMFD.
 
@@ -14,24 +14,32 @@
 // You should have received a copy of the GNU General Public License
 // along with NMFD.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef __NMFD_UTILS_HIERARCHY_DUMMY_H__
-#define __NMFD_UTILS_HIERARCHY_DUMMY_H__
+#ifndef __NMFD_BACKEND_SINGLE_NODE_CPU_H__
+#define __NMFD_BACKEND_SINGLE_NODE_CPU_H__
+
+#include <scfd/utils/log_std.h>
 
 namespace nmfd
 {
-namespace detail 
+namespace backend
 {
 
-struct utils_hierarchy_dummy
+template<class Log = scfd::utils::log_std>
+class single_node_cpu
 {
-    utils_hierarchy_dummy() = default;
-    template<class Backend, class VectorSpace>
-    utils_hierarchy_dummy(Backend &backend, std::shared_ptr<VectorSpace> vec_space)
+public:
+    using log_type = Log;
+
+    log_type &log()
     {
+        return log_;
     }
+
+protected:
+    log_type log_;
 };
 
-} // namespace detail
-} // namespace nmfd
+} /// namespace backend
+} /// namespace nmfd
 
 #endif

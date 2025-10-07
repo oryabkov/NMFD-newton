@@ -6,9 +6,16 @@
 
 struct subalg1
 {
+    using vector_space_type = int;
+
     struct utils_hierarchy
     {
         void *some_util;
+        utils_hierarchy() = default;
+        template<class Backend>
+        utils_hierarchy(Backend &backend, std::shared_ptr<vector_space_type> vec_space)
+        {
+        }
     };
 };
 
@@ -40,6 +47,8 @@ struct subalg2
 
 struct alg
 {
+    using vector_space_type = int;
+
     struct params
     {
         std::string log_msg_prefix;
@@ -60,6 +69,10 @@ struct alg
     };
     struct utils
     {
+        template<class Backend>
+        utils(Backend &backend, std::shared_ptr<vector_space_type> vec_space_)
+        {
+        }
     };
 
     NMFD_ALGO_HIERARCHY_PARAMS_TYPES_DECL(subalg1,a1,subalg2,a2)
@@ -67,15 +80,15 @@ struct alg
     {
         NMFD_ALGO_HIERARCHY_PARAMS_DEF(subalg1,a1,subalg2,a2)
         params_hierarchy(const std::string &log_prefix = "", const std::string &log_name = "alg::") : 
-          params(log_prefix, log_name),
+          params(log_prefix, log_name)
           NMFD_ALGO_HIERARCHY_PARAMS_INIT_LIST(subalg1,a1,subalg2,a2)
         {
         }
         params_hierarchy(
-            const params &prm_, 
+            const params &prm_
             NMFD_ALGO_HIERARCHY_PARAMS_PASS(subalg1,a1,subalg2,a2)
         ) : 
-          params(prm_), 
+          params(prm_)
           NMFD_ALGO_HIERARCHY_INIT_LIST(subalg1,a1,subalg2,a2)
         {
         }
@@ -100,11 +113,17 @@ struct alg
         utils_hierarchy() = default;
         template<class ...Args>
         utils_hierarchy(
-            NMFD_ALGO_HIERARCHY_UTILS_PASS(subalg1,a1,subalg2,a2),
+            NMFD_ALGO_HIERARCHY_UTILS_PASS(subalg1,a1,subalg2,a2)
             Args... args
         ) : 
-          utils(args...), 
+          utils(args...)
           NMFD_ALGO_HIERARCHY_INIT_LIST(subalg1,a1,subalg2,a2)
+        {
+        }
+        template<class Backend>
+        utils_hierarchy(Backend &backend, std::shared_ptr<vector_space_type> vec_space) : 
+          utils(backend, vec_space)
+          NMFD_ALGO_HIERARCHY_UTILS_INIT_LIST(subalg1,a1,subalg2,a2)
         {
         }
     };
@@ -114,6 +133,8 @@ struct alg
 
 struct alg1
 {
+    using vector_space_type = int;
+
     NMFD_ALGO_EMPTY_PARAMS_TYPE_DEFINE(alg1)
     NMFD_ALGO_EMPTY_UTILS_TYPE_DEFINE(alg1)
 

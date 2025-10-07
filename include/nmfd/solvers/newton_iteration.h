@@ -1,3 +1,19 @@
+// Copyright © 2016-2025 Ryabkov Oleg Igorevich, Evstigneev Nikolay Mikhaylovitch
+
+// This file is part of NMFD.
+
+// NMFD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, version 2 only of the License.
+
+// NMFD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with NMFD.  If not, see <http://www.gnu.org/licenses/>.
+
 #ifndef __NMFD_NEWTON_ITERATION_H__
 #define __NMFD_NEWTON_ITERATION_H__
 
@@ -14,21 +30,23 @@ namespace solvers
 template<class VectorSpace, class NonlinearOperator, class LinearSolver>
 class newton_iteration
 {
-    typedef typename VectorSpace::scalar_type  T;
+    using T = typename VectorSpace::scalar_type;
 public:
-    typedef typename VectorSpace::scalar_type  scalar_type;
-    typedef typename VectorSpace::vector_type  vector_type;
-    typedef typename NonlinearOperator::jacobi_operator_type  linear_operator;
+    using scalar_type = typename VectorSpace::scalar_type;
+    using vector_type = typename VectorSpace::vector_type;
+    using vector_space_type = VectorSpace;
+    using linear_operator = typename NonlinearOperator::jacobi_operator_type;
     
     NMFD_ALGO_EMPTY_PARAMS_TYPE_DEFINE(newton_iteration)
     struct utils
     {
         std::shared_ptr<VectorSpace> vec_space;
         utils() = default;
-        utils(
-            std::shared_ptr<VectorSpace> vec_space_
-        ) : 
-            vec_space(vec_space_)
+        utils(std::shared_ptr<VectorSpace> vec_space_) : vec_space(std::move(vec_space_))
+        {
+        }
+        template<class Backend>
+        utils(Backend &backend, std::shared_ptr<VectorSpace> vec_space_) : utils(vec_space_)
         {
         }
     };
