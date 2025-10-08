@@ -20,11 +20,11 @@ class default_multivector_operations_base : public ParentType
 {
 
 public:
-    using ParentType::vector_type;
-    using ParentType::multivector_type;
-    using ParentType::scalar_type;
-    using ParentType::Ord;    
-    using ParentType::ordinal_type;
+    using vector_type = typename ParentType::vector_type;
+    using multivector_type = typename ParentType::multivector_type;
+    using scalar_type = typename ParentType::scalar_type;
+    using Ord = typename ParentType::Ord;    
+    using ordinal_type = typename ParentType::ordinal_type;
 
 public:
     default_multivector_operations_base(bool use_high_precision = false):
@@ -35,23 +35,23 @@ public:
     /// multivector interface
     void assign(const multivector_type& mx, Ord m, Ord k_, vector_type& x) const
     {
-        static_cast<DerivedSpace>(this)->assign(mx[k_], x);
+        static_cast<const DerivedSpace*>(this)->assign(mx[k_], x);
     }
     void assign(const vector_type& x, multivector_type& mx, Ord m, Ord k_) const
     {
-        static_cast<DerivedSpace>(this)->assign(x, mx[k_]);
+        static_cast<const DerivedSpace*>(this)->assign(x, mx[k_]);
     }
     [[nodiscard]] scalar_type scalar_prod(const multivector_type& mx, Ord m, Ord k_, const vector_type &y)const
     {
-        return static_cast<DerivedSpace>(this)->scalar_prod(mx[k_], y);
+        return static_cast<const DerivedSpace*>(this)->scalar_prod(mx[k_], y);
     }
     [[nodiscard]] scalar_type scalar_prod_l2(const multivector_type& mx, Ord m, Ord k_, const vector_type &y)const
     {
-        return static_cast<DerivedSpace>(this)->scalar_prod_l2(mx[k_], y);
+        return static_cast<const DerivedSpace*>(this)->scalar_prod_l2(mx[k_], y);
     }
     void add_lin_comb(const scalar_type mul_x, const multivector_type& mx, Ord m, Ord k_, const scalar_type mul_y, vector_type& y) const
     {
-        static_cast<DerivedSpace>(this)->add_lin_comb(mul_x, mx[k_], mul_y, y);
+        static_cast<const DerivedSpace*>(this)->add_lin_comb(mul_x, mx[k_], mul_y, y);
     }
 
 };

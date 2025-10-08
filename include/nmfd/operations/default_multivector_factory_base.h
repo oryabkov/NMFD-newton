@@ -20,11 +20,11 @@ class default_multivector_factory_base : public ParentType
 {
 
 public:
-    using ParentType::vector_type;
-    using ParentType::multivector_type;
-    using ParentType::scalar_type;
-    using ParentType::Ord;    
-    using ParentType::ordinal_type;
+    using vector_type = typename ParentType::vector_type;
+    using multivector_type = typename ParentType::multivector_type;
+    using scalar_type = typename ParentType::scalar_type;
+    using Ord = typename ParentType::Ord;    
+    using ordinal_type = typename ParentType::ordinal_type;
 
 public:
     default_multivector_factory_base() = default;
@@ -35,14 +35,14 @@ public:
         x.resize(m);
         for (Ord i = 0;i < m;++i)
         {
-            static_cast<DerivedSpace>(this)->init_vector(x[i]);
+            static_cast<const DerivedSpace*>(this)->init_vector(x[i]);
         }
     }
     void free_multivector(multivector_type& x, Ord m) const
     {
         for (Ord i = 0;i < m;++i)
         {
-            static_cast<DerivedSpace>(this)->free_vector(x[i]);
+            static_cast<const DerivedSpace*>(this)->free_vector(x[i]);
         }
         x.clear();
     }
@@ -50,14 +50,14 @@ public:
     {
         for (Ord i = 0;i < m;++i)
         {
-            static_cast<DerivedSpace>(this)->start_use_vector(x[i]);
+            static_cast<const DerivedSpace*>(this)->start_use_vector(x[i]);
         }
     }
     void stop_use_multivector(multivector_type& x, Ord m) const
     {
         for (Ord i = 0;i < m;++i)
         {
-            static_cast<DerivedSpace>(this)->stop_use_vector(x[i]);
+            static_cast<const DerivedSpace*>(this)->stop_use_vector(x[i]);
         }
     }
 

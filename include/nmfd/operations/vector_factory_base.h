@@ -17,7 +17,8 @@ public:
     using vector_type = VectorType;
     using multivector_type = MultiVectorType;
     using scalar_type = Type;
-    using Ord = Ordinal;    
+    using Ord = Ordinal; 
+    using ordinal_type = Ord;   
 
 private:
     using T = scalar_type;
