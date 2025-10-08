@@ -16,7 +16,7 @@ struct linsolver
     using operator_type = Mat;
 
     linsolver() = default;
-    //NMFD_ALGO_ALL_EMPTY_DEFINE(linsolver)
+    NMFD_ALGO_ALL_EMPTY_DEFINE(linsolver)
     
 
     Mat a_inv;

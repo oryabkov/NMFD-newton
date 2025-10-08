@@ -2,6 +2,7 @@
 #include <type_traits>
 #include <iostream>
 #include <string>
+#include <memory>
 #include <nmfd/detail/algo_hierarchy_macro.h>
 
 struct subalg1
