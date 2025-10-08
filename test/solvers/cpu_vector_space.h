@@ -1,11 +1,12 @@
-#ifndef __NMFD_CPU_VECTOR_OPERATIONS_H__
-#define __NMFD_CPU_VECTOR_OPERATIONS_H__
+#ifndef __NMFD_CPU_VECTOR_SPACE_H__
+#define __NMFD_CPU_VECTOR_SPACE_H__
 
 #include <cmath>
 #include <exception>
 #include <cstdlib>
 #include <new>
-#include <nmfd/operations/vector_operations_base.h>
+#include <nmfd/operations/vector_space_base.h>
+#include <nmfd/operations/default_multivector_space_base.h>
 
 namespace nmfd
 {
@@ -126,18 +127,36 @@ private:
 
 }
 
-template<class Type, class VectorType, class MultiVectorType, class Log/*, class Cardinal = std::size_t*/, class Ordinal = std::ptrdiff_t>
-class cpu_vector_space: public nmfd::operations::vector_operations_base<Type, VectorType, MultiVectorType/*, Log, Cardinal*/, Ordinal>
+template
+<
+    class Type, class VectorType, class Log, class Ordinal = std::ptrdiff_t
+>
+class cpu_vector_space : 
+  //public nmfd::operations::vector_space_base<Type, VectorType, VectorType, Ordinal>
+  public nmfd::operations::default_multivector_space_base
+  <
+    cpu_vector_space<Type, VectorType, Log, Ordinal>,
+    Type, VectorType, Ordinal
+  >
 {
-    using parent_t = nmfd::operations::vector_operations_base<
-            Type,
-            VectorType,
-            MultiVectorType,
-            Ordinal>;
+    /*using parent_t = 
+        nmfd::operations::vector_space_base
+        <
+            Type, VectorType, VectorType, Ordinal
+        >;*/
+    using parent_t = 
+        nmfd::operations::default_multivector_space_base
+        <
+            cpu_vector_space<Type, VectorType, Log, Ordinal>,
+            Type, VectorType, Ordinal
+        >;
 
 public:
     using Ord = typename parent_t::Ord;
     using vector_type = typename parent_t::vector_type;
+    //using MultiVectorType = vector_type;
+    //using multivector_type = MultiVectorType;
+    using MultiVectorType = typename parent_t::multivector_type;
     using multivector_type = typename parent_t::multivector_type;
     using scalar_type = typename parent_t::scalar_type;
     
@@ -200,7 +219,7 @@ public:
     void stop_use_vector(vector_type& x) const
     {}
 
-    void init_multivector(multivector_type& x, Ord m) const
+    /*void init_multivector(multivector_type& x, Ord m) const
     {
         x = reinterpret_cast<MultiVectorType>(std::malloc(size_of_mem_*m) );
         if(x == nullptr)
@@ -215,9 +234,9 @@ public:
     void start_use_multivector(multivector_type& x, Ord m) const
     {}
     void stop_use_multivector(multivector_type& x, Ord m) const
-    {}
+    {}*/
     
-    [[nodiscard]] vector_type at(multivector_type& x, Ord m, Ord k_) const
+    /*[[nodiscard]] vector_type at(const multivector_type& x, Ord m, Ord k_) const
     {
         if (k_ < 0 || k_>=m  ) 
         {
@@ -225,6 +244,38 @@ public:
         }
         return &x[ sz_*k_ ];
     }
+    /// multivector interface
+    void assign(const multivector_type& mx, Ord m, Ord k_, vector_type& x) const
+    {
+        //throw std::logic_error("no mv interface");
+        assign(at(mx,m,k_), x);
+    }
+    void assign(const vector_type& x, multivector_type& mx, Ord m, Ord k_) const
+    {
+        //throw std::logic_error("no mv interface");
+        auto mx_k = at(mx,m,k_);
+        assign(x, mx_k);
+    }
+    [[nodiscard]] scalar_type scalar_prod(const multivector_type& mx, Ord m, Ord k_, const vector_type &y)const
+    {
+        //throw std::logic_error("no mv interface");
+        return scalar_prod(at(mx,m,k_), y);
+    }
+    [[nodiscard]] scalar_type scalar_prod_l2(const multivector_type& mx, Ord m, Ord k_, const vector_type &y)const
+    {
+        //throw std::logic_error("no mv interface");
+        return scalar_prod_l2(at(mx,m,k_), y);
+    }
+    void add_lin_comb(const scalar_type mul_x, const multivector_type& mx, Ord m, Ord k_, const scalar_type mul_y, vector_type& y) const
+    {
+        //throw std::logic_error("no mv interface");
+        add_lin_comb(mul_x, at(mx,m,k_), mul_y, y);
+    }*/
+    ///multivector interface from parent restore because of overshadowing    
+    using parent_t::assign;
+    using parent_t::scalar_prod;
+    using parent_t::scalar_prod_l2;
+    using parent_t::add_lin_comb;
 
     [[nodiscard]] bool is_valid_number(const vector_type &x) const
     {
@@ -241,6 +292,10 @@ public:
     }
 
     [[nodiscard]] scalar_type scalar_prod(const vector_type &x, const vector_type &y)const
+    {
+        return reductions_->dot(x, y);
+    }
+    [[nodiscard]] scalar_type scalar_prod_l2(const vector_type &x, const vector_type &y)const
     {
         return reductions_->dot(x, y);
     }

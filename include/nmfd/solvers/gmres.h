@@ -324,9 +324,13 @@ private:
         for (int j = 0; j <= i; j++) 
         {
             // x = x + s[j] * V(j)
-            //add_lin_comb(scalar_type mul_x, const vector_type& x, vector_type& y)
-            T_vec Vj = vec_ops_->at(V_, prms_.basis_size+1, j);
-            vec_ops_->add_lin_comb(s(j), (const T_vec)Vj, 1.0, x);          
+
+            //old version
+            ////add_lin_comb(scalar_type mul_x, const vector_type& x, vector_type& y)
+            //T_vec Vj = vec_ops_->at(V_, prms_.basis_size+1, j);
+            //vec_ops_->add_lin_comb(s(j), (const T_vec)Vj, 1.0, x);          
+
+            vec_ops_->add_lin_comb(s(j), V_, prms_.basis_size+1, j, 1.0, x);          
         }
     }
 
@@ -444,9 +448,10 @@ public:
             do
             {
                 T beta = vec_ops_->norm(r_);
-                T_vec V_0 = vec_ops_->at(V_, restart_+1, 0);
+                //T_vec V_0 = vec_ops_->at(V_, restart_+1, 0); //old version
                 vec_ops_->scale(1.0/beta, r_);
-                vec_ops_->assign(r_, V_0);
+                //vec_ops_->assign(r_, V_0); //old version
+                vec_ops_->assign(r_, V_, restart_+1, 0);
                 zero_host_s(); // s(:) = 0;
                 dense_ops_->vector_at(s_, 0) = beta;
                 // std::cout << "s[0] = " << dense_ops_->vector_at(s_, 0) << std::endl;
@@ -463,20 +468,28 @@ public:
                     // Gram-Schmidt with iterative correction
                     for( int k = 0; k <= i; k++)
                     {
-                        T_vec V_k = vec_ops_->at(V_, restart_+1, k);
-                        T alpha = vec_ops_->scalar_prod(V_k, r_); // H(k,i) = (V[k],V[i+1])
+                        ////old version
+                        //T_vec V_k = vec_ops_->at(V_, restart_+1, k);
+                        //T alpha = vec_ops_->scalar_prod(V_k, r_); // H(k,i) = (V[k],V[i+1])
+
+                        T alpha = vec_ops_->scalar_prod(V_, restart_+1, k, r_); // H(k,i) = (V[k],V[i+1])                        
                         // std::cout << "i = " << i << ", k = " << k << ", (v_k,r_) = " << alpha  << ", ||v_k|| = " << vec_ops_->norm(V_k) << std::endl;
 
-                        vec_ops_->add_lin_comb(-alpha, V_k, 1.0, r_); // V(i+1) -= H(k, i) * V(k)
+                        ////old version
+                        //vec_ops_->add_lin_comb(-alpha, V_k, 1.0, r_); // V(i+1) -= H(k, i) * V(k)
+
+                        vec_ops_->add_lin_comb(-alpha, V_, restart_+1, k, 1.0, r_); // V(i+1) -= H(k, i) * V(k)
 
                         T c_norm = alpha;
                         int correction_iterations = 0;
                         while( (prms_.reorthogonalization)&&(c_norm > error_L2_basic_type_*next_r_norm )) //iterative correction
                         {
                             correction_iterations++;
-                            T c = vec_ops_->scalar_prod(V_k, r_); // H(k,i) = (V[k], V[i+1])
+                            //T c = vec_ops_->scalar_prod(V_k, r_); // H(k,i) = (V[k], V[i+1]) //old version
+                            T c = vec_ops_->scalar_prod(V_, restart_+1, k, r_); // H(k,i) = (V[k], V[i+1])
                             c_norm = std::abs(c);
-                            vec_ops_->add_lin_comb(-c, V_k, 1.0, r_);
+                            //vec_ops_->add_lin_comb(-c, V_k, 1.0, r_); //old version
+                            vec_ops_->add_lin_comb(-c, V_, restart_+1, k, 1.0, r_);
                             alpha += c;
                             if(correction_iterations>10)
                             {
@@ -501,10 +514,11 @@ public:
                     // H_[(i + 1)*restart_ + i] = h_ip;
                     dense_ops_->matrix_at(H_, i+1, i) = h_ip;
 
-                    T_vec V_ip1 = vec_ops_->at(V_, restart_+1, i+1);
+                    //T_vec V_ip1 = vec_ops_->at(V_, restart_+1, i+1); //old version
                     
                     vec_ops_->scale(1.0/h_ip, r_);
-                    vec_ops_->assign(r_, V_ip1);
+                    //vec_ops_->assign(r_, V_ip1); //old version
+                    vec_ops_->assign(r_, V_, restart_+1, i+1);
                     
                     // plane_rotation_(H_, cs_, sn_, s_, i); //QR via Givens rotations
                     dense_ops_->plane_rotation_col(H_, cs_, sn_, s_, i);

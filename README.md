@@ -476,7 +476,48 @@ struct pair_vector_space
 };
 ```
 
-## Dense Extended Operator
+## Dense1 Extended Operator
+
+Class represents operator of form 
+(A   u)
+(v^t w)
+where A is some origin operator extended with vector u row v^t and number w.
+
+Implements OperatorWithSpaces interface.
+
+```
+template<class OrigOperator, class OrigVectorSpace>
+class dense1_extended_operator
+{
+    ///TODO add static assert for scalar_type and vector_type coincidence
+public:
+    using orig_vector_type = typename OrigOperator::vector_type;
+    using orig_vector_space_type = OrigVectorSpace;
+    using scalar_space_type = operations::static_vector_space<scalar_type,1>;
+
+    using scalar_type = typename OrigOperator::scalar_type;
+    using vector_space_type = operations::pair_vector_space<OrigVectorSpace,scalar_space_type>;
+    using vector_type = typename vector_space_type::vector_type;
+
+    dense1_extended_operator(std::shared_ptr<OrigVectorSpace> orig_vec_space, std::shared_ptr<const OrigOperator> orig_op = nullptr);
+    /// Also sets extended values at once
+    dense1_extended_operator(std::shared_ptr<OrigVectorSpace> orig_vec_space, std::shared_ptr<const OrigOperator> orig_op, const vector_type &u, const vector_type &v, scalar_type w);
+
+    /// Use to set or reset origin A operator
+    void set_orig_operator(std::shared_ptr<const OrigOperator> orig_op);
+
+    ///These can be used to reset dense extension values
+    vector_type &u();
+    vector_type &v();
+    scalar_type &w();
+
+    ///Issue add const versions of u() v() w()?
+
+    void apply(const vector_type &in, vector_type &out);
+    std::shared_ptr<vector_space_type> get_im_space() const;
+    std::shared_ptr<vector_space_type> get_dom_space() const;
+};
+```
 
 ## Tuple Vector Space
 
