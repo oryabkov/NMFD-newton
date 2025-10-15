@@ -232,16 +232,16 @@ public:
     }
 
     //calc: x := mul_x*x + <vector_type of all scalar value>
-    void add_lin_comb_scalar(const scalar_type scalar, const scalar_type mul_x, vector_type& x)const
+    void add_mul_scalar(const scalar_type scalar, const scalar_type mul_x, vector_type& x)const
     {
-        vs1->add_lin_comb_scalar(scalar, mul_x, x.first);
-        vs2->add_lin_comb_scalar(scalar, mul_x, x.second);
+        vs1->add_mul_scalar(scalar, mul_x, x.first);
+        vs2->add_mul_scalar(scalar, mul_x, x.second);
     }
 
     //calc: x := scale*x
     void scale(scalar_type scale, vector_type &x)const
     {
-        add_lin_comb_scalar(scalar_type(0.0), scale, x);
+        add_mul_scalar(scalar_type(0.0), scale, x);
     }
 
     //copy: y := x

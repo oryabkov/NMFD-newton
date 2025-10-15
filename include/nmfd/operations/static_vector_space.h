@@ -179,14 +179,14 @@ struct static_vector_space
             x[i] = scalar;
     }
     //calc: x := mul_x*x + <vector_type of all scalar value>
-    void add_lin_comb_scalar(const scalar_type scalar, const scalar_type mul_x, vector_type& x)const
+    void add_mul_scalar(const scalar_type scalar, const scalar_type mul_x, vector_type& x)const
     {
         for (size_t i = 0;i < Dim;++i)
             x[i] = mul_x*x[i] + scalar;
     }
     void scale(scalar_type scale, vector_type &x)const
     {
-        add_lin_comb_scalar(static_cast<scalar_type>(0.0), scale, x);
+        add_mul_scalar(static_cast<scalar_type>(0.0), scale, x);
     }
     //copy: y := x
     void assign(const vector_type& x, vector_type& y)const
