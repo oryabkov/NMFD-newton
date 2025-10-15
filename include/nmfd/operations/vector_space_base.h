@@ -15,7 +15,17 @@ class vector_space_base :
     public vector_operations_base<Type,VectorType,MultiVectorType,Ordinal>
 {
 public:
-    vector_space_base() = default;
+    /// To overshadow ambiguity
+    using vector_type = VectorType;
+    using multivector_type = MultiVectorType;
+    using scalar_type = Type;
+    using Ord = Ordinal;    
+    using ordinal_type = Ord;
+
+    vector_space_base(bool use_high_precision = false) : 
+      vector_operations_base<Type,VectorType,MultiVectorType,Ordinal>(use_high_precision)
+    {
+    }
     virtual ~vector_space_base() = default;
 };
 

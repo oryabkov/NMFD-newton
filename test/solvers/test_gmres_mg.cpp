@@ -22,8 +22,7 @@ int main(int argc, char const *args[])
     using log_t = scfd::utils::log_std;
     using T = double;
     using T_vec = double*;
-    using T_mvec = double*;
-    using vec_ops_t = nmfd::cpu_vector_space<T, T_vec, T_mvec, log_t>;
+    using vec_ops_t = nmfd::cpu_vector_space<T, T_vec, log_t>;
     using prolongator_t = tests::prolongator<vec_ops_t, log_t>;
     using restrictor_t = tests::restrictor<vec_ops_t, log_t>;
     using ident_op_t = tests::ident_op<vec_ops_t, log_t>;

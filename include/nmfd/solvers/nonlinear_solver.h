@@ -1,3 +1,19 @@
+// Copyright © 2016-2025 Ryabkov Oleg Igorevich, Evstigneev Nikolay Mikhaylovitch
+
+// This file is part of NMFD.
+
+// NMFD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, version 2 only of the License.
+
+// NMFD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with NMFD.  If not, see <http://www.gnu.org/licenses/>.
+
 #ifndef __NMFD_NONLINEAR_SOLVER_H__
 #define __NMFD_NONLINEAR_SOLVER_H__
 
@@ -14,6 +30,8 @@
 #include <stdexcept>
 #include <nmfd/operations/ident_operator.h>
 #include <nmfd/operations/zero_functional.h>
+#include <nmfd/detail/algo_hierarchy_macro.h>
+#include <nmfd/detail/algo_hierarchy_creator.h>
 #include "../detail/str_source_helper.h"
 #include "../detail/vector_wrap.h"
 #include "default_convergence_strategy.h"
@@ -36,10 +54,40 @@ template
 >
 class nonlinear_solver
 {
-    typedef typename VectorSpace::scalar_type  T;
+    using T = typename VectorSpace::scalar_type;
+    using logged_obj_t = scfd::utils::logged_obj_base<Log>;
+    using logged_obj_params_t = typename logged_obj_t::params;
 public:
-    typedef typename VectorSpace::scalar_type  scalar_type;
-    typedef typename VectorSpace::vector_type  vector_type;
+    using scalar_type = typename VectorSpace::scalar_type;
+    using vector_type = typename VectorSpace::vector_type;
+    using vector_space_type = VectorSpace;
+
+    struct params : public logged_obj_t::params
+    {
+        params(
+            const std::string &log_pefix = "", const std::string &log_name = "nonlinear_solver::"
+        ) : logged_obj_t::params(0, log_pefix + log_name)
+        {
+        }
+        /// TODO add json
+    };
+    struct utils
+    {
+        std::shared_ptr<VectorSpace> vec_space;
+        Log *log;
+        utils() = default;
+        utils(
+            std::shared_ptr<VectorSpace> vec_space_, Log *log_ = nullptr
+        ) : 
+            vec_space(vec_space_), log(log_)
+        {
+        }
+        template<class Backend>
+        utils(Backend &backend, std::shared_ptr<VectorSpace> vec_space) : utils(vec_space, &backend.log())
+        {
+        }
+    };
+    NMFD_ALGO_HIERARCHY_TYPES_DEFINE(nonlinear_solver,IterationOperator,iteration_operator,ConvergenceStrategy,convergence_strategy)
 
     nonlinear_solver(
         std::shared_ptr<VectorSpace> vec_ops, Log *log,
@@ -53,11 +101,22 @@ public:
     {
         if (!conv_strat_)
         {
+            /// TODO this only should work for default convergence strategy - make creator!
             conv_strat_ = std::make_shared<ConvergenceStrategy>(vec_ops_,log);
         }
         //vec_ops_->init_vector(delta_x_); vec_ops_->start_use_vector(delta_x_);
     }
-    
+    nonlinear_solver(  
+        const utils_hierarchy& utils,
+        const params_hierarchy& prm = params_hierarchy()      
+    ) : 
+        nonlinear_solver(  
+            utils.vec_space, utils.log, 
+            nmfd::detail::algo_hierarchy_creator<IterationOperator>::get(utils.iteration_operator,prm.iteration_operator),
+            nmfd::detail::algo_hierarchy_creator<ConvergenceStrategy>::get(utils.convergence_strategy,prm.convergence_strategy)
+        )
+    {
+    }
     ~nonlinear_solver()
     {
         //vec_ops_->stop_use_vector(delta_x_); vec_ops_->free_vector(delta_x_); 

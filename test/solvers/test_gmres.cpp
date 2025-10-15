@@ -21,8 +21,7 @@ int main(int argc, char const *args[])
     using log_t = scfd::utils::log_std;
     using T = double;
     using T_vec = double*;
-    using T_mvec = double*;
-    using vec_ops_t = nmfd::cpu_vector_space<T, T_vec, T_mvec, log_t>;
+    using vec_ops_t = nmfd::cpu_vector_space<T, T_vec, log_t>;
     using lin_op_adv_t = tests::linear_operator_advection<vec_ops_t, log_t>;
     using lin_op_diff_t = tests::linear_operator_diffusion<vec_ops_t, log_t>;
     using lin_op_elliptic_t = tests::linear_operator_elliptic<vec_ops_t, log_t>;
