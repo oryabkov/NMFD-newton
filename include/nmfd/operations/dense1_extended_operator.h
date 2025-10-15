@@ -9,6 +9,7 @@
 #include <memory>
 #include <nmfd/operations/static_vector_space.h>
 #include <nmfd/operations/pair_vector_space.h>
+#include "nmfd/detail/vector_wrap.h"
 
 /// TODO systemize size_t behaviour - mb make some Vector dependent type?
 /// TODO multivector - add some generic wrap for multivector (std::vector) and use it here
@@ -42,65 +43,102 @@ where A is some origin operator extended with vector u row v^t and number w.
     using vector_space_type = operations::pair_vector_space<OrigVectorSpace,scalar_space_type>;
     using vector_type = typename vector_space_type::vector_type;
 
-private:
-    std::shared_ptr<const orig_vector_space_type> orig_vec_space;
-    std::shared_ptr<const scalar_space_type> scalar_space;
-
-    std::shared_ptr<const OrigOperator> A;
-    orig_vector_type u;
-    orig_vector_type v;
-    scalar_vector_type w;
-
 public:
-    // TODO: What this constructor does?
-    // dense1_extended_operator(std::shared_ptr<OrigVectorSpace> orig_vec_space, std::shared_ptr<const OrigOperator> orig_op = nullptr);
+    dense1_extended_operator(std::shared_ptr<OrigVectorSpace> orig_vec_space, std::shared_ptr<const OrigOperator> orig_op = nullptr):
+        orig_vec_space_(orig_vec_space),
+        A_(orig_op),
+        scalar_space_(),
+        u_wrap_(*orig_vec_space),
+        v_wrap_(*orig_vec_space),
+        w_wrap_(scalar_space_)
+    {
+    }
 
     dense1_extended_operator(std::shared_ptr<OrigVectorSpace> orig_vec_space, std::shared_ptr<const OrigOperator> orig_op, const orig_vector_type &_u, const orig_vector_type &_v, const scalar_vector_type &_w):
-        orig_vec_space(orig_vec_space),
-        scalar_space(std::make_shared<scalar_space_type>()),
-        A(orig_op),
-        u(_u),
-        v(_v),
-        w(_w)
-    {}
+        dense1_extended_operator(orig_vec_space, orig_op)
+    {
+        orig_vec_space_->assign(_u, *u_wrap_);
+        orig_vec_space_->assign(_v, *v_wrap_);
+        scalar_space_.assign(_w, *w_wrap_);
+    }
 
     /// Use to set or reset origin A operator
     void set_orig_operator(std::shared_ptr<const OrigOperator> orig_op)
     {
-        A = orig_op;
+        A_ = orig_op;
     }
 
     // TODO: Add const versions of u() v() w()?
     ///These can be used to reset dense extension values
-    // vector_type &u();
-    // vector_type &v();
-    // scalar_type &w();
-    ///Issue add const versions of u() v() w()?
+    vector_type &u()
+    {
+        return *u_wrap_;
+    }
+
+    vector_type &v()
+    {
+        return *v_wrap_;
+    }
+
+    scalar_type &w()
+    {
+        return *w_wrap_;
+    }
+
+    const vector_type &u() const
+    {
+        return *u_wrap_;
+    }
+
+    const vector_type &v() const
+    {
+        return *v_wrap_;
+    }
+
+    const scalar_type &w() const
+    {
+        return *w_wrap_;
+    }
 
     void apply(const vector_type &in, vector_type &out)
     {
-        const scalar_type scalar_in_second = scalar_space->get_value_at_point(0, in.second);
-        const scalar_type scalar_w = scalar_space->get_value_at_point(0, w);
+        const scalar_type scalar_in_second = scalar_space_.get_value_at_point(0, in.second);
+        const scalar_type scalar_w = scalar_space_.get_value_at_point(0, *w_wrap_);
 
         // out.first() = A.apply(in.first()) + in.second()*u
-        A->apply(in.first, out.first);
-        orig_vec_space->add_lin_comb(scalar_in_second, u, out.first);
+        A_->apply(in.first, out.first);
+        orig_vec_space_->add_lin_comb(scalar_in_second, *u_wrap_, out.first);
 
         // out.second() = v^t * in.first() + w * in.second()
-        scalar_type scalar_v_in_first = orig_vec_space->scalar_prod(v, in.first);
-        scalar_type scalar_w_in_second = scalar_space->scalar_prod(w, in.second);
-        scalar_space->set_value_at_point(scalar_v_in_first + scalar_w_in_second, 0, out.second);
+        scalar_type scalar_v_in_first = orig_vec_space_->scalar_prod(*v_wrap_, in.first);
+        scalar_type scalar_w_in_second = scalar_space_.scalar_prod(*w_wrap_, in.second);
+        scalar_space_.set_value_at_point(scalar_v_in_first + scalar_w_in_second, 0, out.second);
     }
 
-    std::shared_ptr<vector_space_type> get_im_space() const
+    // TODO: Is it correct?
+    std::shared_ptr<const orig_vector_space_type> get_im_space() const
     {
-        return orig_vec_space;
+        return orig_vec_space_;
     }
 
-    std::shared_ptr<vector_space_type> get_dom_space() const
+    // TODO: Is it correct?
+    const scalar_space_type get_dom_space() const
     {
-        return orig_vec_space;
+        return scalar_space_;
     }
+
+
+private:
+    using orig_vector_wrap_t = detail::vector_wrap<orig_vector_space_type, true, true>;
+    using scalar_vector_wrap_t = detail::vector_wrap<scalar_space_type, true, true>;
+
+    std::shared_ptr<const orig_vector_space_type> orig_vec_space_;
+    const scalar_space_type scalar_space_;
+
+    std::shared_ptr<const OrigOperator> A_;
+    orig_vector_wrap_t u_wrap_;
+    orig_vector_wrap_t v_wrap_;
+    scalar_vector_wrap_t w_wrap_;
 
 };
 

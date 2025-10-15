@@ -36,7 +36,7 @@ public:
     using vector_type = typename VectorSpace::vector_type;
     using vector_space_type = VectorSpace;
     using linear_operator = typename NonlinearOperator::jacobi_operator_type;
-    
+
     NMFD_ALGO_EMPTY_PARAMS_TYPE_DEFINE(newton_iteration)
     struct utils
     {
@@ -56,13 +56,13 @@ public:
       vec_ops_(std::move(vec_ops)),
       lin_solver_(std::move(lin_solver))
     {
-        vec_ops_->init_vector(f_); 
+        vec_ops_->init_vector(f_);
     }
-    newton_iteration(  
+    newton_iteration(
         const utils_hierarchy& utils,
-        const params_hierarchy& prm = params_hierarchy()      
-    ) : 
-        newton_iteration(  
+        const params_hierarchy& prm = params_hierarchy()
+    ) :
+        newton_iteration(
             utils.vec_space,
             nmfd::detail::algo_hierarchy_creator<LinearSolver>::get(utils.lin_solver,prm.lin_solver)
         )
@@ -81,7 +81,7 @@ public:
         vec_ops_->scale(T(-1), f_);
         lin_solver_->set_operator(nonlin_op.get_jacobi_operator());
         bool flag_lin_solver = lin_solver_->solve(f_, d_x);
-        vec_ops_->stop_use_vector(f_); 
+        vec_ops_->stop_use_vector(f_);
         return flag_lin_solver;
     }
 private:

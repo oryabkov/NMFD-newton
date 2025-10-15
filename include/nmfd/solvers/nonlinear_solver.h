@@ -44,11 +44,11 @@ namespace solvers
 
 template
 <
-    class VectorSpace, 
-    class Log, 
-    class NonlinearOperator, 
-    class IterationOperator, 
-    class ProjectOperator = operations::ident_operator<VectorSpace>, 
+    class VectorSpace,
+    class Log,
+    class NonlinearOperator,
+    class IterationOperator,
+    class ProjectOperator = operations::ident_operator<VectorSpace>,
     class QualityFunctor = operations::zero_functional<VectorSpace>,
     class ConvergenceStrategy = default_convergence_strategy<VectorSpace, Log, NonlinearOperator, ProjectOperator, QualityFunctor>
 >
@@ -78,7 +78,7 @@ public:
         utils() = default;
         utils(
             std::shared_ptr<VectorSpace> vec_space_, Log *log_ = nullptr
-        ) : 
+        ) :
             vec_space(vec_space_), log(log_)
         {
         }
@@ -91,7 +91,7 @@ public:
 
     nonlinear_solver(
         std::shared_ptr<VectorSpace> vec_ops, Log *log,
-        std::shared_ptr<IterationOperator> iter_op, 
+        std::shared_ptr<IterationOperator> iter_op,
         std::shared_ptr<ConvergenceStrategy> conv_strat = nullptr
     ) :
       vec_ops_(std::move(vec_ops)),
@@ -106,12 +106,12 @@ public:
         }
         //vec_ops_->init_vector(delta_x_); vec_ops_->start_use_vector(delta_x_);
     }
-    nonlinear_solver(  
+    nonlinear_solver(
         const utils_hierarchy& utils,
-        const params_hierarchy& prm = params_hierarchy()      
-    ) : 
-        nonlinear_solver(  
-            utils.vec_space, utils.log, 
+        const params_hierarchy& prm = params_hierarchy()
+    ) :
+        nonlinear_solver(
+            utils.vec_space, utils.log,
             nmfd::detail::algo_hierarchy_creator<IterationOperator>::get(utils.iteration_operator,prm.iteration_operator),
             nmfd::detail::algo_hierarchy_creator<ConvergenceStrategy>::get(utils.convergence_strategy,prm.convergence_strategy)
         )
@@ -119,7 +119,7 @@ public:
     }
     ~nonlinear_solver()
     {
-        //vec_ops_->stop_use_vector(delta_x_); vec_ops_->free_vector(delta_x_); 
+        //vec_ops_->stop_use_vector(delta_x_); vec_ops_->free_vector(delta_x_);
     }
 
     //inplace
@@ -131,7 +131,7 @@ public:
         while(!conv_strat_->check_convergence(nonlin_op, project_op, quality_func, x, *delta_x_))
         {
             //reset iterational vectors??!
-            vec_ops_->assign_scalar(T(0.0), *delta_x_);     
+            vec_ops_->assign_scalar(T(0.0), *delta_x_);
 
             bool linsolver_converged = iter_op_->solve(*nonlin_op, x, *delta_x_);
 
@@ -144,7 +144,7 @@ public:
         }
         if( (conv_strat_->get_result_status() == 2)||(conv_strat_->get_result_status() == 3) ) //inf or nan
         {
-            throw std::runtime_error(std::string("nonlinear_solver: " __FILE__ " " __STR(__LINE__) " invalid number returned from update.") );            
+            throw std::runtime_error(std::string("nonlinear_solver: " __FILE__ " " __STR(__LINE__) " invalid number returned from update.") );
         }
 
         return converged;
@@ -162,7 +162,7 @@ public:
             vec_ops_->assign(x0, x);
         }
         return converged;
-    }   
+    }
 
     ///ISSUE???
     ConvergenceStrategy* get_convergence_strategy_handle()

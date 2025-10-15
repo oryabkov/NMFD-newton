@@ -38,11 +38,11 @@ struct vector_wrap
         const VectorSpace &space, bool do_init = do_init_default, bool do_start_use = do_start_use_default
     ) : space_(space), is_inited_(false), is_using_(false)
     {
-        if (do_init) 
+        if (do_init)
         {
             init();
         }
-        if (do_start_use) 
+        if (do_start_use)
         {
             start_use();
         }
