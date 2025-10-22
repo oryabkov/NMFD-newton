@@ -46,35 +46,79 @@ template
     class ProjectOperator = operations::ident_operator<VectorSpace>, 
     class QualityFunctor = operations::zero_functional<VectorSpace>
 >
-class default_convergence_strategy
+class default_convergence_strategy : public scfd::utils::logged_obj_base<Log>
 {
 private:
     using T = typename VectorSpace::scalar_type;
     using T_vec = typename VectorSpace::vector_type;
-    using logged_obj_t = scfd::utils::logged_obj_base<Log>;
 
 public:    
     using vector_space_type = VectorSpace;
+    using logged_obj_type = scfd::utils::logged_obj_base<Log>;
 
-    struct params : public logged_obj_t::params
+    struct params : public logged_obj_type::params
     {
         unsigned int stagnation_max = 10;  
-        unsigned int maximum_iterations = 100;
-        T tolerance = T(1.0e-6);
-        T tolerance_0;
+        //unsigned int maximum_iterations = 100;
+        int max_iters_num = 100;
+        //T tolerance = T(1.0e-6);
+        //T tolerance_0;
+        T rel_tol = T(0);
+        T abs_tol = T(1.0e-6);
         T maximum_norm_increase = 0.0;
         T newton_weight_threshold = 1.0e-12;
         T newton_weight_initial = T(1);
         T newton_weight_mul = T(0.5);
-        T relax_tolerance_factor;
+        T relax_tolerance_factor = T(1);
         bool verbose = true, store_norms_history = false;
 
         params(
             const std::string &log_pefix = "", const std::string &log_name = "default_convergence_strategy::"
-        ) : logged_obj_t::params(0, log_pefix + log_name)
+        ) : logged_obj_type::params(0, log_pefix + log_name)
         {
         }
-        /// TODO add json
+        #ifdef NMFD_ENABLE_NLOHMANN
+        void from_json(const nlohmann::json& j)
+        {
+            max_iters_num = j.value("max_iters_num", max_iters_num);
+            //min_iters_num = j.value("min_iters_num", min_iters_num);
+            stagnation_max = j.value("stagnation_max", stagnation_max);
+            rel_tol = j.value("rel_tol", rel_tol);
+            abs_tol = j.value("abs_tol", abs_tol);
+
+            maximum_norm_increase = j.value("maximum_norm_increase", maximum_norm_increase);
+            newton_weight_threshold = j.value("newton_weight_threshold", newton_weight_threshold);
+            newton_weight_initial = j.value("newton_weight_initial", newton_weight_initial);
+            newton_weight_mul = j.value("newton_weight_mul", newton_weight_mul);
+            relax_tolerance_factor = j.value("relax_tolerance_factor", relax_tolerance_factor);
+            
+            //out_min_resid_norm = j.value("out_min_resid_norm", out_min_resid_norm);
+            verbose = j.value("verbose", verbose);
+            store_norms_history = j.value("store_norms_history", store_norms_history);
+            //divide_out_norms_by_rel_base = j.value("divide_out_norms_by_rel_base", divide_out_norms_by_rel_base);
+        }
+        nlohmann::json to_json() const
+        {
+            return
+                nlohmann::json
+                {
+                    {"max_iters_num", max_iters_num},
+                    //{"min_iters_num", min_iters_num},
+                    {"stagnation_max", stagnation_max},
+                    {"rel_tol", rel_tol},
+                    {"abs_tol", abs_tol},
+                    {"maximum_norm_increase", maximum_norm_increase},
+                    {"newton_weight_threshold", newton_weight_threshold},
+                    {"newton_weight_initial", newton_weight_initial},
+                    {"newton_weight_mul", newton_weight_mul},
+                    {"relax_tolerance_factor", relax_tolerance_factor},
+                    //{"out_min_resid_norm", out_min_resid_norm},
+                    {"verbose", verbose},
+                    {"store_norms_history", store_norms_history},
+                    //{"divide_out_norms_by_rel_base", divide_out_norms_by_rel_base}
+                };
+        }
+        #endif
     };
     struct utils
     {
@@ -94,10 +138,10 @@ public:
     };
     NMFD_ALGO_HIERARCHY_TYPES_DEFINE(default_convergence_strategy)
 
-    default_convergence_strategy(std::shared_ptr<VectorSpace> vec_space, Log* log_, params prm = params()) :
+    default_convergence_strategy(std::shared_ptr<VectorSpace> vec_space, Log* log, params prm = params()) :
+      logged_obj_type(log, prm),
       prm_(prm),
       vec_space_(std::move(vec_space)),
-      log(log_),
       iterations(0)
     {
         vec_space_->init_vector(x1); vec_space_->start_use_vector(x1);
@@ -105,7 +149,7 @@ public:
         vec_space_->init_vector(Fx); vec_space_->start_use_vector(Fx);
         if(prm_.store_norms_history)
         {
-            norms_evolution.reserve(prm_.maximum_iterations);
+            norms_evolution.reserve(prm_.max_iters_num);
         }
     }
     default_convergence_strategy(  
@@ -124,20 +168,28 @@ public:
         vec_space_->stop_use_vector(Fx); vec_space_->free_vector(Fx);
     }
 
-    //T rel_tol()const { return prm_.rel_tol; }
-    T abs_tol()const { return prm_.tolerance; }
-    //T rel_tol_base()const { return rhs_norm(); }
+    T rel_tol()const { return prm_.rel_tol; }
+    T abs_tol()const { return prm_.abs_tol; }
+    T rel_tol_base()const { return Fx_initial_norm_; }
     T tol()const 
     { 
-        //return abs_tol() + rel_tol()*rel_tol_base(); 
-        return abs_tol(); 
+        return abs_tol() + rel_tol()*rel_tol_base(); 
     }
 
-    void set_convergence_constants(T tolerance_, unsigned int maximum_iterations_, T relax_tolerance_factor_, int relax_tolerance_steps_, T newton_weight_ = T(1), bool store_norms_history_ = false, bool verbose_ = true, unsigned int stagnation_max_ = 10, T maximum_norm_increase_p = 0.0, T newton_weight_threshold_p = 1.0e-12)
+    void set_convergence_constants(T tolerance_, unsigned int maximum_iterations_, T relax_tolerance_factor_, int relax_tolerance_steps_, T newton_weight_ = T(1), bool store_norms_history_ = false, bool verbose_ = true, unsigned int stagnation_max_ = 10, T maximum_norm_increase_p = 0.0, T newton_weight_threshold_p = 1.0e-12, bool use_abs_tol = true)
     {
-        prm_.tolerance = tolerance_;
-        prm_.tolerance_0 = tolerance_;
-        prm_.maximum_iterations = maximum_iterations_;
+        if (use_abs_tol)
+        {
+            prm_.abs_tol = tolerance_;
+            prm_.rel_tol = T(0);
+        }
+        else
+        {
+            prm_.abs_tol = T(0);
+            prm_.rel_tol = tolerance_;
+        }
+        //prm_.tolerance_0 = tolerance_;
+        prm_.max_iters_num = maximum_iterations_;
         newton_weight = newton_weight_;
         prm_.newton_weight_initial = newton_weight_;
         prm_.store_norms_history = store_norms_history_;
@@ -148,7 +200,7 @@ public:
         //current_relax_step = 0;
         if(prm_.store_norms_history)
         {
-            norms_evolution.reserve(prm_.maximum_iterations);
+            norms_evolution.reserve(prm_.max_iters_num);
         } 
         // T d_step = relax_tolerance_factor/T(relax_tolerance_steps);   
         
@@ -158,9 +210,14 @@ public:
         prm_.maximum_norm_increase = maximum_norm_increase_p;
         prm_.newton_weight_threshold = newton_weight_threshold_p;
 
-        log->info_f("continuation::convergence: check: relax_tolerance_factor = %le, maximum_norm_increase = %le, newton_weight_threshold = %le", (double)prm_.relax_tolerance_factor, (double)prm_.maximum_norm_increase, double(prm_.newton_weight_threshold) );
+        logged_obj_type::info_f("check: relax_tolerance_factor = %le, maximum_norm_increase = %le, newton_weight_threshold = %le", (double)prm_.relax_tolerance_factor, (double)prm_.maximum_norm_increase, double(prm_.newton_weight_threshold) );
 
     }   
+    void set_tolerance(T abs_tol,T rel_tol = T(0))
+    {
+        prm_.abs_tol = abs_tol;
+        prm_.rel_tol = rel_tol;
+    }
 
     
 
@@ -180,7 +237,7 @@ public:
         if(normFx < tol()) //do nothing is my kind of problem =)
         {
             result_status = 0;
-            log->info_f("continuation::convergence: iteration %i, residuals n: %le < tol(): %le => finished.",iterations, (double)normFx, (double)tol() );            
+            logged_obj_type::info_f("iteration %i, residuals n: %le < tol(): %le => finished.",iterations, (double)normFx, (double)tol() );            
             return true;
         }
         if(iterations == 0)
@@ -188,6 +245,7 @@ public:
             /// stores initial solution and norm
             vec_space_->assign(x, x1_storage);
             Fx1_storage_norm_ = normFx;
+            Fx_initial_norm_ = normFx;
             /// postulate continue (other cases checked earlier) and continue
             result_status = 1;
             iterations++;
@@ -199,7 +257,7 @@ public:
         {
             //update solution
             normFx1 = update_solution(nonlin_op, project_op, x, delta_x, x1);
-            log->info_f("continuation::convergence: increase threshold: %.01f, weight update from %le to %le with weight: %le and weight threshold: %le ", prm_.maximum_norm_increase, normFx, normFx1, newton_weight,  prm_.newton_weight_threshold);
+            logged_obj_type::info_f("increase threshold: %.01f, weight update from %le to %le with weight: %le and weight threshold: %le ", prm_.maximum_norm_increase, normFx, normFx1, newton_weight,  prm_.newton_weight_threshold);
             if(std::isfinite(normFx1))
             {
                 result_status = 1;
@@ -244,13 +302,13 @@ public:
         //auto min_value = *std::min_element(norms_storage.begin(),norms_storage.end());
         //norms_storage.push_back(normFx1);
         iterations++;
-        if(iterations > prm_.maximum_iterations)
+        if(iterations > prm_.max_iters_num)
         {
             finish = true;         
         }
         auto result_status_string = parse_result_status(result_status);
         auto finish_string = parse_bool(finish);
-        log->info_f("continuation::convergence: iteration: %i, max_iterations: %i, residuals n: %le, n+1: %le, min_value: %le, result_status: %i => %s, is_finished = %s, newton_weight = %le, stagnation = %u ",iterations, prm_.maximum_iterations, (double)normFx, (double)normFx1, double(Fx1_storage_norm_), result_status,  result_status_string.c_str(), finish_string.c_str(), newton_weight, stagnation );
+        logged_obj_type::info_f("iteration: %i, max_iterations: %i, residuals n: %le, n+1: %le, min_value: %le, result_status: %i => %s, is_finished = %s, newton_weight = %le, stagnation = %u ",iterations, prm_.max_iters_num, (double)normFx, (double)normFx1, double(Fx1_storage_norm_), result_status,  result_status_string.c_str(), finish_string.c_str(), newton_weight, stagnation );
 
         // store this solution point if the norm is the smalles of all
         if( ( (!std::isfinite(Fx1_storage_norm_))||(Fx1_storage_norm_ >= normFx1) )&&( (result_status == 1)||(result_status == 4) ) )
@@ -272,7 +330,7 @@ public:
                 //signal that relaxed tolerance converged and put it into vector of signals
                 if( normFx1 <= tol()*prm_.relax_tolerance_factor  )
                 {
-                    log->warning_f("continuation::convergence: Newton is setting relaxed tolerance = %le,  solution with norm = %le", double(tol()*prm_.relax_tolerance_factor), (double)normFx1 );
+                    logged_obj_type::warning_f("Newton is setting relaxed tolerance = %le,  solution with norm = %le", double(tol()*prm_.relax_tolerance_factor), (double)normFx1 );
                     result_status = 0;     
                 }
             }
@@ -290,14 +348,14 @@ public:
             //this signals that we couldn't set up the solution with the relaxed tolerance
             if (result_status>0)
             {
-                log->error_f("continuation::convergence: newton step failed to finish: result_status = %i, ||x| = %le, relaxed_tol = %le", result_status, vec_space_->norm_l2(x), tol()*prm_.relax_tolerance_factor );
+                logged_obj_type::warning_f("newton step failed to finish: result_status = %i, ||x| = %le, relaxed_tol = %le", result_status, vec_space_->norm_l2(x), tol()*prm_.relax_tolerance_factor );
             }
 
             if (quality_func)
             {
                 //checks whaterver is needed for nans, errors or whaterver is considered a quality solution in the nonlinear operator.
                 T solution_quality = quality_func->calc(x);
-                log->info_f("continuation::convergence: Newton obtained solution quality = %le.", solution_quality);
+                logged_obj_type::info_f("Newton obtained solution quality = %le.", solution_quality);
             }
         }
 
@@ -332,7 +390,6 @@ private:
     params prm_;
       
     std::shared_ptr<VectorSpace> vec_space_;
-    Log* log;
     
     unsigned int iterations;
     unsigned int stagnation = 0;
@@ -340,6 +397,7 @@ private:
     int result_status;
 
     T_vec x1, x1_storage, Fx;
+    T Fx_initial_norm_;
     T Fx1_storage_norm_;
     T newton_weight;
     std::vector<T> norms_evolution;

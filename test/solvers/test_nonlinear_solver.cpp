@@ -31,6 +31,15 @@ struct linsolver
     }
 };
 
+template<class T>
+T eq_residual(const scfd::static_vec::vec<T,2> &x)
+{
+    scfd::static_vec::vec<T,2> f;
+    f[0] = x[0]*x[0] + x[1]*x[1] - 2.;
+    f[1] = x[0]*x[1] - 1.;
+    return std::sqrt(f[0]*f[0]+f[1]*f[1]);
+}
+
 int main(int argc, char const *args[])
 {
     using backend_t = nmfd::backend::single_node_cpu<>;
@@ -73,7 +82,7 @@ int main(int argc, char const *args[])
     using newton_iteration_t = nmfd::solvers::newton_iteration<vec_sp_t,system_op_t,linsolver_t>;
     using newton_solver_t = nmfd::solvers::nonlinear_solver<vec_sp_t, log_t, system_op_t, newton_iteration_t>;
 
-
+    const T eps = 1e-10;
 
     int error = 0;
     backend_t backend;
@@ -84,10 +93,18 @@ int main(int argc, char const *args[])
         std::shared_ptr<linsolver_t> lin_solver = std::make_shared<linsolver_t>();
         std::shared_ptr<newton_iteration_t> newton_iteration = std::make_shared<newton_iteration_t>(vec_sp, lin_solver);
         std::shared_ptr<newton_solver_t> newton_solver = std::make_shared<newton_solver_t>(vec_sp, &log, newton_iteration);
+        newton_solver->convergence_strategy()->set_tolerance(eps);
         system_op_t system_op;
         vec_t x(10.,2.);
         newton_solver->solve(&system_op, nullptr, nullptr, x);
-        log.info_f("result vector x: %f %f", x[0], x[1]);
+        log.info_f("result vector x: %0.15f %0.15f", x[0], x[1]);
+        T resid = eq_residual(x);
+        log.info_f("residual norm: %0.15e", resid);
+        if (resid > eps)
+        {
+            log.error("Failed to converge!!");
+            error++;
+        }
     }
 
     {
@@ -100,10 +117,18 @@ int main(int argc, char const *args[])
                     vec_sp,&log     /// newton utils itself
                 }
             );
+        newton_solver->convergence_strategy()->set_tolerance(eps);
         system_op_t system_op;
         vec_t x(10.,2.);
         newton_solver->solve(&system_op, nullptr, nullptr, x);
-        log.info_f("result vector x: %f %f", x[0], x[1]);
+        log.info_f("result vector x: %0.15f %0.15f", x[0], x[1]);
+        T resid = eq_residual(x);
+        log.info_f("residual norm: %0.15e", resid);
+        if (resid > eps)
+        {
+            log.error("Failed to converge!!");
+            error++;
+        }
     }
 
     {
@@ -112,10 +137,18 @@ int main(int argc, char const *args[])
             std::make_shared<newton_solver_t>(
                 newton_solver_t::utils_hierarchy(backend,vec_sp)
             );
+        newton_solver->convergence_strategy()->set_tolerance(eps);
         system_op_t system_op;
         vec_t x(10.,2.);
         newton_solver->solve(&system_op, nullptr, nullptr, x);
-        log.info_f("result vector x: %f %f", x[0], x[1]);
+        log.info_f("result vector x: %0.15f %0.15f", x[0], x[1]);
+        T resid = eq_residual(x);
+        log.info_f("residual norm: %0.15e", resid);
+        if (resid > eps)
+        {
+            log.error("Failed to converge!!");
+            error++;
+        }
     }
 
 
