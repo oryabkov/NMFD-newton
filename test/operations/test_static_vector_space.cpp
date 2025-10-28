@@ -266,15 +266,15 @@ int main(int argc, char const *args[])
     // Test scalar multiplication and addition: x = mul_x * x + scalar
     {
         vector_type tmp_x = {1, 2, 3};
-        vec_space->add_lin_comb_scalar(10, 2, tmp_x);  // x = 2*x + 10 = {2*1+10, 2*2+10, 2*3+10} = {12, 14, 16}
+        vec_space->add_mul_scalar(10, 2, tmp_x);  // x = 2*x + 10 = {2*1+10, 2*2+10, 2*3+10} = {12, 14, 16}
         if ((tmp_x[0] - 12) < eps && (tmp_x[1] - 14) < eps && (tmp_x[2] - 16) < eps)
         {
-            log.info("✓ `add_lin_comb_scalar(scalar, mul_x, x)` method test passed");
+            log.info("✓ `add_mul_scalar(scalar, mul_x, x)` method test passed");
             passed_counter++;
         }
         else
         {
-            log.error("✗ `add_lin_comb_scalar(scalar, mul_x, x)` method test failed. Expected {12, 14, 16} but got {" + std::to_string(tmp_x[0]) + ", " + std::to_string(tmp_x[1]) + ", " + std::to_string(tmp_x[2]) + "}");
+            log.error("✗ `add_mul_scalar(scalar, mul_x, x)` method test failed. Expected {12, 14, 16} but got {" + std::to_string(tmp_x[0]) + ", " + std::to_string(tmp_x[1]) + ", " + std::to_string(tmp_x[2]) + "}");
             failed_counter++;
         }
     }

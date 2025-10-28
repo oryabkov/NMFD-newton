@@ -274,16 +274,16 @@ int main(int argc, char const *args[])
     // Test scalar multiplication and addition: x = mul_x * x + scalar (single scalars)
     {
         vector_type x = vector_type(vector1_type{1, 2, 3}, vector2_type{4, 5});
-        pair_vec_space.add_lin_comb_scalar(-1, 2, x);  // x = 2*x - 1
+        pair_vec_space.add_mul_scalar(-1, 2, x);  // x = 2*x - 1
         if ((x.first[0] - 1) < eps && (x.first[1] - 3) < eps && (x.first[2] - 5) < eps &&
             (x.second[0] - 7) < eps && (x.second[1] - 9) < eps)
         {
-            log.info("✓ `add_lin_comb_scalar(scalar, mul_x, x)` method test passed");
+            log.info("✓ `add_mul_scalar(scalar, mul_x, x)` method test passed");
             passed_counter++;
         }
         else
         {
-            log.error("✗ `add_lin_comb_scalar(scalar, mul_x, x)` method failed. Expected {{1, 3, 5}, {7, 9}} but got {" + std::to_string(x.first[0]) + ", " + std::to_string(x.first[1]) + ", " + std::to_string(x.first[2]) + ", " + std::to_string(x.second[0]) + ", " + std::to_string(x.second[1]) + "}");
+            log.error("✗ `add_mul_scalar(scalar, mul_x, x)` method failed. Expected {{1, 3, 5}, {7, 9}} but got {" + std::to_string(x.first[0]) + ", " + std::to_string(x.first[1]) + ", " + std::to_string(x.first[2]) + ", " + std::to_string(x.second[0]) + ", " + std::to_string(x.second[1]) + "}");
             failed_counter++;
         }
     }

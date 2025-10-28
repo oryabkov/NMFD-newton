@@ -24,7 +24,7 @@ class dense1_extended_operator
 /*
 Class represents operator of form
     (A   u)
-    (v^t w)
+    (v^T w)
 where A is some origin operator extended with vector u row v^t and number w.
 */
 {
@@ -46,11 +46,12 @@ where A is some origin operator extended with vector u row v^t and number w.
 public:
     dense1_extended_operator(std::shared_ptr<OrigVectorSpace> orig_vec_space, std::shared_ptr<const OrigOperator> orig_op = nullptr):
         orig_vec_space_(orig_vec_space),
-        A_(orig_op),
         scalar_space_(),
+        pair_space_(),
+        A_(orig_op),
         u_wrap_(*orig_vec_space),
         v_wrap_(*orig_vec_space),
-        w_wrap_(scalar_space_)
+        w_wrap_(*scalar_space_)
     {
     }
 
@@ -59,7 +60,7 @@ public:
     {
         orig_vec_space_->assign(_u, *u_wrap_);
         orig_vec_space_->assign(_v, *v_wrap_);
-        scalar_space_.assign(_w, *w_wrap_);
+        scalar_space_->assign(_w, *w_wrap_);
     }
 
     /// Use to set or reset origin A operator
@@ -68,42 +69,52 @@ public:
         A_ = orig_op;
     }
 
+    std::shared_ptr<const OrigOperator> get_orig_operator()
+    {
+        return A_;
+    }
+
+    const std::shared_ptr<const OrigOperator> get_orig_operator() const
+    {
+        return A_;
+    }
+
     // TODO: Add const versions of u() v() w()?
     ///These can be used to reset dense extension values
-    vector_type &u()
+    orig_vector_type &u()
     {
         return *u_wrap_;
     }
 
-    vector_type &v()
+    orig_vector_type &v()
     {
         return *v_wrap_;
     }
 
-    scalar_type &w()
+    scalar_vector_type &w()
     {
         return *w_wrap_;
     }
 
-    const vector_type &u() const
+    const orig_vector_type &u() const
     {
         return *u_wrap_;
     }
 
-    const vector_type &v() const
+    const orig_vector_type &v() const
     {
         return *v_wrap_;
     }
 
-    const scalar_type &w() const
+    const scalar_vector_type &w() const
     {
         return *w_wrap_;
     }
 
     void apply(const vector_type &in, vector_type &out)
     {
-        const scalar_type scalar_in_second = scalar_space_.get_value_at_point(0, in.second);
-        const scalar_type scalar_w = scalar_space_.get_value_at_point(0, *w_wrap_);
+        const scalar_type scalar_in_second = scalar_space_->get_value_at_point(0, in.second);
+        const scalar_type scalar_w = scalar_space_->get_value_at_point(0, *w_wrap_);
 
         // out.first() = A.apply(in.first()) + in.second()*u
         A_->apply(in.first, out.first);
@@ -111,20 +122,20 @@ public:
 
         // out.second() = v^t * in.first() + w * in.second()
         scalar_type scalar_v_in_first = orig_vec_space_->scalar_prod(*v_wrap_, in.first);
-        scalar_type scalar_w_in_second = scalar_space_.scalar_prod(*w_wrap_, in.second);
-        scalar_space_.set_value_at_point(scalar_v_in_first + scalar_w_in_second, 0, out.second);
+        scalar_type scalar_w_in_second = scalar_space_->scalar_prod(*w_wrap_, in.second);
+        scalar_space_->set_value_at_point(scalar_v_in_first + scalar_w_in_second, 0, out.second);
     }
 
     // TODO: Is it correct?
-    std::shared_ptr<const orig_vector_space_type> get_im_space() const
+    const std::shared_ptr<vector_space_type>& get_im_space() const
     {
-        return orig_vec_space_;
+        return pair_space_;
     }
 
     // TODO: Is it correct?
-    const scalar_space_type get_dom_space() const
+    const std::shared_ptr<vector_space_type>& get_dom_space() const
     {
-        return scalar_space_;
+        return pair_space_;
     }
 
 
@@ -132,8 +143,9 @@ private:
     using orig_vector_wrap_t = detail::vector_wrap<orig_vector_space_type, true, true>;
     using scalar_vector_wrap_t = detail::vector_wrap<scalar_space_type, true, true>;
 
-    std::shared_ptr<const orig_vector_space_type> orig_vec_space_;
-    const scalar_space_type scalar_space_;
+    std::shared_ptr<orig_vector_space_type> orig_vec_space_;
+    std::shared_ptr<scalar_space_type> scalar_space_;
+    std::shared_ptr<vector_space_type> pair_space_;
 
     std::shared_ptr<const OrigOperator> A_;
     orig_vector_wrap_t u_wrap_;

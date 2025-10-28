@@ -16,7 +16,7 @@ namespace nmfd
 namespace operations
 {
 
-template <class VectorSpace1,class VectorSpace2>
+template <class VectorSpace1, class VectorSpace2>
 struct pair_vector_space
 {
     using scalar1_type = typename VectorSpace1::scalar_type;
