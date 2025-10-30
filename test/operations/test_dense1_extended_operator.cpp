@@ -143,6 +143,27 @@ int main(int argc, char const *args[])
     }
 
     // ====================================================================
+    // GROUP 3: Test original space equality
+    // ====================================================================
+    log.info("=== Testing original space equality ===");
+    {
+        using test_operator_type = TestOperator<orig_vector_space_type>;
+        auto test_operator = std::make_shared<const test_operator_type>(orig_vector_space);
+
+        using dense1_extended_operator_type = nmfd::operations::dense1_extended_operator<test_operator_type, orig_vector_space_type>;
+        auto dense1_extended_operator = std::make_shared<dense1_extended_operator_type>(orig_vector_space, test_operator, u, v, w);
+
+        if (dense1_extended_operator->get_im_space()->first() == orig_vector_space) {
+            log.info("✓ Original space equality test passed");
+            passed_counter++;
+        }
+        else {
+            log.error("✗ Original space equality test failed: im_space()->first() is not the same shared_ptr as orig_vector_space");
+            failed_counter++;
+        }
+    }
+
+    // ====================================================================
     // FINAL SUMMARY
     // ====================================================================
     log.info("================================================");

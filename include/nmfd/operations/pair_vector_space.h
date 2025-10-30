@@ -28,22 +28,18 @@ struct pair_vector_space
     using vector2_type = typename VectorSpace2::vector_type;
     using vector_type = std::pair<vector1_type,vector2_type>;
 
-private:
-    std::shared_ptr<VectorSpace1> vs1;
-    std::shared_ptr<VectorSpace2> vs2;
-
 public:
     pair_vector_space(std::shared_ptr<VectorSpace1> vs1_, std::shared_ptr<VectorSpace2> vs2_)
         : vs1(vs1_), vs2(vs2_)
     {
     }
 
-    std::shared_ptr<VectorSpace1>& first()
+    std::shared_ptr<VectorSpace1> first()
     {
         return vs1;
     }
 
-    std::shared_ptr<VectorSpace2>& second()
+    std::shared_ptr<VectorSpace2> second()
     {
         return vs2;
     }
@@ -400,6 +396,10 @@ public:
             }
         }
     }
+
+private:
+    std::shared_ptr<VectorSpace1> vs1;
+    std::shared_ptr<VectorSpace2> vs2;
 
 };
 

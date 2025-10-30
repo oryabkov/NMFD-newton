@@ -47,7 +47,7 @@ public:
     dense1_extended_operator(std::shared_ptr<OrigVectorSpace> orig_vec_space, std::shared_ptr<const OrigOperator> orig_op = nullptr):
         orig_vec_space_(orig_vec_space),
         scalar_space_(),
-        pair_space_(),
+        pair_space_(std::make_shared<vector_space_type>(orig_vec_space, scalar_space_)),
         A_(orig_op),
         u_wrap_(*orig_vec_space),
         v_wrap_(*orig_vec_space),
