@@ -46,7 +46,7 @@ where A is some origin operator extended with vector u row v^t and number w.
 public:
     dense1_extended_operator(std::shared_ptr<OrigVectorSpace> orig_vec_space, std::shared_ptr<const OrigOperator> orig_op = nullptr):
         orig_vec_space_(orig_vec_space),
-        scalar_space_(),
+        scalar_space_(std::make_shared<scalar_space_type>()),
         pair_space_(std::make_shared<vector_space_type>(orig_vec_space, scalar_space_)),
         A_(orig_op),
         u_wrap_(*orig_vec_space),

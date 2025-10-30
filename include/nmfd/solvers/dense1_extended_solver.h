@@ -23,6 +23,7 @@
 #include <nmfd/operations/static_vector_space.h>
 #include <nmfd/operations/pair_vector_space.h>
 #include <nmfd/operations/dense1_extended_operator.h>
+#include "nmfd/detail/vector_wrap.h"
 
 
 namespace nmfd
@@ -61,12 +62,15 @@ class dense1_extended_solver
 public:
     dense1_extended_solver(std::shared_ptr<orig_space_type> orig_vec_space,
                            std::shared_ptr<orig_solver_type> orig_solver,
-                           std::shared_ptr<const operator_type> op):
+                           std::shared_ptr<const operator_type> op = nullptr):
         orig_vec_space_(orig_vec_space),
         scalar_space_(std::make_shared<scalar_space_type>()),
         pair_space_(std::make_shared<vector_space_type>(orig_vec_space_, scalar_space_)),
         orig_solver_(orig_solver),
-        operator_(op)
+        operator_(op),
+        r_wrap_(*orig_vec_space_),
+        vx_wrap_(*scalar_space_),
+        vr_wrap_(*scalar_space_)
     {
         if (orig_solver_ && operator_) {
             orig_solver_->set_operator(operator_->get_orig_operator());
@@ -89,55 +93,57 @@ public:
         }
     }
 
-    bool solve(const vector_type &rhs, vector_type &res) const {
+    bool solve(const vector_type &rhs, vector_type &res)
+    {
         // Variables
-        orig_vector_type x = res.first;
-        scalar_vector_type y = res.second;
+        orig_vector_type &x = res.first;
+        scalar_vector_type &y = res.second;
 
         // Rhs parts
-        orig_vector_type b = rhs.first;
-        scalar_vector_type beta = rhs.second;
+        const orig_vector_type &b = rhs.first;
+        const scalar_vector_type &beta = rhs.second;
 
         // Operator
-        orig_vector_type u = operator_->u();
-        orig_vector_type v = operator_->v();
-        scalar_vector_type w = operator_->w();
-
-        // Tmp
-        orig_vector_type r_;
-        scalar_vector_type vx;
-        scalar_vector_type vr;
-
+        const orig_vector_type &u = operator_->u();
+        const orig_vector_type &v = operator_->v();
+        const scalar_vector_type &w = operator_->w();
 
         // 1. Solving two systems
         bool flag1 = orig_solver_->solve(b, x); // x := A^-1*b
-        bool flag2 = orig_solver_->solve(u, r_); // r_ := A^-1*u
+        bool flag2 = orig_solver_->solve(u, *r_wrap_); // r_ := A^-1*u
 
-        scalar_space_->assign_scalar(orig_vec_space_->scalar_prod(v, x), vx); // vx := v^T*x
-        scalar_space_->assign_scalar(orig_vec_space_->scalar_prod(v, r_), vr); // vr := v^T*r_
+        scalar_space_->assign_scalar(orig_vec_space_->scalar_prod(v, x), *vx_wrap_); // vx := v^T*x
+        scalar_space_->assign_scalar(orig_vec_space_->scalar_prod(v, *r_wrap_), *vr_wrap_); // vr := v^T*r_
 
         // 2. Calculating y = (beta - v^T*A^-1*b) / (w - v^T*A^-1*u)
-        scalar_space_->assign_lin_comb(1.0, beta, -1, vx, y); // y := 1.0*beta - 1.0*vx
-        scalar_space_->add_lin_comb(1.0, w, -1, vr); // vr := 1.0*w - 1.0*vr
-        scalar_space_->div_pointwise(y, 1.0, vr); // y := y / 1.0*vr
+        scalar_space_->assign_lin_comb(1.0, beta, -1, *vx_wrap_, y); // y := 1.0*beta - 1.0*vx
+        scalar_space_->add_lin_comb(1.0, w, -1, *vr_wrap_); // vr := 1.0*w - 1.0*vr
+        scalar_space_->div_pointwise(y, 1.0, *vr_wrap_); // y := y / 1.0*vr
 
         // 3. Calculating x = A^-1*b - A^-1*u*y
-        orig_vec_space_->add_lin_comb(-scalar_space_->get_value_at_point(0, y), r_, x); // x := -y[0]*r_ + x
+        orig_vec_space_->add_lin_comb(-scalar_space_->get_value_at_point(0, y), *r_wrap_, x); // x := -y[0]*r_ + x
 
         // 4. Returning result
-        res.first = x;
-        res.second = y;
+        orig_vec_space_->assign(x, res.first);
+        scalar_space_->assign(y, res.second);
 
         return flag1 && flag2;
     }
 
 private:
+    using orig_vector_wrap_t = detail::vector_wrap<orig_space_type, true, true>;
+    using scalar_vector_wrap_t = detail::vector_wrap<scalar_space_type, true, true>;
+
     std::shared_ptr<orig_space_type> orig_vec_space_;
     std::shared_ptr<scalar_space_type> scalar_space_;
     std::shared_ptr<vector_space_type> pair_space_;
 
     std::shared_ptr<orig_solver_type> orig_solver_;
     std::shared_ptr<const operator_type> operator_;
+
+    orig_vector_wrap_t r_wrap_;
+    scalar_vector_wrap_t vx_wrap_;
+    scalar_vector_wrap_t vr_wrap_;
 };
 
 }
