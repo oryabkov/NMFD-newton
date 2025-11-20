@@ -197,7 +197,7 @@ struct static_vector_space
         }
     }
     //calc: y := mul_x*x
-    void assign_mul(scalar_type mul_x, const vector_type& x, vector_type& y)const
+    void assign_lin_comb(scalar_type mul_x, const vector_type& x, vector_type& y)const
     {
         for (int i = 0;i < Dim;++i)
         {
@@ -206,26 +206,26 @@ struct static_vector_space
     }
 
     //calc: z := mul_x*x + mul_y*y
-    void assign_mul(scalar_type mul_x, const vector_type& x, scalar_type mul_y, const vector_type& y,
+    void assign_lin_comb(scalar_type mul_x, const vector_type& x, scalar_type mul_y, const vector_type& y,
                                vector_type& z)const
     {
         for (int i = 0;i < Dim;++i)
             z[i] = mul_x*x[i] + mul_y*y[i];
     }
     //calc: y := mul_x*x + y
-    void add_mul(scalar_type mul_x, const vector_type& x, vector_type& y)const
+    void add_lin_comb(scalar_type mul_x, const vector_type& x, vector_type& y)const
     {
         for (int i = 0;i < Dim;++i)
             y[i] += mul_x*x[i];
     }
     //calc: y := mul_x*x + mul_y*y
-    void add_mul(scalar_type mul_x, const vector_type& x, scalar_type mul_y, vector_type& y)const
+    void add_lin_comb(scalar_type mul_x, const vector_type& x, scalar_type mul_y, vector_type& y)const
     {
         for (int i = 0;i < Dim;++i)
             y[i] = mul_x*x[i] + mul_y*y[i];
     }
     //calc: z := mul_x*x + mul_y*y + mul_z*z
-    void add_mul(scalar_type mul_x, const vector_type& x, scalar_type mul_y, const vector_type& y,
+    void add_lin_comb(scalar_type mul_x, const vector_type& x, scalar_type mul_y, const vector_type& y,
                             scalar_type mul_z, vector_type& z)const
     {
         for (int i = 0;i < Dim;++i)
