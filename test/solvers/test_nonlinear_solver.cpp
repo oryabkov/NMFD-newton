@@ -17,7 +17,7 @@ struct linsolver
 
     linsolver() = default;
     NMFD_ALGO_ALL_EMPTY_DEFINE(linsolver)
-    
+
 
     Mat a_inv;
     void set_operator(const std::shared_ptr<const Mat> &a)
@@ -109,7 +109,7 @@ int main(int argc, char const *args[])
 
     {
         log.info("test newton with hierarchic construction");
-        std::shared_ptr<newton_solver_t> newton_solver = 
+        std::shared_ptr<newton_solver_t> newton_solver =
             std::make_shared<newton_solver_t>(
                 newton_solver_t::utils_hierarchy{
                     {{},vec_sp},    /// iteration_operator
@@ -133,7 +133,7 @@ int main(int argc, char const *args[])
 
     {
         log.info("test newton with backend construction");
-        std::shared_ptr<newton_solver_t> newton_solver = 
+        std::shared_ptr<newton_solver_t> newton_solver =
             std::make_shared<newton_solver_t>(
                 newton_solver_t::utils_hierarchy(backend,vec_sp)
             );

@@ -40,10 +40,10 @@ namespace solvers
 
 template
 <
-    class VectorSpace, 
-    class Log, 
-    class NonlinearOperator, 
-    class ProjectOperator = operations::ident_operator<VectorSpace>, 
+    class VectorSpace,
+    class Log,
+    class NonlinearOperator,
+    class ProjectOperator = operations::ident_operator<VectorSpace>,
     class QualityFunctor = operations::zero_functional<VectorSpace>
 >
 class default_convergence_strategy : public scfd::utils::logged_obj_base<Log>
@@ -52,13 +52,13 @@ private:
     using T = typename VectorSpace::scalar_type;
     using T_vec = typename VectorSpace::vector_type;
 
-public:    
+public:
     using vector_space_type = VectorSpace;
     using logged_obj_type = scfd::utils::logged_obj_base<Log>;
 
     struct params : public logged_obj_type::params
     {
-        unsigned int stagnation_max = 10;  
+        unsigned int stagnation_max = 10;
         //unsigned int maximum_iterations = 100;
         int max_iters_num = 100;
         //T tolerance = T(1.0e-6);
@@ -91,7 +91,7 @@ public:
             newton_weight_initial = j.value("newton_weight_initial", newton_weight_initial);
             newton_weight_mul = j.value("newton_weight_mul", newton_weight_mul);
             relax_tolerance_factor = j.value("relax_tolerance_factor", relax_tolerance_factor);
-            
+
             //out_min_resid_norm = j.value("out_min_resid_norm", out_min_resid_norm);
             verbose = j.value("verbose", verbose);
             store_norms_history = j.value("store_norms_history", store_norms_history);
@@ -127,7 +127,7 @@ public:
         utils() = default;
         utils(
             std::shared_ptr<VectorSpace> vec_space_, Log *log_ = nullptr
-        ) : 
+        ) :
             vec_space(vec_space_), log(log_)
         {
         }
@@ -152,11 +152,11 @@ public:
             norms_evolution.reserve(prm_.max_iters_num);
         }
     }
-    default_convergence_strategy(  
+    default_convergence_strategy(
         const utils_hierarchy& utils,
-        const params_hierarchy& prm = params_hierarchy()      
-    ) : 
-        default_convergence_strategy(  
+        const params_hierarchy& prm = params_hierarchy()
+    ) :
+        default_convergence_strategy(
             utils.vec_space, utils.log, prm
         )
     {
@@ -171,9 +171,9 @@ public:
     T rel_tol()const { return prm_.rel_tol; }
     T abs_tol()const { return prm_.abs_tol; }
     T rel_tol_base()const { return Fx_initial_norm_; }
-    T tol()const 
-    { 
-        return abs_tol() + rel_tol()*rel_tol_base(); 
+    T tol()const
+    {
+        return abs_tol() + rel_tol()*rel_tol_base();
     }
 
     void set_convergence_constants(T tolerance_, unsigned int maximum_iterations_, T relax_tolerance_factor_, int relax_tolerance_steps_, T newton_weight_ = T(1), bool store_norms_history_ = false, bool verbose_ = true, unsigned int stagnation_max_ = 10, T maximum_norm_increase_p = 0.0, T newton_weight_threshold_p = 1.0e-12, bool use_abs_tol = true)
@@ -201,25 +201,25 @@ public:
         if(prm_.store_norms_history)
         {
             norms_evolution.reserve(prm_.max_iters_num);
-        } 
-        // T d_step = relax_tolerance_factor/T(relax_tolerance_steps);   
-        
+        }
+        // T d_step = relax_tolerance_factor/T(relax_tolerance_steps);
+
         // d_step = std::log10(relax_tolerance_factor)/T(relax_tolerance_steps);
-        
+
         // log->info_f("continuation::convergence: check: relax_tolerance_steps = %i, relax_tolerance_factor = %le, d_step = %le, d_step_exp = %le", relax_tolerance_steps, (double)relax_tolerance_factor, (double)d_step, (double)std::pow<T>(T(10), d_step));
         prm_.maximum_norm_increase = maximum_norm_increase_p;
         prm_.newton_weight_threshold = newton_weight_threshold_p;
 
         logged_obj_type::info_f("check: relax_tolerance_factor = %le, maximum_norm_increase = %le, newton_weight_threshold = %le", (double)prm_.relax_tolerance_factor, (double)prm_.maximum_norm_increase, double(prm_.newton_weight_threshold) );
 
-    }   
+    }
     void set_tolerance(T abs_tol,T rel_tol = T(0))
     {
         prm_.abs_tol = abs_tol;
         prm_.rel_tol = rel_tol;
     }
 
-    
+
 
     bool check_convergence(NonlinearOperator *nonlin_op, ProjectOperator *project_op, QualityFunctor *quality_func, T_vec& x, T_vec& delta_x)
     {
@@ -231,13 +231,13 @@ public:
         if(!std::isfinite(normFx)) //set result_status = 2 if the provided vector is inconsistent
         {
             result_status = 2;
-            //finish = true; 
+            //finish = true;
             return true;
         }
         if(normFx < tol()) //do nothing is my kind of problem =)
         {
             result_status = 0;
-            logged_obj_type::info_f("iteration %i, residuals n: %le < tol(): %le => finished.",iterations, (double)normFx, (double)tol() );            
+            logged_obj_type::info_f("iteration %i, residuals n: %le < tol(): %le => finished.",iterations, (double)normFx, (double)tol() );
             return true;
         }
         if(iterations == 0)
@@ -261,7 +261,7 @@ public:
             if(std::isfinite(normFx1))
             {
                 result_status = 1;
-                //finish = true; 
+                //finish = true;
                 if(normFx1 < tol()) //converged
                 {
                     //norms_storage.push_back(normFx1);
@@ -304,7 +304,7 @@ public:
         iterations++;
         if(iterations > prm_.max_iters_num)
         {
-            finish = true;         
+            finish = true;
         }
         auto result_status_string = parse_result_status(result_status);
         auto finish_string = parse_bool(finish);
@@ -331,7 +331,7 @@ public:
                 if( normFx1 <= tol()*prm_.relax_tolerance_factor  )
                 {
                     logged_obj_type::warning_f("Newton is setting relaxed tolerance = %le,  solution with norm = %le", double(tol()*prm_.relax_tolerance_factor), (double)normFx1 );
-                    result_status = 0;     
+                    result_status = 0;
                 }
             }
 
@@ -343,7 +343,7 @@ public:
                 for(int jjj = 0;jjj<relaxed_tolerance_reached.size();jjj++)
                 {
                     log->warning_f("continuation::convergence: solution %i: norm = %le, flag = %s, relaxed_tol = %le", soluton_num++, norms_storage[jjj], (relaxed_tolerance_reached[jjj]?"true":"false"), tolerance*relax_tolerance_factor  );
-                }                
+                }
             }*/
             //this signals that we couldn't set up the solution with the relaxed tolerance
             if (result_status>0)
@@ -361,7 +361,7 @@ public:
 
         return finish;
     }
-    
+
     unsigned int get_number_of_iterations()
     {
         return iterations;
@@ -379,7 +379,7 @@ public:
     }
     /*void reset_weight()
     {
-        
+
     }*/
     std::vector<T>* get_norms_history_handle()
     {
@@ -388,9 +388,9 @@ public:
 
 private:
     params prm_;
-      
+
     std::shared_ptr<VectorSpace> vec_space_;
-    
+
     unsigned int iterations;
     unsigned int stagnation = 0;
 
@@ -401,7 +401,7 @@ private:
     T Fx1_storage_norm_;
     T newton_weight;
     std::vector<T> norms_evolution;
-    
+
     /*int relax_tolerance_steps;
     T d_step;
     int current_relax_step;*/
@@ -409,7 +409,7 @@ private:
     //updates a solution with a newton weight value provided
     T inline update_solution(NonlinearOperator *nonlin_op, ProjectOperator *project_op, T_vec& x, T_vec& delta_x, T_vec& x1)
     {
-        vec_space_->assign_mul(static_cast<T>(1.0), x, newton_weight, delta_x, x1);
+        vec_space_->assign_lin_comb(static_cast<T>(1.0), x, newton_weight, delta_x, x1);
         if (project_op)
         {
             project_op->apply(x1); // project to invariant solution subspace. Should be blank if nothing is needed to be projected.
@@ -429,13 +429,13 @@ private:
                 break;
             case 1:
                 return{"in progress"};
-                break;                
+                break;
             case 2:
                 return{"not finite input n"};
                 break;
             case 3:
                 return{"not finite update n+1"};
-                break;   
+                break;
             case 4:
                 return{"too small update weight"};
                 break;
