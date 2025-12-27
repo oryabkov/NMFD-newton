@@ -19,9 +19,9 @@ public:
     using vector_type = VectorType;
     using multivector_type = MultiVectorType;
     using scalar_type = Type;
-    using Ord = Ordinal;    
+    using Ord = Ordinal;
     using ordinal_type = Ord;
-    //using big_ordinal_type = Ord;  
+    //using big_ordinal_type = Ord;
 
 private:
     using T = scalar_type;
@@ -44,20 +44,21 @@ public:
     {
         use_high_precision_ = false;
     }
-    
+
     /// multivector interface
-    virtual void assign(const multivector_type& mx, Ord m, Ord k_, vector_type& x) const = 0;
-    virtual void assign(const vector_type& x, multivector_type& mx, Ord m, Ord k_) const = 0;
-    [[nodiscard]] virtual scalar_type scalar_prod(const multivector_type& mx, Ord m, Ord k_, const vector_type &y)const = 0;
-    [[nodiscard]] virtual scalar_type scalar_prod_l2(const multivector_type& mx, Ord m, Ord k_, const vector_type &y)const = 0;
-    virtual void add_lin_comb(const scalar_type mul_x, const multivector_type& mx, Ord m, Ord k_, const scalar_type mul_y, vector_type& y) const = 0;
+    // virtual void assign(const multivector_type& mx, Ord m, Ord k_, vector_type& x) const = 0;
+    // virtual void assign(const vector_type& x, multivector_type& mx, Ord m, Ord k_) const = 0;
+    // [[nodiscard]] virtual scalar_type scalar_prod(const multivector_type& mx, Ord m, Ord k_, const vector_type &y)const = 0;
+    // [[nodiscard]] virtual scalar_type scalar_prod_l2(const multivector_type& mx, Ord m, Ord k_, const vector_type &y)const = 0;
+    // virtual void add_lin_comb(const scalar_type mul_x, const multivector_type& mx, Ord m, Ord k_, const scalar_type mul_y, vector_type& y) const = 0;
 
     [[nodiscard]] virtual bool is_valid_number(const vector_type &x) const = 0;
+    [[nodiscard]] virtual vector_type at(multivector_type& x, Ord m, Ord k_) const = 0;
     //reduction operations:
     [[nodiscard]] virtual scalar_type scalar_prod(const vector_type &x, const vector_type &y)const = 0;
     [[nodiscard]] virtual scalar_type scalar_prod_l2(const vector_type &x, const vector_type &y)const = 0;
     [[nodiscard]] virtual scalar_type sum(const vector_type &x)const = 0;
-    
+
     [[nodiscard]] virtual scalar_type asum(const vector_type &x)const = 0;
 
     //standard vector norm:=sqrt(sum(x^2))
@@ -69,9 +70,9 @@ public:
     //L2 emulation for the vector norm2_sq:=sum(x^2)/sz_
     [[nodiscard]] virtual scalar_type norm2_sq(const vector_type &x) const = 0;
 
-    //calc: x := <vector_type with all elements equal to given scalar value> 
+    //calc: x := <vector_type with all elements equal to given scalar value>
     virtual void assign_scalar(const scalar_type scalar, vector_type& x) const = 0;
-    //calc: x := mul_x*x + <vector_type of all scalar value> 
+    //calc: x := mul_x*x + <vector_type of all scalar value>
     //ISSUE rename into add_scalar?
     virtual void add_mul_scalar(const scalar_type scalar, const scalar_type mul_x, vector_type& x) const = 0;
     virtual void scale(const scalar_type scale, vector_type &x) const = 0;

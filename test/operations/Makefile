@@ -10,3 +10,9 @@ test_pair_vector_space: test_pair_vector_space.cpp
 
 test_dense1_extended_operator: test_dense1_extended_operator.cpp
 	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) test_dense1_extended_operator.cpp -o test_dense1_extended_operator.bin
+
+test_device_vector_space: test_device_vector_space.cpp
+	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) test_device_vector_space.cpp -o test_device_vector_space.bin
+
+test_rect_vector_space: test_rect_vector_space.cpp
+	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) test_rect_vector_space.cpp -o test_rect_vector_space.bin
