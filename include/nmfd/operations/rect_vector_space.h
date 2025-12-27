@@ -6,6 +6,8 @@
 #include <vector>
 
 #include <nmfd/operations/vector_operations_base.h>
+#include <nmfd/operations/vector_space_base.h>
+#include <nmfd/operations/default_multivector_space_base.h>
 #include <scfd/arrays/array_nd.h>
 #include <scfd/static_vec/vec.h>
 #include <scfd/arrays/tensorN_array_nd.h>
@@ -24,13 +26,22 @@ template
     class Ordinal=std::ptrdiff_t,
     /***********************************************************/
     class VectorType=scfd::arrays::tensor1_array_nd<Type, Dim, typename Backend::memory_type, TensorDim>,
-    class MultiVectorType=std::vector<VectorType>,
-    class IdxType=scfd::static_vec::vec<Ordinal, Dim>,
-    class ParentType=nmfd::operations::vector_operations_base<Type, VectorType, MultiVectorType, Ordinal>
+    // class MultiVectorType=std::vector<VectorType>,
+    class IdxType=scfd::static_vec::vec<Ordinal, Dim>
+    // class ParentType=nmfd::operations::vector_operations_base<Type, VectorType, MultiVectorType, Ordinal>
 >
-class rect_vector_space : public ParentType
+class rect_vector_space :
+    public nmfd::operations::default_multivector_space_base
+    <
+        rect_vector_space<Type, Dim, TensorDim, Backend, Ordinal>,
+        Type, VectorType, Ordinal
+    >
 {
-    using parent_t = ParentType;
+    using parent_t = nmfd::operations::default_multivector_space_base
+    <
+        rect_vector_space<Type, Dim, TensorDim, Backend, Ordinal>,
+        Type, VectorType, Ordinal
+    >;
 
 public:
     static const int dim       = Dim;
@@ -44,7 +55,8 @@ public:
     using reduce_type          = typename Backend::reduce_type;
     using memory_type          = typename Backend::memory_type;
 
-    using multivector_type     = MultiVectorType;
+    // using multivector_type     = MultiVectorType;
+    using multivector_type     = typename parent_t::multivector_type;
     using vector_type          = VectorType;
     using array_vector_type    = scfd::arrays::array_nd<Type, Dim, typename Backend::memory_type>;
     using idx_nd_type          = IdxType;
@@ -74,26 +86,11 @@ public:
     idx_nd_type get_size() const noexcept { return range; }
     idx_nd_type size()     const noexcept { return range; }
 public:
-    void init_vector(vector_type& x) const { x.init(range); }
-    void free_vector(vector_type& x) const { x.free();      }
+    void init_vector(vector_type& x) const override { x.init(range); }
+    void free_vector(vector_type& x) const override { x.free();      }
 
-    void start_use_vector(vector_type& x) const {}
-    void  stop_use_vector(vector_type& x) const {}
-
-    void init_multivector(multivector_type& x, ordinal_type m) const
-    {
-        x.clear();
-        x.reserve(m);
-        for(int i=0; i<m; ++i) { x.emplace_back(range); }
-    }
-    void free_multivector(multivector_type& x, ordinal_type m) const
-    {
-        std::for_each_n(begin(x), m, [](vector_type& v){ v.free(); });
-    }
-
-    void start_use_multivector(multivector_type& x, ordinal_type m) const {}
-    void stop_use_multivector(multivector_type& x, ordinal_type m) const {}
-
+    void start_use_vector(vector_type& x) const override {}
+    void  stop_use_vector(vector_type& x) const override {}
 
 public: // Implementing Vector_Operations interface
     [[nodiscard]] vector_type at(multivector_type& x, ordinal_type m, ordinal_type k_) const override
@@ -123,31 +120,11 @@ public: // Implementing Vector_Operations interface
         return scalar_prod(x, y);
     }
 
-    // // multivector interface implementations:
-    // void assign(const multivector_type& mx, ordinal_type m, ordinal_type k_, vector_type& x) const override
-    // {
-    //     assign(mx.at(k_), x);
-    // }
-
-    // void assign(const vector_type& x, multivector_type& mx, ordinal_type m, ordinal_type k_) const override
-    // {
-    //     assign(x, mx.at(k_));
-    // }
-
-    // [[nodiscard]] scalar_type scalar_prod(const multivector_type& mx, ordinal_type m, ordinal_type k_, const vector_type &y) const override
-    // {
-    //     return scalar_prod(mx.at(k_), y);
-    // }
-
-    // [[nodiscard]] scalar_type scalar_prod_l2(const multivector_type& mx, ordinal_type m, ordinal_type k_, const vector_type &y) const override
-    // {
-    //     return scalar_prod_l2(mx.at(k_), y);
-    // }
-
-    // void add_lin_comb(const scalar_type mul_x, const multivector_type& mx, ordinal_type m, ordinal_type k_, const scalar_type mul_y, vector_type& y) const override
-    // {
-    //     add_lin_comb(mul_x, mx.at(k_), mul_y, y);
-    // }
+    // multivector interface implementations from parent restore because of overshadowing
+    using parent_t::assign;
+    using parent_t::scalar_prod;
+    using parent_t::scalar_prod_l2;
+    using parent_t::add_lin_comb;
 
     [[nodiscard]] scalar_type sum(const vector_type &x) const override
     {

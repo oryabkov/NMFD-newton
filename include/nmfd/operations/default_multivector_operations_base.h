@@ -23,7 +23,7 @@ public:
     using vector_type = typename ParentType::vector_type;
     using multivector_type = typename ParentType::multivector_type;
     using scalar_type = typename ParentType::scalar_type;
-    using Ord = typename ParentType::Ord;    
+    using Ord = typename ParentType::Ord;
     using ordinal_type = typename ParentType::ordinal_type;
 
 public:
@@ -31,7 +31,7 @@ public:
       ParentType(use_high_precision)
     {
     }
-    
+
     /// multivector interface
     void assign(const multivector_type& mx, Ord m, Ord k_, vector_type& x) const
     {
