@@ -2,7 +2,6 @@
 *.swp
 *.dat
 .vscode
-*.py
 *.gif
 *.txt
 .DS_Store

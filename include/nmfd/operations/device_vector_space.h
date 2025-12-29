@@ -24,9 +24,7 @@ template
     class Ordinal=std::ptrdiff_t,
     /***********************************************************/
     class VectorType=scfd::arrays::array_nd<Type, Dim, typename Backend::memory_type>,
-    // class MultiVectorType=std::vector<VectorType>,
     class IdxType=scfd::static_vec::vec<Ordinal, Dim>
-    // class ParentType=nmfd::operations::vector_operations_base<Type, VectorType, MultiVectorType, Ordinal>
 >
 class device_vector_space :
     public nmfd::operations::default_multivector_space_base
