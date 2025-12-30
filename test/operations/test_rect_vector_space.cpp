@@ -2,30 +2,13 @@
 #include <iostream>
 
 #include "nmfd/operations/rect_vector_space.h"
+#include <scfd/backend/serial_cpu.h>
 
 constexpr int dim        = 3;
 constexpr int tensor_dim = 2;
 using scalar             = double;
 
-/*******************************************************/
-// #include <scfd/memory/hip.h>
-// #include <scfd/for_each/hip_nd_impl.h>
-// #include <scfd/reduce/thrust.h>
-#include <scfd/memory/host.h>
-#include <scfd/for_each/serial_cpu_nd.h>
-#include <scfd/reduce/serial_cpu.h>
-
-
-struct backend
-{
-    using memory_type      = scfd::memory::host;
-    using for_each_nd_type = scfd::for_each::serial_cpu_nd<dim>;
-    using reduce_type      = scfd::serial_cpu_reduce<>;
-};
-/*******************************************************/
-
-
-using vector_space = nmfd::rect_vector_space<scalar,/*dim=*/3,/*tensor_dim=*/2, backend>;
+using vector_space = nmfd::rect_vector_space<scalar,/*dim=*/3,/*tensor_dim=*/2, scfd::backend::serial_cpu>;
 
 using vector_t      = typename vector_space::vector_type;
 using multivector_t = typename vector_space::multivector_type;

@@ -1,5 +1,5 @@
-#ifndef __DEVICE_VECTOR_SPACE_H__
-#define __DEVICE_VECTOR_SPACE_H__
+#ifndef __NMFD_RECT_VECTOR_SPACE_H__
+#define __NMFD_RECT_VECTOR_SPACE_H__
 
 #include <algorithm>
 #include <cmath>
@@ -49,19 +49,18 @@ public:
 
     using backend_type         = Backend;
 
-    using for_each_nd_type     = typename Backend::for_each_nd_type;
+    using for_each_nd_type     = typename Backend::template for_each_nd_type<Dim, Ordinal>;
     using reduce_type          = typename Backend::reduce_type;
     using memory_type          = typename Backend::memory_type;
 
-    // using multivector_type     = MultiVectorType;
     using multivector_type     = typename parent_t::multivector_type;
     using vector_type          = VectorType;
     using array_vector_type    = scfd::arrays::array_nd<Type, Dim, typename Backend::memory_type>;
     using idx_nd_type          = IdxType;
 
 public: // Especially for SYCL
-    using shur_prod_kernel       = kernels::shur_prod<idx_nd_type, vector_type, array_vector_type, TensorDim>;
-    using sum_kernel             = kernels::sum<idx_nd_type, vector_type, array_vector_type, TensorDim>;
+    using shur_prod_kernel       = kernels::shur_prod<idx_nd_type, scalar_type, vector_type, array_vector_type, TensorDim>;
+    using sum_kernel             = kernels::sum<idx_nd_type, scalar_type, vector_type, array_vector_type, TensorDim>;
     using assign_scalar_kernel   = kernels::assign_scalar<idx_nd_type, scalar_type, vector_type, TensorDim>;
     using add_mul_scalar_kernel  = kernels::add_mul_scalar<idx_nd_type, scalar_type, vector_type, TensorDim>;
     using scale_kernel           = kernels::scale<idx_nd_type, scalar_type, vector_type, TensorDim>;

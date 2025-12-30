@@ -13,35 +13,39 @@
 namespace kernels
 {
 
-template <class IdxND, class VectorType, class ScalarVectorType, int TensorDim>
+template <class IdxND, class Scalar, class VectorType, class ScalarVectorType, int TensorDim>
 struct shur_prod
 {
     VectorType x, y;
     ScalarVectorType z;
+    Scalar scalar;
 
-    __DEVICE_TAG__ void operator()(const IdxND idx) const
+    __DEVICE_TAG__ void operator()(const IdxND idx)
     {
-        z(idx) = 0;
+        scalar = 0;
         for(int i = 0; i < TensorDim; i++)
         {
-            z(idx) += x(idx, i) * y(idx, i);
+            scalar += x(idx, i) * y(idx, i);
         }
+        z(idx) = scalar;
     }
 };
 
-template <class IdxND, class VectorType, class ScalarVectorType, int TensorDim>
+template <class IdxND, class Scalar, class VectorType, class ScalarVectorType, int TensorDim>
 struct sum
 {
     VectorType x;
     ScalarVectorType z;
+    Scalar scalar;
 
-    __DEVICE_TAG__ void operator()(const IdxND idx) const
+    __DEVICE_TAG__ void operator()(const IdxND idx)
     {
-        z(idx) = 0;
+        scalar = 0;
         for(int i = 0; i < TensorDim; i++)
         {
-            z(idx) += x(idx, i);
+            scalar += x(idx, i);
         }
+        z(idx) = scalar;
     }
 };
 
