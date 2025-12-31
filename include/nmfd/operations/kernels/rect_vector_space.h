@@ -13,11 +13,11 @@
 namespace kernels
 {
 
-template <class IdxND, class Scalar, class VectorType, class ScalarVectorType, int TensorDim>
+template <class IdxND, class Scalar, class VectorType, class ArrayNdType, int TensorDim>
 struct shur_prod
 {
     VectorType x, y;
-    ScalarVectorType z;
+    ArrayNdType z;
     Scalar scalar;
 
     __DEVICE_TAG__ void operator()(const IdxND idx)
@@ -31,11 +31,11 @@ struct shur_prod
     }
 };
 
-template <class IdxND, class Scalar, class VectorType, class ScalarVectorType, int TensorDim>
+template <class IdxND, class Scalar, class VectorType, class ArrayNdType, int TensorDim>
 struct sum
 {
     VectorType x;
-    ScalarVectorType z;
+    ArrayNdType z;
     Scalar scalar;
 
     __DEVICE_TAG__ void operator()(const IdxND idx)

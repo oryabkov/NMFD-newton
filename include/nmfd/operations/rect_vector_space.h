@@ -42,25 +42,26 @@ class rect_vector_space :
     >;
 
 public:
-    static const int dim       = Dim;
-    using value_type           = Type;
-    using scalar_type          = Type;
-    using ordinal_type         = Ordinal;
+    static const int dim         = Dim;
+    static const int tensor_dim  = TensorDim;
+    using value_type             = Type;
+    using scalar_type            = Type;
+    using ordinal_type           = Ordinal;
 
-    using backend_type         = Backend;
+    using backend_type           = Backend;
 
-    using for_each_nd_type     = typename Backend::template for_each_nd_type<Dim, Ordinal>;
-    using reduce_type          = typename Backend::reduce_type;
-    using memory_type          = typename Backend::memory_type;
+    using for_each_nd_type       = typename Backend::template for_each_nd_type<Dim, Ordinal>;
+    using reduce_type            = typename Backend::reduce_type;
+    using memory_type            = typename Backend::memory_type;
 
-    using multivector_type     = typename parent_t::multivector_type;
-    using vector_type          = VectorType;
-    using array_vector_type    = scfd::arrays::array_nd<Type, Dim, typename Backend::memory_type>;
-    using idx_nd_type          = IdxType;
+    using multivector_type       = typename parent_t::multivector_type;
+    using vector_type            = VectorType;
+    using array_nd_type      = scfd::arrays::array_nd<Type, Dim, typename Backend::memory_type>;
+    using idx_nd_type            = IdxType;
 
 public: // Especially for SYCL
-    using shur_prod_kernel       = kernels::shur_prod<idx_nd_type, scalar_type, vector_type, array_vector_type, TensorDim>;
-    using sum_kernel             = kernels::sum<idx_nd_type, scalar_type, vector_type, array_vector_type, TensorDim>;
+    using shur_prod_kernel       = kernels::shur_prod<idx_nd_type, scalar_type, vector_type, array_nd_type, TensorDim>;
+    using sum_kernel             = kernels::sum<idx_nd_type, scalar_type, vector_type, array_nd_type, TensorDim>;
     using assign_scalar_kernel   = kernels::assign_scalar<idx_nd_type, scalar_type, vector_type, TensorDim>;
     using add_mul_scalar_kernel  = kernels::add_mul_scalar<idx_nd_type, scalar_type, vector_type, TensorDim>;
     using scale_kernel           = kernels::scale<idx_nd_type, scalar_type, vector_type, TensorDim>;
@@ -71,7 +72,7 @@ public: // Especially for SYCL
 private:
     idx_nd_type                 range;
     ordinal_type                   sz;
-    array_vector_type mutable  helper;
+    array_nd_type mutable  helper;
 
     for_each_nd_type for_each_nd_inst;
     reduce_type           reduce_inst;

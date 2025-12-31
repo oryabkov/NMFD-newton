@@ -3,5 +3,6 @@
 *.dat
 .vscode
 *.gif
-*.txt
 .DS_Store
+*.txt
+**/data
