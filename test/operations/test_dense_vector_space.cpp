@@ -5,20 +5,12 @@
 #include <nmfd/operations/dense_vector_space.h>
 #include <memory>
 
+#include "static_vector_traits.h"
+
+#include <scfd/backend/serial_cpu.h>
+
 const double eps = 1e-10;
 
-template<class T, size_t Dim> struct static_vector_traits
-{
-    using scalar_type = T;
-    using vector_type = std::array<T, Dim>;
-    void alloc(size_t loc_sz, vector_type& v); // do nothing here for now
-    void dealloc(vector_type& v);              // do nothing here for now
-    // value_type* get_raw_ptr(vector_type& v);   // returns raw pointer to vector first elem
-    size_t get_size(const vector_type& v) const
-    {
-        return Dim;
-    }
-};
 
 int main(int argc, char const* args[])
 {
@@ -27,7 +19,7 @@ int main(int argc, char const* args[])
     static const int Dim = 3;
     using vector_type = std::array<T, Dim>;
     using vector_traits = static_vector_traits<T, Dim>;
-    using dense_vector_space_t = nmfd::operations::dense_vector_space<int, T, vector_traits>;
+    using dense_vector_space_t = nmfd::operations::dense_vector_space<T, vector_traits, scfd::backend::serial_cpu>;
 
     log_t log;
     log.info("Testing dense vector space implementation");
@@ -46,7 +38,7 @@ int main(int argc, char const* args[])
 
     // Test vector space dimensions
     {
-        int dim = vec_space->get_size(x);
+        int dim = vec_space->get_loc_size(x);
         if (dim == Dim)
         {
             log.info("✓ `size()` method test passed");
@@ -61,7 +53,7 @@ int main(int argc, char const* args[])
     }
 
     {
-        int vec_size = vec_space->get_size(x);
+        int vec_size = vec_space->get_loc_size(x);
         if (vec_size == Dim)
         {
             log.info("✓ `get_size(x)` method test passed");
