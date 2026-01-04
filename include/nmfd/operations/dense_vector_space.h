@@ -5,45 +5,65 @@
 #include <scfd/memory/host.h>
 
 #include <nmfd/operations/dense_operations_base.h>
+#include <nmfd/operations/kernels/dense_vector_space.h>
 
 namespace nmfd
 {
 namespace operations
 {
 
-template<class Backend, class Type, class VectorTraits> class dense_vector_space
+template <class Type, class VectorTraits, class Backend, class Ordinal = std::ptrdiff_t>
+class dense_vector_space
 {
-
-    using vector_type = typename VectorTraits::vector_type;
+public:
     using scalar_type = typename VectorTraits::scalar_type;
+    using vector_type = typename VectorTraits::vector_type;
+    using for_each_type = typename Backend::template for_each_type<Ordinal>;
 
 public:
-    size_t get_size(const vector_type& x) const
+    using assign_scalar_kernel = kernels::assign_scalar<scalar_type, scalar_type>;
+
+public:
+    [[nodiscard]] size_t size() const
     {
-        return vt_.get_size(x);
+        return vt_.size();
     }
 
-    void init_vector(vector_type& vec) const {}
-    template<class... Args> void init_vectors(Args&&... args) const
+    size_t get_loc_size(const vector_type& x) const
+    {
+        return vt_.get_loc_size(x);
+    }
+
+    void init_vector(vector_type& vec) const
+    {
+        vt_.alloc(vt_.loc_size(), vec);
+    }
+    template <class... Args>
+    void init_vectors(Args&&... args) const
     {
         std::initializer_list<int>{((void)init_vector(std::forward<Args>(args)), 0)...};
     }
     void free_vector(vector_type& vec) const
     {
-        vec.free();
+        vt_.dealloc(vec);
     }
-    template<class... Args> void free_vectors(Args&&... args) const
+    template <class... Args>
+    void free_vectors(Args&&... args) const
     {
         std::initializer_list<int>{((void)free_row_vector(std::forward<Args>(args)), 0)...};
     }
-    template<class... Args> void start_use_vectors(Args&&... args) const {}
+    template <class... Args>
+    void start_use_vectors(Args&&... args) const
+    {}
     void stop_use_vector(vector_type& x) const {}
-    template<class... Args> void stop_use_vectors(Args&&... args) const {}
+    template <class... Args>
+    void stop_use_vectors(Args&&... args) const
+    {}
     bool check_is_valid_number(const vector_type& x) const
     {
-        for (size_t i = 0; i < get_size(x); ++i)
+        for (size_t i = 0; i < get_loc_size(x); ++i)
         {
-            if (std::isinf(x[i]))
+            if (!std::isfinite(x[i]))
             {
                 return false;
             }
@@ -54,7 +74,7 @@ public:
     [[nodiscard]] scalar_type scalar_prod(const vector_type& x, const vector_type& y) const
     {
         scalar_type res(0.f);
-        for (int i = 0; i < get_size(x); ++i)
+        for (int i = 0; i < get_loc_size(x); ++i)
         {
             res += x[i] * y[i];
         }
@@ -102,7 +122,7 @@ public:
     [[nodiscard]] scalar_type norm_inf(const vector_type& x) const
     {
         scalar_type max_val = 0.0;
-        for (size_t j = 0; j < get_size(x); j++)
+        for (size_t j = 0; j < get_loc_size(x); j++)
         {
             max_val = (max_val < std::abs(x[j])) ? std::abs(x[j]) : max_val;
         }
@@ -118,7 +138,7 @@ public:
     [[nodiscard]] scalar_type sum(const vector_type& x) const
     {
         scalar_type res = 0.0;
-        for (size_t j = 0; j < get_size(x); j++)
+        for (size_t j = 0; j < get_loc_size(x); j++)
         {
             res += x[j];
         }
@@ -127,7 +147,7 @@ public:
     [[nodiscard]] scalar_type asum(const vector_type& x) const
     {
         scalar_type res = 0.0;
-        for (size_t j = 0; j < get_size(x); j++)
+        for (size_t j = 0; j < get_loc_size(x); j++)
         {
             res += std::abs(x[j]);
         }
@@ -155,13 +175,12 @@ public:
     // calc: x := <vector_type with all elements equal to given scalar value>
     void assign_scalar(const scalar_type scalar, vector_type& x) const
     {
-        for (size_t i = 0; i < get_size(x); ++i)
-            x[i] = scalar;
+        for_each_inst(assign_scalar_kernel{scalar, vt_.get_raw_ptr(x)}, get_loc_size(x));
     }
     // calc: x := mul_x*x + <vector_type of all scalar value>
     void add_mul_scalar(const scalar_type scalar, const scalar_type mul_x, vector_type& x) const
     {
-        for (size_t i = 0; i < get_size(x); ++i)
+        for (size_t i = 0; i < get_loc_size(x); ++i)
             x[i] = mul_x * x[i] + scalar;
     }
     void scale(scalar_type scale, vector_type& x) const
@@ -171,7 +190,7 @@ public:
     // copy: y := x
     void assign(const vector_type& x, vector_type& y) const
     {
-        for (int i = 0; i < get_size(x); ++i)
+        for (int i = 0; i < get_loc_size(x); ++i)
         {
             y[i] = x[i];
         }
@@ -179,7 +198,7 @@ public:
     // calc: y := mul_x*x
     void assign_lin_comb(scalar_type mul_x, const vector_type& x, vector_type& y) const
     {
-        for (int i = 0; i < get_size(x); ++i)
+        for (int i = 0; i < get_loc_size(x); ++i)
         {
             y[i] = mul_x * x[i];
         }
@@ -189,7 +208,7 @@ public:
     void assign_lin_comb(scalar_type mul_x, const vector_type& x, scalar_type mul_y, const vector_type& y,
                          vector_type& z) const
     {
-        for (int i = 0; i < get_size(x); ++i)
+        for (int i = 0; i < get_loc_size(x); ++i)
             z[i] = mul_x * x[i] + mul_y * y[i];
     }
     // calc: result := mul_x*x + mul_y*y (alias for assign_lin_comb with different argument order)
@@ -201,33 +220,33 @@ public:
     // calc: y := mul_x*x + y
     void add_lin_comb(scalar_type mul_x, const vector_type& x, vector_type& y) const
     {
-        for (int i = 0; i < get_size(x); ++i)
+        for (int i = 0; i < get_loc_size(x); ++i)
             y[i] += mul_x * x[i];
     }
     // calc: y := mul_x*x + mul_y*y
     void add_lin_comb(scalar_type mul_x, const vector_type& x, scalar_type mul_y, vector_type& y) const
     {
-        for (int i = 0; i < get_size(x); ++i)
+        for (int i = 0; i < get_loc_size(x); ++i)
             y[i] = mul_x * x[i] + mul_y * y[i];
     }
     // calc: z := mul_x*x + mul_y*y + mul_z*z
     void add_lin_comb(scalar_type mul_x, const vector_type& x, scalar_type mul_y, const vector_type& y,
                       scalar_type mul_z, vector_type& z) const
     {
-        for (int i = 0; i < get_size(x); ++i)
+        for (int i = 0; i < get_loc_size(x); ++i)
             z[i] = mul_x * x[i] + mul_y * y[i] + mul_z * z[i];
     }
 
     void make_abs_copy(const vector_type& x, vector_type& y) const
     {
-        for (size_t j = 0; j < get_size(x); j++)
+        for (size_t j = 0; j < get_loc_size(x); j++)
         {
             y[j] = std::abs(x[j]);
         }
     }
     void make_abs(vector_type& x) const
     {
-        for (size_t j = 0; j < get_size(x); j++)
+        for (size_t j = 0; j < get_loc_size(x); j++)
         {
             auto xa = std::abs(x[j]);
             x[j] = xa;
@@ -236,14 +255,14 @@ public:
     // y_j = max(x_j,y_j,sc)
     void max_pointwise(const scalar_type sc, const vector_type& x, vector_type& y) const
     {
-        for (size_t j = 0; j < get_size(x); j++)
+        for (size_t j = 0; j < get_loc_size(x); j++)
         {
             y[j] = (x[j] > y[j]) ? ((x[j] > sc) ? x[j] : sc) : ((y[j] > sc) ? y[j] : sc);
         }
     }
     void max_pointwise(const scalar_type sc, vector_type& y) const
     {
-        for (size_t j = 0; j < get_size(y); j++)
+        for (size_t j = 0; j < get_loc_size(y); j++)
         {
             y[j] = (y[j] > sc) ? y[j] : sc;
         }
@@ -251,14 +270,14 @@ public:
     // y_j = min(x_j,y_j,sc)
     void min_pointwise(const scalar_type sc, const vector_type& x, vector_type& y) const
     {
-        for (size_t j = 0; j < get_size(x); j++)
+        for (size_t j = 0; j < get_loc_size(x); j++)
         {
             y[j] = (x[j] < y[j]) ? ((x[j] < sc) ? x[j] : sc) : ((y[j] < sc) ? y[j] : sc);
         }
     }
     void min_pointwise(const scalar_type sc, vector_type& y) const
     {
-        for (size_t j = 0; j < get_size(y); j++)
+        for (size_t j = 0; j < get_loc_size(y); j++)
         {
             y[j] = (y[j] < sc) ? y[j] : sc;
         }
@@ -266,7 +285,7 @@ public:
     // calc: x := x*mul_y*y
     void mul_pointwise(vector_type& x, const scalar_type mul_y, const vector_type& y) const
     {
-        for (size_t j = 0; j < get_size(x); j++)
+        for (size_t j = 0; j < get_loc_size(x); j++)
         {
             x[j] *= mul_y * y[j];
         }
@@ -275,7 +294,7 @@ public:
     void mul_pointwise(const scalar_type mul_x, const vector_type& x, const scalar_type mul_y, const vector_type& y,
                        vector_type& z) const
     {
-        for (size_t j = 0; j < get_size(x); j++)
+        for (size_t j = 0; j < get_loc_size(x); j++)
         {
             z[j] = (mul_x * x[j]) * (mul_y * y[j]);
         }
@@ -284,7 +303,7 @@ public:
     void div_pointwise(const scalar_type mul_x, const vector_type& x, const scalar_type mul_y, const vector_type& y,
                        vector_type& z) const
     {
-        for (size_t j = 0; j < get_size(x); j++)
+        for (size_t j = 0; j < get_loc_size(x); j++)
         {
             z[j] = (mul_x * x[j]) / (mul_y * y[j]);
         }
@@ -292,7 +311,7 @@ public:
     // calc: x := x/(mul_y*y)
     void div_pointwise(vector_type& x, const scalar_type mul_y, const vector_type& y) const
     {
-        for (size_t j = 0; j < get_size(x); j++)
+        for (size_t j = 0; j < get_loc_size(x); j++)
         {
             x[j] *= static_cast<scalar_type>(1.0) / (mul_y * y[j]);
         }
@@ -326,7 +345,7 @@ public:
         {
             size_t begin = slice.first;
             size_t end = slice.second;
-            if (end > get_size(x))
+            if (end > get_loc_size(x))
             {
                 throw std::logic_error(
                     "static_vector_space::assign_slice: provided slice size is greater than input vector size.");
@@ -342,7 +361,7 @@ public:
                             vector_type& y) const
     {
         size_t index_y = 0;
-        for (size_t j = 0; j < get_size(x); j++)
+        for (size_t j = 0; j < get_loc_size(x); j++)
         {
             for (const auto& slice : skip_slices)
             {
@@ -357,7 +376,8 @@ public:
     }
 
 protected:
-    VectorTraits vt_;
+    mutable VectorTraits vt_;
+    for_each_type for_each_inst;
 };
 
 } // namespace operations
