@@ -12,11 +12,22 @@ public:
     using vector_type = std::array<T, Dim>;
 
 public:
-    void alloc(size_t loc_sz, vector_type& v); // do nothing here for now
-    void dealloc(vector_type& v);              // do nothing here for now
+    void alloc(size_t loc_sz, vector_type& v)
+    {
+        // do nothing
+    }
+
+    void dealloc(vector_type& v)
+    {
+        // do nothing
+    }
 
     // returns raw pointer to vector first elem
     scalar_type* get_raw_ptr(vector_type& v)
+    {
+        return v.data();
+    }
+    const scalar_type* get_raw_ptr(const vector_type& v) const
     {
         return v.data();
     }
@@ -24,7 +35,7 @@ public:
     {
         return size_;
     }
-    [[nodiscard]] size_t size() const
+    [[nodiscard]] size_t get_size() const
     {
         return size_;
     }

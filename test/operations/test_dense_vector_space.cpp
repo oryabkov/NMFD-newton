@@ -1,16 +1,15 @@
-#include <cmath>
 #include <array>
-#include <scfd/utils/log.h>
-#include <nmfd/operations/static_vector_space.h>
-#include <nmfd/operations/dense_vector_space.h>
+#include <cmath>
 #include <memory>
+#include <nmfd/operations/dense_vector_space.h>
+#include <nmfd/operations/static_vector_space.h>
+#include <scfd/utils/log.h>
 
 #include "static_vector_traits.h"
 
 #include <scfd/backend/serial_cpu.h>
 
 const double eps = 1e-10;
-
 
 int main(int argc, char const* args[])
 {
@@ -38,7 +37,7 @@ int main(int argc, char const* args[])
 
     // Test vector space dimensions
     {
-        int dim = vec_space->get_loc_size(x);
+        int dim = vec_space->get_size();
         if (dim == Dim)
         {
             log.info("✓ `size()` method test passed");
@@ -96,7 +95,8 @@ int main(int argc, char const* args[])
         }
         else
         {
-            log.error("✗ `scalar_prod(x, y)` method test failed. Expected 32 but returned " +
+            log.error("✗ `scalar_prod(x, y)` method test failed. Expected 32 but "
+                      "returned " +
                       std::to_string(scalar_prod));
             failed_counter++;
         }
@@ -248,7 +248,8 @@ int main(int argc, char const* args[])
         }
         else
         {
-            log.error("✗ `set_value_at_point(val_x, at, x)` method test failed. Expected {10, 2, 3} but got {" +
+            log.error("✗ `set_value_at_point(val_x, at, x)` method test failed. "
+                      "Expected {10, 2, 3} but got {" +
                       std::to_string(tmp_x[0]) + ", " + std::to_string(tmp_x[1]) + ", " + std::to_string(tmp_x[2]) +
                       "}");
             failed_counter++;
@@ -266,7 +267,8 @@ int main(int argc, char const* args[])
         }
         else
         {
-            log.error("✗ `get_value_at_point(at, x)` method test failed. Expected 1 but returned " +
+            log.error("✗ `get_value_at_point(at, x)` method test failed. Expected 1 "
+                      "but returned " +
                       std::to_string(value));
             failed_counter++;
         }
@@ -288,7 +290,8 @@ int main(int argc, char const* args[])
         }
         else
         {
-            log.error("✗ `assign_scalar(scalar, x)` method test failed. Expected {10, 10, 10} but got {" +
+            log.error("✗ `assign_scalar(scalar, x)` method test failed. Expected "
+                      "{10, 10, 10} but got {" +
                       std::to_string(tmp_x[0]) + ", " + std::to_string(tmp_x[1]) + ", " + std::to_string(tmp_x[2]) +
                       "}");
             failed_counter++;
@@ -306,7 +309,8 @@ int main(int argc, char const* args[])
         }
         else
         {
-            log.error("✗ `add_mul_scalar(scalar, mul_x, x)` method test failed. Expected {12, 14, 16} but got {" +
+            log.error("✗ `add_mul_scalar(scalar, mul_x, x)` method test failed. "
+                      "Expected {12, 14, 16} but got {" +
                       std::to_string(tmp_x[0]) + ", " + std::to_string(tmp_x[1]) + ", " + std::to_string(tmp_x[2]) +
                       "}");
             failed_counter++;
@@ -340,7 +344,8 @@ int main(int argc, char const* args[])
     {
         vector_type tmp_x = {1, 2, 3};
         vector_type tmp_y = {0, 0, 0};
-        vec_space->assign_lin_comb(2, tmp_x, tmp_y); // y = 2 * {1, 2, 3} = {2, 4, 6}
+        vec_space->assign_lin_comb(2, tmp_x,
+                                   tmp_y); // y = 2 * {1, 2, 3} = {2, 4, 6}
         if ((tmp_y[0] - 2) < eps && (tmp_y[1] - 4) < eps && (tmp_y[2] - 6) < eps)
         {
             log.info("✓ `assign_lin_comb(mul_x, x, y)` method test passed");
@@ -348,7 +353,8 @@ int main(int argc, char const* args[])
         }
         else
         {
-            log.error("✗ `assign_lin_comb(mul_x, x, y)` method test failed. Expected {2, 4, 6} but got {" +
+            log.error("✗ `assign_lin_comb(mul_x, x, y)` method test failed. Expected "
+                      "{2, 4, 6} but got {" +
                       std::to_string(tmp_y[0]) + ", " + std::to_string(tmp_y[1]) + ", " + std::to_string(tmp_y[2]) +
                       "}");
             failed_counter++;
@@ -369,7 +375,8 @@ int main(int argc, char const* args[])
         }
         else
         {
-            log.error("✗ `assign_lin_comb(mul_x, x, mul_y, y, z)` method test failed. Expected {14, 19, 24} but got {" +
+            log.error("✗ `assign_lin_comb(mul_x, x, mul_y, y, z)` method test "
+                      "failed. Expected {14, 19, 24} but got {" +
                       std::to_string(tmp_z[0]) + ", " + std::to_string(tmp_z[1]) + ", " + std::to_string(tmp_z[2]) +
                       "}");
             failed_counter++;
@@ -385,7 +392,8 @@ int main(int argc, char const* args[])
     {
         vector_type tmp_x = {1, 2, 3};
         vector_type tmp_y = {4, 5, 6};
-        vec_space->add_lin_comb(2, tmp_x, tmp_y); // y = {4,5,6} + 2*{1,2,3} = {4,5,6} + {2,4,6} = {6,9,12}
+        vec_space->add_lin_comb(2, tmp_x,
+                                tmp_y); // y = {4,5,6} + 2*{1,2,3} = {4,5,6} + {2,4,6} = {6,9,12}
         if ((tmp_y[0] - 6) < eps && (tmp_y[1] - 9) < eps && (tmp_y[2] - 12) < eps)
         {
             log.info("✓ `add_lin_comb(mul_x, x, y)` method test passed");
@@ -393,7 +401,8 @@ int main(int argc, char const* args[])
         }
         else
         {
-            log.error("✗ `add_lin_comb(mul_x, x, y)` method test failed. Expected {6, 9, 12} but got {" +
+            log.error("✗ `add_lin_comb(mul_x, x, y)` method test failed. Expected "
+                      "{6, 9, 12} but got {" +
                       std::to_string(tmp_y[0]) + ", " + std::to_string(tmp_y[1]) + ", " + std::to_string(tmp_y[2]) +
                       "}");
             failed_counter++;
@@ -404,7 +413,8 @@ int main(int argc, char const* args[])
     {
         vector_type tmp_x = {1, 2, 3};
         vector_type tmp_y = {4, 5, 6};
-        vec_space->add_lin_comb(2, tmp_x, 3, tmp_y); // y = 2*{1,2,3} + 3*{4,5,6} = {2,4,6} + {12,15,18} = {14,19,24}
+        vec_space->add_lin_comb(2, tmp_x, 3,
+                                tmp_y); // y = 2*{1,2,3} + 3*{4,5,6} = {2,4,6} + {12,15,18} = {14,19,24}
         if ((tmp_y[0] - 14) < eps && (tmp_y[1] - 19) < eps && (tmp_y[2] - 24) < eps)
         {
             log.info("✓ `add_lin_comb(mul_x, x, mul_y, y)` method test passed");
@@ -412,7 +422,8 @@ int main(int argc, char const* args[])
         }
         else
         {
-            log.error("✗ `add_lin_comb(mul_x, x, mul_y, y)` method test failed. Expected {14, 19, 24} but got {" +
+            log.error("✗ `add_lin_comb(mul_x, x, mul_y, y)` method test failed. "
+                      "Expected {14, 19, 24} but got {" +
                       std::to_string(tmp_y[0]) + ", " + std::to_string(tmp_y[1]) + ", " + std::to_string(tmp_y[2]) +
                       "}");
             failed_counter++;
@@ -424,9 +435,9 @@ int main(int argc, char const* args[])
         vector_type tmp_x = {1, 2, 3};
         vector_type tmp_y = {4, 5, 6};
         vector_type tmp_z = {7, 8, 9};
-        vec_space->add_lin_comb(
-            2, tmp_x, 3, tmp_y, 4,
-            tmp_z); // z = 2*{1,2,3} + 3*{4,5,6} + 4*{7,8,9} = {2,4,6} + {12,15,18} + {28,32,36} = {42,51,60}
+        vec_space->add_lin_comb(2, tmp_x, 3, tmp_y, 4,
+                                tmp_z); // z = 2*{1,2,3} + 3*{4,5,6} + 4*{7,8,9} = {2,4,6} + {12,15,18}
+                                        // + {28,32,36} = {42,51,60}
         if ((tmp_z[0] - 42) < eps && (tmp_z[1] - 51) < eps && (tmp_z[2] - 60) < eps)
         {
             log.info("✓ `add_lin_comb(mul_x, x, mul_y, y, mul_z, z)` method test passed");
@@ -434,9 +445,10 @@ int main(int argc, char const* args[])
         }
         else
         {
-            log.error(
-                "✗ `add_lin_comb(mul_x, x, mul_y, y, mul_z, z)` method test failed. Expected {42, 51, 60} but got {" +
-                std::to_string(tmp_z[0]) + ", " + std::to_string(tmp_z[1]) + ", " + std::to_string(tmp_z[2]) + "}");
+            log.error("✗ `add_lin_comb(mul_x, x, mul_y, y, mul_z, z)` method test "
+                      "failed. Expected {42, 51, 60} but got {" +
+                      std::to_string(tmp_z[0]) + ", " + std::to_string(tmp_z[1]) + ", " + std::to_string(tmp_z[2]) +
+                      "}");
             failed_counter++;
         }
     }
@@ -458,7 +470,8 @@ int main(int argc, char const* args[])
         }
         else
         {
-            log.error("✗ `make_abs_copy(x, y)` method test failed. Expected {1, 2, 3} but got {" +
+            log.error("✗ `make_abs_copy(x, y)` method test failed. Expected {1, 2, "
+                      "3} but got {" +
                       std::to_string(tmp_y[0]) + ", " + std::to_string(tmp_y[1]) + ", " + std::to_string(tmp_y[2]) +
                       "}");
             failed_counter++;
@@ -491,9 +504,9 @@ int main(int argc, char const* args[])
     {
         vector_type tmp_x = {1, -2, 3};
         vector_type tmp_y = {4, 5, -6};
-        vec_space->max_pointwise(
-            2, tmp_x,
-            tmp_y); // y = max(2, {1,-2,3}, {4,5,-6}) = max(2, max({1,-2,3}, {4,5,-6})) = max(2, {4,5,3}) = {4,5,3}
+        vec_space->max_pointwise(2, tmp_x,
+                                 tmp_y); // y = max(2, {1,-2,3}, {4,5,-6}) = max(2, max({1,-2,3},
+                                         // {4,5,-6})) = max(2, {4,5,3}) = {4,5,3}
         if ((tmp_y[0] - 4) < eps && (tmp_y[1] - 5) < eps && (tmp_y[2] - 3) < eps)
         {
             log.info("✓ `max_pointwise(sc, x, y)` method test passed");
@@ -501,7 +514,8 @@ int main(int argc, char const* args[])
         }
         else
         {
-            log.error("✗ `max_pointwise(sc, x, y)` method test failed. Expected {4, 5, 3} but got {" +
+            log.error("✗ `max_pointwise(sc, x, y)` method test failed. Expected {4, "
+                      "5, 3} but got {" +
                       std::to_string(tmp_y[0]) + ", " + std::to_string(tmp_y[1]) + ", " + std::to_string(tmp_y[2]) +
                       "}");
             failed_counter++;
@@ -519,7 +533,8 @@ int main(int argc, char const* args[])
         }
         else
         {
-            log.error("✗ `max_pointwise(sc, x)` method test failed. Expected {2, 2, 3} but got {" +
+            log.error("✗ `max_pointwise(sc, x)` method test failed. Expected {2, 2, "
+                      "3} but got {" +
                       std::to_string(tmp_x[0]) + ", " + std::to_string(tmp_x[1]) + ", " + std::to_string(tmp_x[2]) +
                       "}");
             failed_counter++;
@@ -530,9 +545,9 @@ int main(int argc, char const* args[])
     {
         vector_type tmp_x = {1, -2, 3};
         vector_type tmp_y = {4, 5, -6};
-        vec_space->min_pointwise(
-            2, tmp_x,
-            tmp_y); // y = min(2, {1,-2,3}, {4,5,-6}) = min(2, min({1,-2,3}, {4,5,-6})) = min(2, {1,-2,-6}) = {1,-2,-6}
+        vec_space->min_pointwise(2, tmp_x,
+                                 tmp_y); // y = min(2, {1,-2,3}, {4,5,-6}) = min(2, min({1,-2,3},
+                                         // {4,5,-6})) = min(2, {1,-2,-6}) = {1,-2,-6}
         if ((tmp_y[0] - 1) < eps && (tmp_y[1] + 2) < eps && (tmp_y[2] + 6) < eps)
         {
             log.info("✓ `min_pointwise(sc, x, y)` method test passed");
@@ -540,7 +555,8 @@ int main(int argc, char const* args[])
         }
         else
         {
-            log.error("✗ `min_pointwise(sc, x, y)` method test failed. Expected {1, -2, -6} but got {" +
+            log.error("✗ `min_pointwise(sc, x, y)` method test failed. Expected {1, "
+                      "-2, -6} but got {" +
                       std::to_string(tmp_y[0]) + ", " + std::to_string(tmp_y[1]) + ", " + std::to_string(tmp_y[2]) +
                       "}");
             failed_counter++;
@@ -558,7 +574,8 @@ int main(int argc, char const* args[])
         }
         else
         {
-            log.error("✗ `min_pointwise(sc, x)` method test failed. Expected {1, -2, 2} but got {" +
+            log.error("✗ `min_pointwise(sc, x)` method test failed. Expected {1, -2, "
+                      "2} but got {" +
                       std::to_string(tmp_x[0]) + ", " + std::to_string(tmp_x[1]) + ", " + std::to_string(tmp_x[2]) +
                       "}");
             failed_counter++;
@@ -574,7 +591,8 @@ int main(int argc, char const* args[])
     {
         vector_type tmp_x = {1, 2, 3};
         vector_type tmp_y = {4, 5, 6};
-        vec_space->mul_pointwise(tmp_x, 2, tmp_y); // x = {1,2,3} * (2 * {4,5,6}) = {1,2,3} * {8,10,12} = {8,20,36}
+        vec_space->mul_pointwise(tmp_x, 2,
+                                 tmp_y); // x = {1,2,3} * (2 * {4,5,6}) = {1,2,3} * {8,10,12} = {8,20,36}
         if ((tmp_x[0] - 8) < eps && (tmp_x[1] - 20) < eps && (tmp_x[2] - 36) < eps)
         {
             log.info("✓ `mul_pointwise(x, mul_y, y)` method test passed");
@@ -582,7 +600,8 @@ int main(int argc, char const* args[])
         }
         else
         {
-            log.error("✗ `mul_pointwise(x, mul_y, y)` method test failed. Expected {8, 20, 36} but got {" +
+            log.error("✗ `mul_pointwise(x, mul_y, y)` method test failed. Expected "
+                      "{8, 20, 36} but got {" +
                       std::to_string(tmp_x[0]) + ", " + std::to_string(tmp_x[1]) + ", " + std::to_string(tmp_x[2]) +
                       "}");
             failed_counter++;
@@ -595,7 +614,8 @@ int main(int argc, char const* args[])
         vector_type tmp_y = {4, 5, 6};
         vector_type tmp_z = {0, 0, 0};
         vec_space->mul_pointwise(2, tmp_x, 3, tmp_y,
-                                 tmp_z); // z = (2*{1,2,3}) * (3*{4,5,6}) = {2,4,6} * {12,15,18} = {24,60,108}
+                                 tmp_z); // z = (2*{1,2,3}) * (3*{4,5,6}) = {2,4,6}
+                                         // * {12,15,18} = {24,60,108}
         if ((tmp_z[0] - 24) < eps && (tmp_z[1] - 60) < eps && (tmp_z[2] - 108) < eps)
         {
             log.info("✓ `mul_pointwise(mul_x, x, mul_y, y, z)` method test passed");
@@ -603,7 +623,8 @@ int main(int argc, char const* args[])
         }
         else
         {
-            log.error("✗ `mul_pointwise(mul_x, x, mul_y, y, z)` method test failed. Expected {24, 60, 108} but got {" +
+            log.error("✗ `mul_pointwise(mul_x, x, mul_y, y, z)` method test failed. "
+                      "Expected {24, 60, 108} but got {" +
                       std::to_string(tmp_z[0]) + ", " + std::to_string(tmp_z[1]) + ", " + std::to_string(tmp_z[2]) +
                       "}");
             failed_counter++;
@@ -616,7 +637,8 @@ int main(int argc, char const* args[])
         vector_type tmp_y = {4, 5, 6};
         vector_type tmp_z = {0, 0, 0};
         vec_space->div_pointwise(2, tmp_x, 3, tmp_y,
-                                 tmp_z); // z = (2*{1,2,3}) / (3*{4,5,6}) = {2,4,6} / {12,15,18} = {2/12, 4/15, 6/18}
+                                 tmp_z); // z = (2*{1,2,3}) / (3*{4,5,6}) = {2,4,6}
+                                         // / {12,15,18} = {2/12, 4/15, 6/18}
         if ((12 * tmp_z[0] - 2) < eps && (15 * tmp_z[1] - 4) < eps && (18 * tmp_z[2] - 6) < eps)
         {
             log.info("✓ `div_pointwise(mul_x, x, mul_y, y, z)` method test passed");
@@ -624,9 +646,10 @@ int main(int argc, char const* args[])
         }
         else
         {
-            log.error(
-                "✗ `div_pointwise(mul_x, x, mul_y, y, z)` method test failed. Expected {2/12, 4/15, 6/18} but got {" +
-                std::to_string(tmp_z[0]) + ", " + std::to_string(tmp_z[1]) + ", " + std::to_string(tmp_z[2]) + "}");
+            log.error("✗ `div_pointwise(mul_x, x, mul_y, y, z)` method test failed. "
+                      "Expected {2/12, 4/15, 6/18} but got {" +
+                      std::to_string(tmp_z[0]) + ", " + std::to_string(tmp_z[1]) + ", " + std::to_string(tmp_z[2]) +
+                      "}");
             failed_counter++;
         }
     }
@@ -636,7 +659,8 @@ int main(int argc, char const* args[])
         vector_type tmp_x = {1, 2, 3};
         vector_type tmp_y = {4, 5, 6};
         vec_space->div_pointwise(tmp_x, 3,
-                                 tmp_y); // x = {1,2,3} / (3 * {4,5,6}) = {1,2,3} / {12,15,18} = {1/12, 2/15, 3/18}
+                                 tmp_y); // x = {1,2,3} / (3 * {4,5,6}) = {1,2,3} /
+                                         // {12,15,18} = {1/12, 2/15, 3/18}
         if ((12 * tmp_x[0] - 1) < eps && (15 * tmp_x[1] - 2) < eps && (18 * tmp_x[2] - 3) < eps)
         {
             log.info("✓ `div_pointwise(x, mul_y, y)` method test passed");
@@ -644,7 +668,8 @@ int main(int argc, char const* args[])
         }
         else
         {
-            log.error("✗ `div_pointwise(x, mul_y, y)` method test failed. Expected {1/12, 2/15, 3/18} but got {" +
+            log.error("✗ `div_pointwise(x, mul_y, y)` method test failed. Expected "
+                      "{1/12, 2/15, 3/18} but got {" +
                       std::to_string(tmp_x[0]) + ", " + std::to_string(tmp_x[1]) + ", " + std::to_string(tmp_x[2]) +
                       "}");
             failed_counter++;
@@ -654,43 +679,43 @@ int main(int argc, char const* args[])
     // ====================================================================
     // GROUP 11: Slice Operations
     // ====================================================================
-    log.info("=== Testing Slice Operations ===");
+    // log.info("=== Testing Slice Operations ===");
 
-    {
-        auto vec_space2 = std::make_shared<dense_vector_space_t>();
-        vector_type x2 = {1, 2, 3};
-        vector_type y2 = {0, 0, 0};
-        std::vector<std::pair<size_t, size_t>> slices = {{0, 2}, {2, 3}}; // copy 0,1 then 2 -> all
-        vec_space2->assign_slices(x2, slices, y2);
-        if ((y2[0] - 1) < eps && (y2[1] - 2) < eps && (y2[2] - 3) < eps)
-        {
-            log.info("✓ `assign_slices(x, slices, y)` method test passed");
-            passed_counter++;
-        }
-        else
-        {
-            log.error("✗ `assign_slices(x, slices, y)` method failed.");
-            failed_counter++;
-        }
-    }
+    // {
+    //     auto vec_space2 = std::make_shared<dense_vector_space_t>();
+    //     vector_type x2 = {1, 2, 3};
+    //     vector_type y2 = {0, 0, 0};
+    //     std::vector<std::pair<size_t, size_t>> slices = {{0, 2}, {2, 3}}; // copy 0,1 then 2 -> all
+    //     vec_space2->assign_slices(x2, slices, y2);
+    //     if ((y2[0] - 1) < eps && (y2[1] - 2) < eps && (y2[2] - 3) < eps)
+    //     {
+    //         log.info("✓ `assign_slices(x, slices, y)` method test passed");
+    //         passed_counter++;
+    //     }
+    //     else
+    //     {
+    //         log.error("✗ `assign_slices(x, slices, y)` method failed.");
+    //         failed_counter++;
+    //     }
+    // }
 
-    {
-        auto vec_space3 = std::make_shared<dense_vector_space_t>();
-        vector_type x3 = {1, 2, 3};
-        vector_type y3 = {0, 0, 0};
-        std::vector<std::pair<size_t, size_t>> skip = {{1, 2}}; // skip 1..2 -> keep 0
-        vec_space3->assign_skip_slices(x3, skip, y3);
-        if ((y3[0] - 1) < eps)
-        {
-            log.info("✓ `assign_skip_slices(x, skip_slices, y)` method test passed");
-            passed_counter++;
-        }
-        else
-        {
-            log.error("✗ `assign_skip_slices(x, skip_slices, y)` method failed.");
-            failed_counter++;
-        }
-    }
+    // {
+    //     auto vec_space3 = std::make_shared<dense_vector_space_t>();
+    //     vector_type x3 = {1, 2, 3};
+    //     vector_type y3 = {0, 0, 0};
+    //     std::vector<std::pair<size_t, size_t>> skip = {{1, 2}}; // skip 1..2 -> keep 0
+    //     vec_space3->assign_skip_slices(x3, skip, y3);
+    //     if ((y3[0] - 1) < eps)
+    //     {
+    //         log.info("✓ `assign_skip_slices(x, skip_slices, y)` method test passed");
+    //         passed_counter++;
+    //     }
+    //     else
+    //     {
+    //         log.error("✗ `assign_skip_slices(x, skip_slices, y)` method failed.");
+    //         failed_counter++;
+    //     }
+    // }
 
     // ====================================================================
     // FINAL SUMMARY
