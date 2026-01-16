@@ -4,5 +4,4 @@
 .vscode
 *.gif
 .DS_Store
-*.txt
 **/data
