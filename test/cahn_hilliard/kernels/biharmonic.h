@@ -5,7 +5,7 @@ namespace kernels
 {
 
 template <class IdxND, class Scalar, class TensorType, class VectorType, class GridStep, class BoundaryCond>
-struct biharmonic_op
+struct biharmonic
 {
 
     VectorType in, out;

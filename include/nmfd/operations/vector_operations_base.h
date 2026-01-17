@@ -64,7 +64,7 @@ public:
     //standard vector norm:=sqrt(sum(x^2))
     [[nodiscard]] virtual scalar_type norm(const vector_type &x) const = 0;
     //L2 emulation for the vector norm2:=sqrt(sum(x^2)/sz_)
-    [[nodiscard]] virtual scalar_type norm2(const vector_type &x) const = 0;
+    [[nodiscard]] virtual scalar_type norm_l2(const vector_type &x) const = 0;
     //standard vector norm_sq:=sum(x^2)
     [[nodiscard]] virtual scalar_type norm_sq(const vector_type &x) const = 0;
     //L2 emulation for the vector norm2_sq:=sum(x^2)/sz_
@@ -81,6 +81,8 @@ public:
     //calc: y := mul_x*x
     //ISSUE rename into assign_lin_comb?
     virtual void assign_lin_comb(const scalar_type mul_x, const vector_type& x, vector_type& y) const = 0;
+    //calc: z := mul_x*x + mul_y*y
+    virtual void assign_lin_comb(const scalar_type mul_x, const vector_type& x, const scalar_type mul_y, const vector_type& y, vector_type& z) const = 0;
     //calc: y := mul_x*x + mul_y*y
     //ISSUE rename into add_lin_comb or add_mul_lin_comb?
     virtual void add_lin_comb(const scalar_type mul_x, const vector_type& x, const scalar_type mul_y, vector_type& y) const = 0;

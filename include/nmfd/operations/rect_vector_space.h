@@ -56,7 +56,7 @@ public:
 
     using multivector_type       = typename parent_t::multivector_type;
     using vector_type            = VectorType;
-    using array_nd_type      = scfd::arrays::array_nd<Type, Dim, typename Backend::memory_type>;
+    using array_nd_type          = scfd::arrays::array_nd<Type, Dim, typename Backend::memory_type>;
     using idx_nd_type            = IdxType;
 
 public: // Especially for SYCL
@@ -66,7 +66,8 @@ public: // Especially for SYCL
     using add_mul_scalar_kernel  = kernels::add_mul_scalar<idx_nd_type, scalar_type, vector_type, TensorDim>;
     using scale_kernel           = kernels::scale<idx_nd_type, scalar_type, vector_type, TensorDim>;
     using assign_kernel          = kernels::assign<idx_nd_type, scalar_type, vector_type, TensorDim>;
-    using assign_lin_comb_kernel = kernels::assign_lin_comb<idx_nd_type, scalar_type, vector_type, TensorDim>;
+    using assign_lin_comb_1_kernel = kernels::assign_lin_1_comb<idx_nd_type, scalar_type, vector_type, TensorDim>;
+    using assign_lin_comb_2_kernel = kernels::assign_lin_2_comb<idx_nd_type, scalar_type, vector_type, TensorDim>;
     using add_lin_comb_kernel    = kernels::add_lin_comb<idx_nd_type, scalar_type, vector_type, TensorDim>;
 
 private:
@@ -144,9 +145,8 @@ public: // Implementing Vector_Operations interface
     }
 
     //L2 emulation for the vector norm2:=sqrt(sum(x^2)/sz_)
-    [[nodiscard]] scalar_type norm2(const vector_type &x) const override
+    [[nodiscard]] scalar_type norm_l2(const vector_type &x) const override
     {
-
         for_each_nd_inst(shur_prod_kernel{x, x, helper}, range);
         return std::sqrt(reduce_inst(sz, helper.raw_ptr(), scalar_type{0}) / sz);
     }
@@ -193,7 +193,13 @@ public:
     //calc: y := mul_x*x
     void assign_lin_comb(const scalar_type mul_x, const vector_type& x, vector_type& y) const override
     {
-        for_each_nd_inst(assign_lin_comb_kernel{mul_x, x, y}, range);
+        for_each_nd_inst(assign_lin_comb_1_kernel{mul_x, x, y}, range);
+    }
+
+    //calc: z := mul_x*x + mul_y*y
+    void assign_lin_comb(const scalar_type mul_x, const vector_type& x, const scalar_type mul_y, const vector_type& y, vector_type& z) const override
+    {
+        for_each_nd_inst(assign_lin_comb_2_kernel{mul_x, mul_y, x, y, z}, range);
     }
 
     //calc: y := mul_x*x + mul_y*y

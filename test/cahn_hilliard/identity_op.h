@@ -11,13 +11,13 @@ namespace tests
 
 template
 <
-    class VectorSpace, class Log,
+    class LinearOperator, class VectorSpace, class Log,
     /**********************************************/
     class Backend=typename VectorSpace::backend_type
 >
 class identity_op
 {
-    using lin_op_t           = biharmonic_op<VectorSpace, Log>;
+    using lin_op_t              = LinearOperator;
 public:
     static const int dim        = VectorSpace::dim;
     static const int tensor_dim = VectorSpace::tensor_dim;

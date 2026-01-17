@@ -110,7 +110,7 @@ struct assign
 };
 
 template <class IdxND, class Scalar, class VectorType, int TensorDim>
-struct assign_lin_comb
+struct assign_lin_1_comb
 {
     Scalar    mul_x;
     VectorType x, y;
@@ -120,6 +120,21 @@ struct assign_lin_comb
         for(int i = 0; i < TensorDim; i++)
         {
             y(idx, i) = mul_x * x(idx, i);
+        }
+    }
+};
+
+template <class IdxND, class Scalar, class VectorType, int TensorDim>
+struct assign_lin_2_comb
+{
+    Scalar    mul_x, mul_y;
+    VectorType x, y, z;
+
+    __DEVICE_TAG__ void operator()(const IdxND idx) const
+    {
+        for(int i = 0; i < TensorDim; i++)
+        {
+            z(idx, i) = mul_x * x(idx, i) + mul_y * y(idx, i);
         }
     }
 };

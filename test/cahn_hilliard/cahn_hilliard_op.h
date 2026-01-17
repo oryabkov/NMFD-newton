@@ -1,21 +1,22 @@
-#ifndef __BIHARMONIC_OP_H__
-#define __BIHARMONIC_OP_H__
+#ifndef __CAHN_HILLIARD_OP_H__
+#define __CAHN_HILLIARD_OP_H__
 
 #include <memory>
 
 #include "include/boundary.h" // for boundary conditions
-#include "kernels/biharmonic.h"
+#include "kernels/cahn_hilliard_jacobi.h"
+#include "kernels/cahn_hilliard.h"
 
 namespace tests
 {
 
 template
 <
-    class VectorSpace, class Log,
+    class VectorSpace, class JacobiOperator, class Log,
     /**********************************************/
     class Backend=typename VectorSpace::backend_type
 >
-class biharmonic_op
+class cahn_hilliard_op
 {
 public:
     static const int dim        = VectorSpace::dim;
@@ -36,8 +37,11 @@ public:
 
     using for_each_nd_type   = typename Backend::template for_each_nd_type<dim>;
 
+    using jacobi_operator_type = JacobiOperator;
+    using jacobi_operator_ptr  = std::shared_ptr<JacobiOperator>;
+
 public: // Especially for SYCL
-    using biharmonic_kernel = kernels::biharmonic_op
+    using cahn_hilliard_kernel = kernels::cahn_hilliard
     <
         idx_nd_type, scalar_type, tensor_type, vector_type,
         grid_step_type, boundary_cond_type
@@ -47,22 +51,26 @@ private:
     idx_nd_type          range;
     grid_step_type       step;
     boundary_cond_type   b_cond;
+
+    jacobi_operator_ptr  jacobi_op;
 public:
 
-    biharmonic_op(
+    cahn_hilliard_op(
         idx_nd_type r,
         grid_step_type grid_step,
-        boundary_cond_type cond
+        boundary_cond_type cond,
+        jacobi_operator_ptr jacobi_op_
     ):
         vspace(std::make_shared<vector_space_type>(r)),
-        range(r), step(grid_step), b_cond(cond)
+        range(r), step(grid_step), b_cond(cond), jacobi_op(jacobi_op_)
     {}
 
-    biharmonic_op(
+    cahn_hilliard_op(
         const vector_space_type& vec_space,
         grid_step_type grid_step,
-        boundary_cond_type cond
-    ): biharmonic_op(vec_space.get_size(), grid_step, cond) {}
+        boundary_cond_type cond,
+        jacobi_operator_ptr jacobi_op_
+    ): cahn_hilliard_op(vec_space.get_size(), grid_step, cond), jacobi_op(jacobi_op_) {}
 
     vector_space_ptr        get_space()  const
     {
@@ -76,11 +84,21 @@ public:
     vector_space_ptr get_dom_space() const { return get_space(); }
     vector_space_ptr get_im_space()  const { return get_space(); }
 
-    void apply(const vector_type &in, vector_type &out) const
+    void apply(const vector_type &in, vector_type &out, scalar_type D=1., scalar_type gamma=1.) const
     {
         for_each_nd_type for_each_nd_inst;
-        for_each_nd_inst(biharmonic_kernel{in, out, range, step, b_cond}, range);
+        for_each_nd_inst(cahn_hilliard_kernel{in, out, range, step, b_cond, D, gamma}, range);
     };
+
+    void set_linearization_point(const vector_type &p)
+    {
+        jacobi_op->set_vector(p);
+    }
+
+    const jacobi_operator_ptr &get_jacobi_operator()
+    {
+        return jacobi_op;
+    }
 };
 
 }// namespace tests
