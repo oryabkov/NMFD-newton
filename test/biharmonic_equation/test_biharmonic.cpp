@@ -18,6 +18,10 @@
 #include "biharmonic_op.h"
 #include "jacobi_pre.h"
 #include "solver_logger.h"
+#include "prolongator.h"
+#include "restrictor.h"
+#include "coarsening.h"
+#include "identity_op.h"
 
 #include "include/boundary.h"
 
@@ -36,32 +40,32 @@ using log_t             = scfd::utils::log_std;
 
 using vec_ops_t         = nmfd::rect_vector_space<scalar,/*dim=*/dim,/*tensor_dim=*/tensor_dim, scfd::backend::serial_cpu>;
 
-// using krylov_monitor_t  = nmfd::solvers::monitor_krylov<vec_ops_t, log_t>;
+using krylov_monitor_t  = nmfd::solvers::monitor_krylov<vec_ops_t, log_t>;
 using default_monitor_t = nmfd::solvers::default_monitor<vec_ops_t, log_t>;
 using monitor_funcs_t   = default_monitor_t::custom_funcs_type;
 using monitor_funcs_ptr = default_monitor_t::custom_funcs_ptr;
 
-// using prolongator_t = tests::device_prolongator<vec_ops_t, log_t>;
-// using restrictor_t  = tests::device_restrictor <vec_ops_t, log_t>;
-// using ident_op_t    = tests::device_identity_op<vec_ops_t, log_t>;
+using prolongator_t = tests::prolongator<vec_ops_t, log_t>;
+using restrictor_t  = tests::restrictor<vec_ops_t, log_t>;
+using ident_op_t    = tests::identity_op<vec_ops_t, log_t>;
 using lin_op_t      = tests::biharmonic_op<vec_ops_t, log_t>;
 using smoother_t    = tests::jacobi_pre<vec_ops_t, log_t>;
-// using coarsening_t  = tests::device_coarsening<lin_op_t, log_t>;
+using coarsening_t  = tests::coarsening<lin_op_t, log_t>;
 
 using precond_interface = nmfd::preconditioners::preconditioner_interface<vec_ops_t,lin_op_t>;
 
-// using mg_t = nmfd::preconditioners::mg
-// <
-//     lin_op_t, restrictor_t, prolongator_t,
-//     smoother_t, ident_op_t, coarsening_t,
-//     log_t
-// >;
-// using mg_params_t = mg_t::params_hierarchy;
-// using mg_utils_t  = mg_t::utils_hierarchy;
+using mg_t = nmfd::preconditioners::mg
+<
+    lin_op_t, restrictor_t, prolongator_t,
+    smoother_t, ident_op_t, coarsening_t,
+    log_t
+>;
+using mg_params_t = mg_t::params_hierarchy;
+using mg_utils_t  = mg_t::utils_hierarchy;
 
 
 using jacobi_solver = jacobi<vec_ops_t, lin_op_t, precond_interface, default_monitor_t, log_t>;
-// using gmres_solver     = nmfd::solvers::gmres <vec_ops_t, krylov_monitor_t, log_t, lin_op_t, precond_interface>;
+using gmres_solver  = nmfd::solvers::gmres<vec_ops_t, krylov_monitor_t, log_t, lin_op_t, precond_interface>;
 
 using vector_t         = typename vec_ops_t::vector_type;
 using tensor_t         = scfd::static_vec::vec<scalar, tensor_dim>;
@@ -152,11 +156,12 @@ tensor_t u(scalar x, scalar y, scalar z)
 
 int main(int argc, char const *argv[])
 {
-    if (argc < 5)
+    if (argc < 6)
     {
-        std::cout << "USAGE: " << argv[0] << " <preconditioner> <grid_size> <max_iterations> <run_label>" << std::endl;
+        std::cout << "USAGE: " << argv[0] << " <solver> <preconditioner> <grid_size> <max_iterations> <run_label>" << std::endl;
         std::cout << std::endl;
         std::cout << "Required arguments:" << std::endl;
+        std::cout << "    solver               Solver type: 'jacobi' or 'gmres'" << std::endl;
         std::cout << "    preconditioner       Preconditioner type: 'diag' (diagonal/Jacobi) or 'mg' (multigrid)" << std::endl;
         std::cout << "    grid_size            Number of grid points per dimension (e.g., 32 for 32x32x32 grid)" << std::endl;
         std::cout << "    max_iterations       Maximum number of solver iterations (e.g., 100)" << std::endl;
@@ -165,13 +170,15 @@ int main(int argc, char const *argv[])
     }
 
     // Parse command-line arguments
-    const std::string preconditioner_type = argv[1];
-    const int         grid_size           = std::stoi(argv[2]);
-    const int         max_iterations      = std::stoi(argv[3]);
-    const std::string run_label           = argv[4];
+    const std::string solver_type         = argv[1];
+    const std::string preconditioner_type = argv[2];
+    const int         grid_size           = std::stoi(argv[3]);
+    const int         max_iterations      = std::stoi(argv[4]);
+    const std::string run_label           = argv[5];
+
 
     // Solver configuration
-    const std::string solver_name  = "jacobi";
+    const std::string solver_name  = solver_type;
     const std::string scalar_label = std::is_same_v<float, scalar> ? "float" : "double";
 
     log_t log;
@@ -220,18 +227,18 @@ int main(int argc, char const *argv[])
     {
         precond = std::make_shared<smoother_t>(l_op);
     }
-    // else if (preconditioner_type == "mg")
-    // {
-    //     mg_utils_t    mg_utils;
-    //     mg_params_t   mg_params;
+    else if (preconditioner_type == "mg")
+    {
+        mg_utils_t    mg_utils;
+        mg_params_t   mg_params;
 
-    //     mg_utils.log               = &log;
-    //     mg_params.direct_coarse    = false;
-    //     mg_params.num_sweeps_pre   = 3;
-    //     mg_params.num_sweeps_post  = 3;
+        mg_utils.log               = &log;
+        mg_params.direct_coarse    = false;
+        mg_params.num_sweeps_pre   = 4;
+        mg_params.num_sweeps_post  = 4;
 
-    //     precond = std::make_shared<mg_t>(mg_utils, mg_params);
-    // }
+        precond = std::make_shared<mg_t>(mg_utils, mg_params);
+    }
     else
     {
         std::cout << "ERROR: Unknown preconditioner type '" << preconditioner_type << "'. Use 'diag' or 'mg'." << std::endl;
@@ -253,31 +260,63 @@ int main(int argc, char const *argv[])
     // Configure solver
     const scalar tolerance = std::is_same_v<float, scalar> ? 5e-6f : 1e-10;
 
-    jacobi_solver::params solver_params;
-    solver_params.monitor.rel_tol = tolerance;
-    solver_params.monitor.max_iters_num = max_iterations;
-    solver_params.monitor.save_convergence_history = true;
-    jacobi_solver solver{l_op, vspace, &log, solver_params, precond};  // nullptr log to disable console output
-
     // Set up custom iteration logger (writes CSV + log file at each step)
     auto iter_logger = std::make_shared<IterationLogger<vec_ops_t>>(csv_file, log_file, vspace, tolerance);
-    solver.monitor().set_custom_funcs(iter_logger);
 
     // Solve the system and measure execution time
     std::chrono::duration<double, std::milli> solve_time_ms;
     bool converged;
+    std::vector<std::pair<int, scalar>> convergence_history;
+
+    if (solver_type == "jacobi")
     {
-        auto start = std::chrono::steady_clock::now();
-        converged = solver.solve(rhs, solution);
-        auto end = std::chrono::steady_clock::now();
-        solve_time_ms = (end - start);
+        jacobi_solver::params solver_params;
+        solver_params.monitor.rel_tol = tolerance;
+        solver_params.monitor.max_iters_num = max_iterations;
+        solver_params.monitor.save_convergence_history = true;
+        jacobi_solver solver{l_op, vspace, &log, solver_params, precond};
+
+        solver.monitor().set_custom_funcs(iter_logger);
+
+        {
+            auto start = std::chrono::steady_clock::now();
+            converged = solver.solve(rhs, solution);
+            auto end = std::chrono::steady_clock::now();
+            solve_time_ms = (end - start);
+        }
+
+        convergence_history = solver.monitor().convergence_history();
+    }
+    else // gmres
+    {
+        gmres_solver::params params_gmres;
+        params_gmres.monitor.rel_tol = std::is_same_v<float, scalar> ? 5e-6f : 1e-10;
+        //params_gmres.monitor.rel_tol = 1.0e-6;
+        params_gmres.monitor.max_iters_num = max_iterations;
+        params_gmres.monitor.save_convergence_history = true;
+        params_gmres.do_restart_on_false_ritz_convergence = true;
+        params_gmres.basis_size = 25;
+        // params_gmres.basis_size = basis_size;
+        params_gmres.preconditioner_side = 'L';
+        params_gmres.reorthogonalization = true;
+        gmres_solver solver{l_op, vspace, &log, params_gmres, precond};
+
+        solver.monitor().set_custom_funcs(iter_logger);
+
+        {
+            auto start = std::chrono::steady_clock::now();
+            converged = solver.solve(rhs, solution);
+            auto end = std::chrono::steady_clock::now();
+            solve_time_ms = (end - start);
+        }
+
+        convergence_history = solver.monitor().convergence_history();
     }
 
     // Close logger streams
     iter_logger->close();
 
     // Get convergence history for summary
-    auto convergence_history = solver.monitor().convergence_history();
     auto [first_iter, initial_residual] = convergence_history.front();
     auto [last_iter,  final_residual]   = convergence_history.back();
     int total_iterations = last_iter;
