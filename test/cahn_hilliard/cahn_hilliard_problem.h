@@ -8,32 +8,66 @@
 namespace tests
 {
 
-template <class Scalar, class TensorType>
+template <class Scalar, class TensorType, int m, int n, int k>
 class trig_rhs
 {
 public:
     TensorType operator()( Scalar x, Scalar y, Scalar z ) const
     {
-        Scalar g = std::sin( PI * x ) * std::sin( PI * y ) * std::sin( PI * z );
 
         return TensorType{
-            ( -27 * PI * PI * std::pow( std::sin( PI * y ), 3 ) * std::pow( std::sin( PI * z ), 3 ) +
-              6 * PI * PI * std::pow( std::sin( PI * y ), 3 ) * std::sin( PI * z ) +
-              6 * PI * PI * std::sin( PI * y ) * std::pow( std::sin( PI * z ), 3 ) ) *
-                    std::pow( std::sin( PI * x ), 3 ) +
-                ( 6 * PI * PI * std::pow( std::sin( PI * y ), 3 ) * std::pow( std::sin( PI * z ), 3 ) -
-                  9 * std::pow( PI, 4 ) * std::sin( PI * y ) * std::sin( PI * z ) +
-                  3 * PI * PI * std::sin( PI * y ) * std::sin( PI * z ) ) *
-                    std::sin( PI * x ),
+            -std::pow( PI, 4 ) * std::pow( k, 4 ) * std::sin( PI * k * z ) * std::sin( PI * m * x ) *
+                    std::sin( PI * n * y ) -
+                2 * std::pow( PI, 4 ) * std::pow( k, 2 ) * std::pow( m, 2 ) * std::sin( PI * k * z ) *
+                    std::sin( PI * m * x ) * std::sin( PI * n * y ) -
+                2 * std::pow( PI, 4 ) * std::pow( k, 2 ) * std::pow( n, 2 ) * std::sin( PI * k * z ) *
+                    std::sin( PI * m * x ) * std::sin( PI * n * y ) -
+                3 * std::pow( PI, 2 ) * std::pow( k, 2 ) * std::pow( std::sin( PI * k * z ), 3 ) *
+                    std::pow( std::sin( PI * m * x ), 3 ) * std::pow( std::sin( PI * n * y ), 3 ) +
+                6 * std::pow( PI, 2 ) * std::pow( k, 2 ) * std::sin( PI * k * z ) *
+                    std::pow( std::sin( PI * m * x ), 3 ) * std::pow( std::sin( PI * n * y ), 3 ) *
+                    std::pow( std::cos( PI * k * z ), 2 ) +
+                std::pow( PI, 2 ) * std::pow( k, 2 ) * std::sin( PI * k * z ) * std::sin( PI * m * x ) *
+                    std::sin( PI * n * y ) -
+                std::pow( PI, 4 ) * std::pow( m, 4 ) * std::sin( PI * k * z ) * std::sin( PI * m * x ) *
+                    std::sin( PI * n * y ) -
+                2 * std::pow( PI, 4 ) * std::pow( m, 2 ) * std::pow( n, 2 ) * std::sin( PI * k * z ) *
+                    std::sin( PI * m * x ) * std::sin( PI * n * y ) -
+                3 * std::pow( PI, 2 ) * std::pow( m, 2 ) * std::pow( std::sin( PI * k * z ), 3 ) *
+                    std::pow( std::sin( PI * m * x ), 3 ) * std::pow( std::sin( PI * n * y ), 3 ) +
+                6 * std::pow( PI, 2 ) * std::pow( m, 2 ) * std::pow( std::sin( PI * k * z ), 3 ) *
+                    std::sin( PI * m * x ) * std::pow( std::sin( PI * n * y ), 3 ) *
+                    std::pow( std::cos( PI * m * x ), 2 ) +
+                std::pow( PI, 2 ) * std::pow( m, 2 ) * std::sin( PI * k * z ) * std::sin( PI * m * x ) *
+                    std::sin( PI * n * y ) -
+                std::pow( PI, 4 ) * std::pow( n, 4 ) * std::sin( PI * k * z ) * std::sin( PI * m * x ) *
+                    std::sin( PI * n * y ) -
+                3 * std::pow( PI, 2 ) * std::pow( n, 2 ) * std::pow( std::sin( PI * k * z ), 3 ) *
+                    std::pow( std::sin( PI * m * x ), 3 ) * std::pow( std::sin( PI * n * y ), 3 ) +
+                6 * std::pow( PI, 2 ) * std::pow( n, 2 ) * std::pow( std::sin( PI * k * z ), 3 ) *
+                    std::pow( std::sin( PI * m * x ), 3 ) * std::sin( PI * n * y ) *
+                    std::pow( std::cos( PI * n * y ), 2 ) +
+                std::pow( PI, 2 ) * std::pow( n, 2 ) * std::sin( PI * k * z ) * std::sin( PI * m * x ) *
+                    std::sin( PI * n * y ),
             0.0
         };
     }
 
     TensorType get_exact_solution( Scalar x, Scalar y, Scalar z ) const
     {
-        Scalar g = std::sin( PI * x ) * std::sin( PI * y ) * std::sin( PI * z );
 
-        return TensorType{ ( g * g - 1 + 3 * PI * PI ) * g, g };
+        return TensorType{
+            std::pow( PI, 2 ) * std::pow( k, 2 ) * std::sin( PI * k * z ) * std::sin( PI * m * x ) *
+                    std::sin( PI * n * y ) +
+                std::pow( PI, 2 ) * std::pow( m, 2 ) * std::sin( PI * k * z ) * std::sin( PI * m * x ) *
+                    std::sin( PI * n * y ) +
+                std::pow( PI, 2 ) * std::pow( n, 2 ) * std::sin( PI * k * z ) * std::sin( PI * m * x ) *
+                    std::sin( PI * n * y ) +
+                std::pow( std::sin( PI * k * z ), 3 ) * std::pow( std::sin( PI * m * x ), 3 ) *
+                    std::pow( std::sin( PI * n * y ), 3 ) -
+                std::sin( PI * k * z ) * std::sin( PI * m * x ) * std::sin( PI * n * y ),
+            std::sin( PI * k * z ) * std::sin( PI * m * x ) * std::sin( PI * n * y )
+        };
     }
 };
 

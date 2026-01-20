@@ -67,7 +67,7 @@ using monitor_funcs_ptr = default_monitor_t::custom_funcs_ptr;
 
 // Problem
 using phobic_energy = tests::double_well_potential<scalar>;
-using rhs_t         = tests::trig_rhs<scalar, tensor_t>;
+using rhs_t         = tests::trig_rhs<scalar, tensor_t, 3, 3, 1>;
 
 // MG
 using prolongator_t = tests::prolongator<vec_ops_t, log_t>;
