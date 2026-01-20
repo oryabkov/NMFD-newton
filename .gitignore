@@ -6,3 +6,6 @@
 .DS_Store
 **/data
 .venv
+.clangd
+.clang-format
+**/#*#

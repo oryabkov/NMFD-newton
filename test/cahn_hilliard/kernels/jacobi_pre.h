@@ -1,54 +1,67 @@
-#ifndef __JACOBI_PRE_H__
-#define __JACOBI_PRE_H__
+#ifndef __JACOBI_PRE_KERNEL_H__
+#define __JACOBI_PRE_KERNEL_H__
 
 #include <scfd/static_mat/mat.h>
+#include <scfd/utils/device_tag.h>
 
 namespace kernels
 {
 
-template <class IdxND, class Scalar, class VectorType, class MatType, class GridStep, class BoundaryCond>
-struct jacobi_preconditioner
+template <
+    class IdxND,
+    class Scalar,
+    class VectorType,
+    class MatType,
+    class GridStep,
+    class BoundaryCond,
+    class PhobicEnergy>
+struct jacobi_pre_kernel
 {
-
-    VectorType       v;
+    VectorType   v, vector;
     IdxND        range;
-    GridStep      step;
-    BoundaryCond  cond;
+    GridStep     step;
+    BoundaryCond cond;
+    PhobicEnergy phobic_en;
 
-    __DEVICE_TAG__ void operator()(const IdxND idx) const
+    Scalar D;
+    Scalar gamma;
+
+    __DEVICE_TAG__ void operator()( const IdxND idx ) const
     {
-        MatType mat{
-            0., 0.,
-            0., 0.
-        };
+        MatType mat{ 0., 0., 0., 0. };
 
-        #pragma unroll
-        for (int j = 0; j < IdxND::dim; j++)
+        auto vec = v.get_vec( idx );
+
+#pragma unroll
+        for ( int j = 0; j < IdxND::dim; j++ )
         {
-            const auto N     = range[j];
-            const auto hj    = step[j];
+            const auto N  = range[j];
+            const auto hj = step[j];
 
-            Scalar diag_j {-2.};
+            Scalar diag_j{ -2. };
 
-            if (idx[j] == 0) {
+            if ( idx[j] == 0 )
+            {
                 diag_j += cond.left[j];
             }
 
-            if (idx[j] == N - 1) {
+            if ( idx[j] == N - 1 )
+            {
                 diag_j += cond.right[j];
             }
 
-            mat(0, 0) += diag_j / (hj * hj);
-            mat(1, 1) += diag_j / (hj * hj);
+            mat( 0, 0 ) += D * diag_j / ( hj * hj );
+            mat( 1, 1 ) += gamma * diag_j / ( hj * hj );
         }
-        mat(1, 0) = 1.;
+        Scalar phi = vector.get_vec( idx )[1];
+        mat( 1, 1 ) -= phobic_en.get_derivative( phi );
+        mat( 1, 0 ) = 1.;
 
-        auto vec = v.get_vec(idx);
-        auto result = inv(mat) * vec;
-        v.set_vec(result, idx);
+        auto result = inv( mat ) * vec;
+        v.set_vec( result, idx );
     }
 };
 
-}// namespace kernels
+} // namespace kernels
 
 #endif

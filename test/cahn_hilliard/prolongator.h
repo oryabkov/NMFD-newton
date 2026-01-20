@@ -3,17 +3,16 @@
 
 #include <memory>
 
-#include "kernels/prolongate.h"
+#include "kernels/prolongator.h"
 
 namespace tests
 {
 
-template
-<
-    class VectorSpace, class Log,
+template <
+    class VectorSpace,
+    class Log,
     /**********************************************/
-    class Backend=typename VectorSpace::backend_type
->
+    class Backend = typename VectorSpace::backend_type>
 class prolongator
 {
 public:
@@ -26,47 +25,51 @@ public:
 
     using Ord = ordinal_type;
 
-    using vector_space_ptr   = std::shared_ptr<VectorSpace>;
-    using idx_nd_type        = typename VectorSpace::idx_nd_type;
+    using vector_space_ptr = std::shared_ptr<VectorSpace>;
+    using idx_nd_type      = typename VectorSpace::idx_nd_type;
 
-    using for_each_nd_type   = typename Backend::template for_each_nd_type<dim>;
+    using for_each_nd_type = typename Backend::template for_each_nd_type<dim>;
 
 public: // Especially for SYCL
-    using prolongator_kernel = kernels::prolongate
-    <
-        idx_nd_type, ordinal_type, vector_type, tensor_dim
-    >;
-private:
-    idx_nd_type      range; // in im space
+    using prolongator_kernel = kernels::prolongator_kernel<idx_nd_type, ordinal_type, vector_type, tensor_dim>;
+
 public:
-    prolongator(idx_nd_type r) : range(r) // in im space
+    prolongator( idx_nd_type range ) : range_( range ) // in im space
     {
-        for (int i=0; i<idx_nd_type::dim; ++i)
+        for ( int i = 0; i < idx_nd_type::dim; ++i )
         {
-            if (r[i] % 2u != 0)
-                throw std::logic_error("nmfd::prolongator: encountered odd value in vector_space range! not supported case");
+            if ( range[i] % 2u != 0 )
+                throw std::logic_error(
+                    "nmfd::prolongator: encountered odd value in vector_space range_! not supported case"
+                );
         }
     }
 
-    idx_nd_type get_size() const noexcept { return range; }
+    idx_nd_type get_size() const noexcept
+    {
+        return range_;
+    }
 
     std::shared_ptr<vector_space_type> get_dom_space() const
     {
-        return std::make_shared<vector_space_type>(range / Ord{2u});
+        return std::make_shared<vector_space_type>( range_ / Ord{ 2u } );
     }
     std::shared_ptr<vector_space_type> get_im_space() const
     {
-        return std::make_shared<vector_space_type>(range);
+        return std::make_shared<vector_space_type>( range_ );
     }
 
     // domain -> (prolongate) -> image
-    void apply(vector_type &from, vector_type &to) const
+    void apply( vector_type &from, vector_type &to ) const
     {
-       for_each_nd_type for_each_nd_inst;
-       for_each_nd_inst(prolongator_kernel{from, to}, range);
+        for_each_nd_type for_each_nd_inst;
+        for_each_nd_inst( prolongator_kernel{ from, to }, range_ );
     };
+
+private:
+    idx_nd_type range_; // in im space
 };
 
-}// namespace tests
+} // namespace tests
 
 #endif

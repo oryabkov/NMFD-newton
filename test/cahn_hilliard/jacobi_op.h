@@ -1,26 +1,23 @@
-#ifndef __CAHN_HILLIARD_OP_H__
-#define __CAHN_HILLIARD_OP_H__
+#ifndef __JACOBI_OP_H__
+#define __JACOBI_OP_H__
 
 #include "include/boundary.h" // for boundary conditions
-#include "kernels/cahn_hilliard_op.h"
 #include "kernels/jacobi_op.h"
-#include "phobic_energy.h"
 
 #include <memory>
 #include <scfd/static_vec/vec.h>
+#include <nmfd/detail/vector_wrap.h>
 
 namespace tests
 {
 
 template <
     class VectorSpace,
-    class JacobiOperator,
     class Log,
     class PhobicEnergy,
-    class Rhs,
     /**********************************************/
     class Backend = typename VectorSpace::backend_type>
-class cahn_hilliard_op
+class jacobi_op
 {
 public:
     static const int dim        = VectorSpace::dim;
@@ -41,37 +38,37 @@ public:
 
     using for_each_nd_type = typename Backend::template for_each_nd_type<dim>;
 
-    using jacobi_operator_type = JacobiOperator;
-    using jacobi_operator_ptr  = std::shared_ptr<JacobiOperator>;
-
 public: // Especially for SYCL
-    using cahn_hilliard_kernel = kernels::cahn_hilliard_op_kernel<
+    using jacobi_op_kernel = kernels::jacobi_op_kernel<
         idx_nd_type,
         scalar_type,
         tensor_type,
         vector_type,
         grid_step_type,
         boundary_cond_type,
-        PhobicEnergy,
-        Rhs>;
+        PhobicEnergy>;
 
 public:
-    cahn_hilliard_op( idx_nd_type range, grid_step_type step, boundary_cond_type b_cond, jacobi_operator_ptr jacobi_op )
+    jacobi_op(
+        idx_nd_type        range,
+        grid_step_type     step,
+        boundary_cond_type b_cond,
+        scalar_type        D     = scalar_type( 1 ),
+        scalar_type        gamma = scalar_type( 1 )
+    )
         : vspace_( std::make_shared<vector_space_type>( range ) ), range_( range ), step_( step ), b_cond_( b_cond ),
-          jacobi_op_( jacobi_op ), phobic_en_(), rhs_()
+          vector_wrap_( *vspace_ ), phobic_en_(), D_( D ), gamma_( gamma )
     {
     }
 
-    cahn_hilliard_op(
-        const vector_space_type &vspace, grid_step_type step, boundary_cond_type b_cond, jacobi_operator_ptr jacobi_op
-    )
-        : cahn_hilliard_op( vspace.get_size(), step, b_cond, jacobi_op )
+    jacobi_op( const vector_space_type &vspace, grid_step_type step, boundary_cond_type b_cond, vector_type vector_ )
+        : jacobi_op( vspace.get_size(), step, b_cond, vector_ )
     {
     }
 
     vector_space_ptr get_space() const
     {
-        return std::make_shared<vector_space_type>( range_ );
+        return vspace_;
     }
 
     idx_nd_type get_size() const noexcept
@@ -86,6 +83,14 @@ public:
     {
         return b_cond_;
     }
+    scalar_type get_D() const noexcept
+    {
+        return D_;
+    }
+    scalar_type get_gamma() const noexcept
+    {
+        return gamma_;
+    }
 
     vector_space_ptr get_dom_space() const
     {
@@ -96,23 +101,22 @@ public:
         return get_space();
     }
 
+    vector_type get_vector() const
+    {
+        return *vector_wrap_;
+    }
+    void set_vector( const vector_type &vector )
+    {
+        vspace_->assign( vector, *vector_wrap_ );
+    }
+
     void apply( const vector_type &in, vector_type &out ) const
     {
         for_each_nd_type for_each_nd_inst;
         for_each_nd_inst(
-            cahn_hilliard_kernel{ in, out, range_, step_, b_cond_, phobic_en_, rhs_, D_, gamma_ }, range_
+            jacobi_op_kernel{ in, out, *vector_wrap_, range_, step_, b_cond_, phobic_en_, D_, gamma_ }, range_
         );
     };
-
-    void set_linearization_point( const vector_type &p )
-    {
-        jacobi_op_->set_vector( p );
-    }
-
-    const jacobi_operator_ptr &get_jacobi_operator() const
-    {
-        return jacobi_op_;
-    }
 
 private:
     vector_space_ptr   vspace_;
@@ -120,12 +124,11 @@ private:
     grid_step_type     step_;
     boundary_cond_type b_cond_;
 
-    jacobi_operator_ptr jacobi_op_;
-    PhobicEnergy        phobic_en_;
-    Rhs                 rhs_;
-
-    scalar_type D_     = 1.0;
-    scalar_type gamma_ = 1.0;
+    using vector_wrap_t = nmfd::detail::vector_wrap<VectorSpace, true, true>;
+    vector_wrap_t vector_wrap_;
+    PhobicEnergy  phobic_en_;
+    scalar_type   D_     = scalar_type( 1 );
+    scalar_type   gamma_ = scalar_type( 1 );
 };
 
 } // namespace tests
