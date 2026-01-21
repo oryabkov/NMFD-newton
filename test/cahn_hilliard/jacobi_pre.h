@@ -72,6 +72,7 @@ public:
         : vspace_( vspace ), range_( vspace_->get_range() ), step_( step ), b_cond_( b_cond ),
           vector_wrap_( std::make_unique<vector_wrap_t>( *vspace ) ), phobic_en_()
     {
+        vspace_->assign_scalar(0.0, *vector_wrap_);
     }
 
     jacobi_pre( std::shared_ptr<const lin_op_t> op )

@@ -111,7 +111,7 @@ public: // Implementing Vector_Operations interface
     [[nodiscard]] scalar_type scalar_prod(const vector_type &x, const vector_type &y) const override
     {
         for_each_nd_inst(shur_prod_kernel{x, y, helper}, range);
-        return reduce_inst(sz, helper.raw_ptr(), scalar_type{0});
+        return reduce_inst(range.components_prod(), helper.raw_ptr(), scalar_type{0});
     }
 
     [[nodiscard]] scalar_type scalar_prod_l2(const vector_type &x, const vector_type &y) const override
@@ -128,7 +128,7 @@ public: // Implementing Vector_Operations interface
     [[nodiscard]] scalar_type sum(const vector_type &x) const override
     {
         for_each_nd_inst(sum_kernel{x, helper}, range);
-        return reduce_inst(sz, helper.raw_ptr(), scalar_type{0});
+        return reduce_inst(range.components_prod(), helper.raw_ptr(), scalar_type{0});
     }
 
     [[nodiscard]] scalar_type asum(const vector_type &x) const override
@@ -141,28 +141,28 @@ public: // Implementing Vector_Operations interface
     [[nodiscard]] scalar_type norm(const vector_type &x) const override
     {
         for_each_nd_inst(shur_prod_kernel{x, x, helper}, range);
-        return std::sqrt(reduce_inst(sz, helper.raw_ptr(), scalar_type{0}));
+        return std::sqrt(reduce_inst(range.components_prod(), helper.raw_ptr(), scalar_type{0}));
     }
 
     //L2 emulation for the vector norm2:=sqrt(sum(x^2)/sz_)
     [[nodiscard]] scalar_type norm_l2(const vector_type &x) const override
     {
         for_each_nd_inst(shur_prod_kernel{x, x, helper}, range);
-        return std::sqrt(reduce_inst(sz, helper.raw_ptr(), scalar_type{0}) / sz);
+        return std::sqrt(reduce_inst(range.components_prod(), helper.raw_ptr(), scalar_type{0}) / sz);
     }
 
     //standard vector norm_sq:=sum(x^2)
     [[nodiscard]] scalar_type norm_sq(const vector_type &x) const override
     {
         for_each_nd_inst(shur_prod_kernel{x, x, helper}, range);
-        return reduce_inst(sz, helper.raw_ptr(), scalar_type{0});
+        return reduce_inst(range.components_prod(), helper.raw_ptr(), scalar_type{0});
     }
 
     //L2 emulation for the vector norm2_sq:=sum(x^2)/sz_
     [[nodiscard]] scalar_type norm2_sq(const vector_type &x) const override
     {
         for_each_nd_inst(shur_prod_kernel{x, x, helper}, range);
-        return reduce_inst(sz, helper.raw_ptr(), scalar_type{0}) / sz;
+        return reduce_inst(range.components_prod(), helper.raw_ptr(), scalar_type{0}) / sz;
     }
 
 public:

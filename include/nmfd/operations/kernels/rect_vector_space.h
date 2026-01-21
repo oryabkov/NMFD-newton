@@ -18,16 +18,15 @@ struct shur_prod
 {
     VectorType x, y;
     ArrayNdType z;
-    Scalar scalar;
 
-    __DEVICE_TAG__ void operator()(const IdxND idx)
+    __DEVICE_TAG__ void operator()(const IdxND idx) const
     {
-        scalar = 0;
+        Scalar local_sum = Scalar(0);
         for(int i = 0; i < TensorDim; i++)
         {
-            scalar += x(idx, i) * y(idx, i);
+            local_sum += x(idx, i) * y(idx, i);
         }
-        z(idx) = scalar;
+        z(idx) = local_sum;
     }
 };
 
@@ -36,16 +35,15 @@ struct sum
 {
     VectorType x;
     ArrayNdType z;
-    Scalar scalar;
 
-    __DEVICE_TAG__ void operator()(const IdxND idx)
+    __DEVICE_TAG__ void operator()(const IdxND idx) const
     {
-        scalar = 0;
+        Scalar local_sum = Scalar(0);
         for(int i = 0; i < TensorDim; i++)
         {
-            scalar += x(idx, i);
+            local_sum += x(idx, i);
         }
-        z(idx) = scalar;
+        z(idx) = local_sum;
     }
 };
 

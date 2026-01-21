@@ -59,6 +59,7 @@ public:
         : vspace_( std::make_shared<vector_space_type>( range ) ), range_( range ), step_( step ), b_cond_( b_cond ),
           vector_wrap_( *vspace_ ), phobic_en_(), D_( D ), gamma_( gamma )
     {
+        vspace_->assign_scalar(0.0, *vector_wrap_);
     }
 
     jacobi_op( const vector_space_type &vspace, grid_step_type step, boundary_cond_type b_cond, vector_type vector_ )
