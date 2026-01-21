@@ -2,8 +2,12 @@
 #define __BIHARMONIC_PROBLEM_H__
 
 #include <cmath>
+#include <scfd/utils/device_tag.h>
 
-#define PI 2 * std::acos( 0.0 )
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+#define PI M_PI
 
 namespace tests
 {
@@ -12,7 +16,7 @@ template <class Scalar, class TensorType>
 class zero_rhs
 {
 public:
-    TensorType operator()( Scalar x, Scalar y, Scalar z ) const
+    __DEVICE_TAG__ TensorType operator()( Scalar x, Scalar y, Scalar z ) const
     {
         return TensorType{ 0.0, 0.0 };
     }
@@ -22,7 +26,7 @@ template <class Scalar, class TensorType>
 class trig_rhs
 {
 public:
-    TensorType operator()( Scalar x, Scalar y, Scalar z ) const
+    __DEVICE_TAG__ TensorType operator()( Scalar x, Scalar y, Scalar z ) const
     {
         Scalar g = std::sin( PI * x ) * std::sin( PI * y ) * std::sin( PI * z );
 
@@ -32,7 +36,7 @@ public:
         };
     }
 
-    TensorType get_exact_solution( Scalar x, Scalar y, Scalar z ) const
+    __DEVICE_TAG__ TensorType get_exact_solution( Scalar x, Scalar y, Scalar z ) const
     {
         Scalar g = std::sin( PI * x ) * std::sin( PI * y ) * std::sin( PI * z );
 

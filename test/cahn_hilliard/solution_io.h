@@ -10,6 +10,7 @@ namespace tests
 /**
  * Saves a 3D tensor field solution to a binary file.
  * Format: [dims (3x int32)] [n_components (int32)] [data (doubles)]
+ * Uses a view to properly access data (handles GPU memory correctly).
  */
 template <class Vector, class IdxType>
 void save_solution_binary( const Vector &vec, const std::string &filename, int grid_size, int tensor_dim )
@@ -22,6 +23,9 @@ void save_solution_binary( const Vector &vec, const std::string &filename, int g
     out.write( reinterpret_cast<const char *>( dims ), sizeof( dims ) );
     out.write( reinterpret_cast<const char *>( &n_components ), sizeof( n_components ) );
 
+    // Use a view to properly access the data (copies from device to host if needed)
+    typename Vector::view_type view( vec, true ); // true = read-only
+
     // Write data for each grid point
     for ( int k = 0; k < grid_size; ++k )
     {
@@ -29,16 +33,16 @@ void save_solution_binary( const Vector &vec, const std::string &filename, int g
         {
             for ( int i = 0; i < grid_size; ++i )
             {
-                IdxType idx{ i, j, k };
-                auto    v = vec.get_vec( idx );
                 for ( int t = 0; t < tensor_dim; ++t )
                 {
-                    double val = static_cast<double>( v[t] );
+                    double val = static_cast<double>( view( i, j, k, t ) );
                     out.write( reinterpret_cast<const char *>( &val ), sizeof( val ) );
                 }
             }
         }
     }
+
+    view.release();
     out.close();
 }
 

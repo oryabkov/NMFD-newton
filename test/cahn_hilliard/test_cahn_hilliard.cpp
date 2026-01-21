@@ -26,7 +26,7 @@
 #include "error_monitor.h"
 #include "identity_op.h"
 #include "include/boundary.h"
-#include "phobic_energy.h"
+#include "kernels/phobic_energy.h"
 #include "prolongator.h"
 #include "restrictor.h"
 #include "solution_io.h"

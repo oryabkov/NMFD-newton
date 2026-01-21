@@ -4,7 +4,7 @@
 #include "include/boundary.h" // for boundary conditions
 #include "kernels/cahn_hilliard_op.h"
 #include "kernels/jacobi_op.h"
-#include "phobic_energy.h"
+#include "kernels/phobic_energy.h"
 
 #include <memory>
 #include <scfd/static_vec/vec.h>

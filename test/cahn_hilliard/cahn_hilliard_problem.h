@@ -2,8 +2,12 @@
 #define __CAHN_HILLIARD_PROBLEM_H__
 
 #include <cmath>
+#include <scfd/utils/device_tag.h>
 
-#define PI 2 * std::acos( 0.0 )
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+#define PI M_PI
 
 namespace tests
 {
@@ -12,7 +16,7 @@ template <class Scalar, class TensorType, int m, int n, int k>
 class trig_rhs
 {
 public:
-    TensorType operator()( Scalar x, Scalar y, Scalar z ) const
+    __DEVICE_TAG__ TensorType operator()( Scalar x, Scalar y, Scalar z ) const
     {
 
         return TensorType{
@@ -53,7 +57,7 @@ public:
         };
     }
 
-    TensorType get_exact_solution( Scalar x, Scalar y, Scalar z ) const
+    __DEVICE_TAG__ TensorType get_exact_solution( Scalar x, Scalar y, Scalar z ) const
     {
 
         return TensorType{
@@ -75,7 +79,7 @@ template <class Scalar, class TensorType>
 class poli_rhs
 {
 public:
-    TensorType operator()( Scalar x, Scalar y, Scalar z ) const
+    __DEVICE_TAG__ TensorType operator()( Scalar x, Scalar y, Scalar z ) const
     {
         return TensorType{
             24 * x * y + 24 * x * z + 24 * y * z + 828 * x * y * z - 48 * pow( x, 3 ) * y - 48 * pow( x, 3 ) * z -
@@ -718,7 +722,7 @@ public:
         };
     }
 
-    TensorType get_exact_solution( Scalar x, Scalar y, Scalar z ) const
+    __DEVICE_TAG__ TensorType get_exact_solution( Scalar x, Scalar y, Scalar z ) const
     {
         Scalar g = x * ( 1 - x ) * y * ( 1 - y ) * z * ( 1 - z );
 

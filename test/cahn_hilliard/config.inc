@@ -4,4 +4,4 @@ BOOST_INCLUDE = /usr/local/boost/include
 
 AMGCL_INCLUDE = ../../../../../AmgCL/amgcl
 
-CUDA_ARCH = sm_70
+CUDA_ARCH = sm_89

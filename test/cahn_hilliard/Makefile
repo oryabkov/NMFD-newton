@@ -12,4 +12,7 @@ test_cahn_hilliard_cpu: test_cahn_hilliard.cpp
 	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) -DPLATFORM_SERIAL_CPU test_cahn_hilliard.cpp -o test_cahn_hilliard_cpu.bin
 
 test_cahn_hilliard_omp: test_cahn_hilliard.cpp
-	$(HOSTCOMPILER) $(OMP_FLAGS) $(HOSTFLAGS) $(INCLUDE_CONTRIB) -DPLATFORM_OMP test_cahn_hilliard.cpp -o test_cahn_hilliard_omp.bin $(OMP_LIBS)
+	$(HOSTCOMPILER) $(OMP_FLAGS) $(HOSTFLAGS) $(INCLUDE_CONTRIB) -DPLATFORM_OMP test_cahn_hilliard.cpp -o test_cahn_hilliard_omp.bin
+
+test_cahn_hilliard_cuda: test_cahn_hilliard.cpp
+	nvcc $(HOSTFLAGS) $(INCLUDE_CONTRIB) -DPLATFORM_CUDA -x cu test_cahn_hilliard.cpp -o test_cahn_hilliard_cuda.bin

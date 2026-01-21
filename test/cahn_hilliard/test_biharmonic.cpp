@@ -7,7 +7,7 @@
 #include "identity_op.h"
 #include "include/boundary.h"
 #include "jacobi_pre.h"
-#include "phobic_energy.h"
+#include "kernels/phobic_energy.h"
 #include "prolongator.h"
 #include "restrictor.h"
 #include "solver_logger.h"
