@@ -31,7 +31,10 @@ public:
     using for_each_nd_type = typename Backend::template for_each_nd_type<dim>;
 
 public: // Especially for SYCL
-    using prolongator_kernel = kernels::prolongator_kernel<idx_nd_type, ordinal_type, vector_type, tensor_dim>;
+    // using prolongator_kernel = kernels::prolongator_kernel<idx_nd_type, ordinal_type, vector_type, tensor_dim>;
+    using prolongator_kernel =
+        kernels::prolongator_kernel<idx_nd_type, ordinal_type, vector_type, tensor_dim, scalar_type>;
+
 
 public:
     prolongator( idx_nd_type range ) : range_( range ) // in im space
@@ -63,7 +66,9 @@ public:
     void apply( vector_type &from, vector_type &to ) const
     {
         for_each_nd_type for_each_nd_inst;
-        for_each_nd_inst( prolongator_kernel{ from, to }, range_ );
+        // for_each_nd_inst( prolongator_kernel{ from, to }, range_ );
+        idx_nd_type      coarse_range = range_ / Ord{ 2u };
+        for_each_nd_inst( prolongator_kernel{ from, to, coarse_range }, range_ );
     };
 
 private:
