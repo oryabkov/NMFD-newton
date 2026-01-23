@@ -127,6 +127,24 @@ public:
         return b_cond_;
     }
 
+    scalar_type get_D() const noexcept
+    {
+        return D_;
+    }
+    scalar_type get_gamma() const noexcept
+    {
+        return gamma_;
+    }
+
+    void set_D( scalar_type D )
+    {
+        D_ = D;
+    }
+    void set_gamma( scalar_type gamma )
+    {
+        gamma_ = gamma;
+    }
+
     vector_space_ptr get_dom_space() const
     {
         return get_space();

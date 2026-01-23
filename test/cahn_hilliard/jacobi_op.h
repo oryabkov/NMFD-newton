@@ -102,6 +102,15 @@ public:
         return gamma_;
     }
 
+    void set_D( scalar_type D )
+    {
+        D_ = D;
+    }
+    void set_gamma( scalar_type gamma )
+    {
+        gamma_ = gamma;
+    }
+
     vector_space_ptr get_dom_space() const
     {
         return get_space();

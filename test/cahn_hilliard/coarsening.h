@@ -58,6 +58,10 @@ public:
         auto coarse_op =
             std::make_shared<operator_type>( coarse_size, coarse_h, op.get_b_cond(), op.get_time_derivative() );
 
+        // Copy D and gamma from fine to coarse operator
+        coarse_op->set_D( op.get_D() );
+        coarse_op->set_gamma( op.get_gamma() );
+
         // Restrict the linearization point from fine to coarse level
         vector_type fine_vector = op.get_vector();
         vector_type coarse_vector( coarse_size );

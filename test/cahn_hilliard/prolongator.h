@@ -32,6 +32,9 @@ public:
 
 public: // Especially for SYCL
     using prolongator_kernel = kernels::prolongator_kernel<idx_nd_type, ordinal_type, vector_type, tensor_dim>;
+    // using prolongator_kernel =
+    //     kernels::prolongator_kernel<idx_nd_type, ordinal_type, vector_type, tensor_dim, scalar_type>;
+
 
 public:
     prolongator( idx_nd_type range ) : range_( range ) // in im space
