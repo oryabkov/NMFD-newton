@@ -71,7 +71,7 @@ using lin_op_t      = tests::jacobi_op<vec_ops_t, log_t, phobic_energy_t>;
 // using lin_op_t                  = tests::
 //     cahn_hilliard_op<vec_ops_t, jacobi_op_t, log_t, phobic_energy_t, zero_rhs_t>;
 using ident_op_t   = tests::identity_op<lin_op_t, vec_ops_t, log_t>;
-using smoother_t   = tests::jacobi_pre<vec_ops_t, log_t, lin_op_t>;
+using smoother_t   = tests::jacobi_pre<vec_ops_t, log_t, phobic_energy_t>;
 using coarsening_t = tests::coarsening<lin_op_t, log_t>;
 
 using precond_interface = nmfd::preconditioners::preconditioner_interface<vec_ops_t, lin_op_t>;

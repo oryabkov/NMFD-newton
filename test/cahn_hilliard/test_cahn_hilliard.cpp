@@ -307,7 +307,7 @@ int main( int argc, char const *argv[] )
     std::cout << std::endl << "Starting solve..." << std::endl;
     auto start = std::chrono::steady_clock::now();
     newton_solver->solve( cahn_hilliard_op.get(), error_monitor.get(), nullptr, solution );
-    auto                                      end           = std::chrono::steady_clock::now();
+    auto end   = std::chrono::steady_clock::now();
     std::chrono::duration<double, std::milli> solve_time_ms = ( end - start );
 
     // Final comparison

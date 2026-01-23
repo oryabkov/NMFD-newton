@@ -41,24 +41,24 @@ int main()
 
     std::cout << "size        = (" << vec_space.get_size()[0] << ", " << vec_space.get_size()[1] << ", " << vec_space.get_size()[2] << ")" << std::endl;
 
-    std::cout << "x(0,0,0)[0] = " << x(0, 0, 0, 0) << std::endl;
-    std::cout << "x(0,0,0)[1] = " << x(0, 0, 0, 1) << std::endl;
+    std::cout << "x(0,0,0)[0] = " << x_view(0, 0, 0, 0) << std::endl;
+    std::cout << "x(0,0,0)[1] = " << x_view(0, 0, 0, 1) << std::endl;
 
-    std::cout << "y(0,0,0)[0] = " << y(0, 0, 0, 0) << std::endl;
-    std::cout << "y(0,0,0)[1] = " << y(0, 0, 0, 1) << std::endl;
+    std::cout << "y(0,0,0)[0] = " << y_view(0, 0, 0, 0) << std::endl;
+    std::cout << "y(0,0,0)[1] = " << y_view(0, 0, 0, 1) << std::endl;
 
-    std::cout << "|x|         = " << vec_space.norm2(x) << std::endl;
-    std::cout << "|y|         = " << vec_space.norm2(y) << std::endl;
+    std::cout << "|x|         = " << vec_space.norm_l2(x_view) << std::endl;
+    std::cout << "|y|         = " << vec_space.norm_l2(y_view) << std::endl;
+
+    std::cout << "dot(x, y)   = " << vec_space.scalar_prod(x_view,y_view) << std::endl;
+    std::cout << "sum(x)      = " << vec_space.sum(x_view) << std::endl;
+    std::cout << "norm(x)     = " << vec_space.norm(x_view) << std::endl;
+    std::cout << "norm_sq(x)  = " << vec_space.norm_sq(x_view) << std::endl;
+    std::cout << "norm2(x)    = " << vec_space.norm_l2(x_view) << std::endl;
+    std::cout << "norm2_sq(x) = " << vec_space.norm2_sq(x_view) << std::endl;
 
     x_view.release();
     y_view.release();
-
-    std::cout << "dot(x, y)   = " << vec_space.scalar_prod(x,y) << std::endl;
-    std::cout << "sum(x)      = " << vec_space.sum(x) << std::endl;
-    std::cout << "norm(x)     = " << vec_space.norm(x) << std::endl;
-    std::cout << "norm_sq(x)  = " << vec_space.norm_sq(x) << std::endl;
-    std::cout << "norm2(x)    = " << vec_space.norm2(x) << std::endl;
-    std::cout << "norm2_sq(x) = " << vec_space.norm2_sq(x) << std::endl;
 
     // ----- Multivector operations -----
     std::cout << std::endl << "----- Multivector operations -----" << std::endl;
