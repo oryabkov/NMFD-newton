@@ -33,7 +33,7 @@ public:
     using vector_type        = typename VectorSpace::vector_type;
     using vector_space_type  = VectorSpace;
     using grid_step_type     = scfd::static_vec::vec<scalar_type, dim>;
-    using boundary_cond_type = boundary_cond<dim>;
+    using boundary_cond_type = boundary_cond<dim, tensor_dim>;
     using ordinal_type       = typename VectorSpace::ordinal_type;
 
     using Ord = ordinal_type;

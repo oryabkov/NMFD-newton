@@ -10,6 +10,7 @@ namespace kernels
 template <
     class IdxND,
     class Scalar,
+    class TensorType,
     class VectorType,
     class MatType,
     class GridStep,
@@ -39,20 +40,26 @@ struct jacobi_pre_kernel
             const auto N  = range[j];
             const auto hj = step[j];
 
-            Scalar diag_j{ -2. };
+            // Scalar diag_j_0{ -2. };
+            // Scalar diag_j_1{ -2. };
+            TensorType diag_j{ -2.0, -2.0 };
 
             if ( idx[j] == 0 )
             {
+                // diag_j_0 += cond.left[j][0];
+                // diag_j_1 += cond.left[j][1];
                 diag_j += cond.left[j];
             }
 
             if ( idx[j] == N - 1 )
             {
+                // diag_j_0 += cond.right[j][0];
+                // diag_j_1 += cond.right[j][1];
                 diag_j += cond.right[j];
             }
 
-            mat( 0, 0 ) += D * diag_j / ( hj * hj );
-            mat( 1, 1 ) += gamma * diag_j / ( hj * hj );
+            mat( 0, 0 ) += D * diag_j[0] / ( hj * hj );
+            mat( 1, 1 ) += gamma * diag_j[1] / ( hj * hj );
         }
         mat( 0, 0 ) -= dt_inf;
         Scalar phi = vector.get_vec( idx )[1];

@@ -5,6 +5,7 @@
 #include "kernels/jacobi_pre.h"
 
 #include <memory>
+#include <scfd/static_vec/vec.h>
 #include <nmfd/preconditioners/preconditioner_interface.h>
 #include <scfd/static_mat/mat.h>
 #include <nmfd/detail/vector_wrap.h>
@@ -32,14 +33,14 @@ public:
 
     using scalar_type  = typename VectorSpace::scalar_type;
     using ordinal_type = typename VectorSpace::ordinal_type;
-
+    using tensor_type  = scfd::static_vec::vec<scalar_type, tensor_dim>;
     using vector_type = typename VectorSpace::vector_type;
     using idx_nd_type = typename VectorSpace::idx_nd_type;
 
     using for_each_nd_type = typename Backend::template for_each_nd_type<dim>;
 
     using grid_step_type     = scfd::static_vec::vec<scalar_type, dim>;
-    using boundary_cond_type = boundary_cond<dim>;
+    using boundary_cond_type = boundary_cond<dim, tensor_dim>;
     using mat_type           = scfd::static_mat::mat<scalar_type, tensor_dim, tensor_dim>;
 
     using time_derivative_ptr = std::shared_ptr<TimeDerivative>;
@@ -48,6 +49,7 @@ public: // Especially for SYCL
     using preconditioner_kernel = kernels::jacobi_pre_kernel<
         idx_nd_type,
         scalar_type,
+        tensor_type,
         vector_type,
         mat_type,
         grid_step_type,

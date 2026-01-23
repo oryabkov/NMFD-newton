@@ -54,8 +54,8 @@ struct cahn_hilliard_op_kernel
             auto ej = IdxND::make_unit( j );
             auto hj = step[j];
 
-            auto prev = idx[j] == 0 ? cond.left[j] * curr[0] : in.get_vec( idx - ej )[0];
-            auto next = idx[j] == N - 1 ? cond.right[j] * curr[0] : in.get_vec( idx + ej )[0];
+            auto prev = idx[j] == 0 ? cond.left[j][0] * curr[0] : in.get_vec( idx - ej )[0];
+            auto next = idx[j] == N - 1 ? cond.right[j][0] * curr[0] : in.get_vec( idx + ej )[0];
 
             state[0] += D * ( next + prev - 2 * curr[0] ) / ( hj * hj );
         }
@@ -70,8 +70,8 @@ struct cahn_hilliard_op_kernel
             auto ej = IdxND::make_unit( j );
             auto hj = step[j];
 
-            auto prev = idx[j] == 0u ? cond.left[j] * curr[1] : in.get_vec( idx - ej )[1];
-            auto next = idx[j] == N - 1u ? cond.right[j] * curr[1] : in.get_vec( idx + ej )[1];
+            auto prev = idx[j] == 0u ? cond.left[j][1] * curr[1] : in.get_vec( idx - ej )[1];
+            auto next = idx[j] == N - 1u ? cond.right[j][1] * curr[1] : in.get_vec( idx + ej )[1];
 
             state[1] += gamma * ( next + prev - 2 * curr[1] ) / ( hj * hj );
         }

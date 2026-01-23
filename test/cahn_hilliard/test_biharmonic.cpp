@@ -295,9 +295,9 @@ int main( int argc, char const *argv[] )
 
     auto range = idx_nd_type::make_ones() * grid_size;
     auto step  = grid_step_type::make_ones() / scalar( grid_size );
-    auto cond  = boundary_cond<dim>{
-        { -1, -1, -1 }, // left
-        { -1, -1, -1 }  // right
+    auto cond  = boundary_cond<dim, tensor_dim>{
+        { { -1, -1 }, { -1, -1 }, { -1, -1 } }, // left: [x,y,z][psi,phi]
+        { { -1, -1 }, { -1, -1 }, { -1, -1 } }  // right: [x,y,z][psi,phi]
     };                  // -1 = dirichlet, +1 = neumann
 
     vector_t solution( range ), rhs( range ), exact_solution( range );
