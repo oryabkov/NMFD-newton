@@ -151,6 +151,8 @@ constexpr scalar DEFAULT_NEWTON_TOL     = std::is_same_v<float, scalar> ? 5e-6f 
 constexpr scalar DEFAULT_GMRES_TOL      = std::is_same_v<float, scalar> ? 5e-6f : 1e-10;
 constexpr int    DEFAULT_MAX_TIME_STEPS = 1;
 constexpr scalar DEFAULT_DT_INF         = 1.0;
+constexpr scalar DEFAULT_NOISE_AMPLITUDE = 1.0;
+constexpr scalar DEFAULT_NOISE_FREQUENCY = 10.0;
 
 /**************************************/
 
@@ -173,6 +175,8 @@ int main( int argc, char const *argv[] )
     unsigned int noise_seed    = 0; // Default seed for Perlin noise
     scalar      D              = scalar( 1.0 ); // Diffusion coefficient
     scalar      gamma          = scalar( 1.0 ); // Squared length of transition regions
+    scalar      noise_amplitude = DEFAULT_NOISE_AMPLITUDE; // Amplitude of Perlin noise
+    scalar      noise_frequency = DEFAULT_NOISE_FREQUENCY; // Frequency scale factor for Perlin noise
 
     if ( argc < 2 )
     {
@@ -199,6 +203,8 @@ int main( int argc, char const *argv[] )
         std::cout << "    --max-time-steps N     Maximum number of time steps (default: " << DEFAULT_MAX_TIME_STEPS << ")" << std::endl;
         std::cout << "    --dt-inf T             dt_inf parameter (1/dt, default: " << DEFAULT_DT_INF << ")" << std::endl;
         std::cout << "    --noise-seed N         Random seed for Perlin noise (default: 0)" << std::endl;
+        std::cout << "    --noise-amplitude T    Amplitude of Perlin noise (default: " << DEFAULT_NOISE_AMPLITUDE << ")" << std::endl;
+        std::cout << "    --noise-frequency T    Frequency scale factor for Perlin noise (default: " << DEFAULT_NOISE_FREQUENCY << ")" << std::endl;
         std::cout << "    --D T                  Diffusion coefficient (default: 1.0)" << std::endl;
         std::cout << "    --gamma T              Squared length of transition regions (default: 1.0)" << std::endl;
         return 1;
@@ -249,6 +255,14 @@ int main( int argc, char const *argv[] )
         {
             noise_seed = static_cast<unsigned int>(std::stoul( argv[++i] ));
         }
+        else if ( arg == "--noise-amplitude" && i + 1 < argc )
+        {
+            noise_amplitude = std::stod( argv[++i] );
+        }
+        else if ( arg == "--noise-frequency" && i + 1 < argc )
+        {
+            noise_frequency = std::stod( argv[++i] );
+        }
         else if ( arg == "--D" && i + 1 < argc )
         {
             D = std::stod( argv[++i] );
@@ -296,7 +310,7 @@ int main( int argc, char const *argv[] )
     std::cout << "  Scalar type:   " << scalar_label << std::endl;
     std::cout << "  DOFs:          " << static_cast<long long>( grid_size ) * grid_size * grid_size * tensor_dim
               << std::endl;
-    std::cout << "  Initial cond:  3D Perlin noise (amplitude 1.0, seed " << noise_seed << ")" << std::endl;
+    std::cout << "  Initial cond:  3D Perlin noise (amplitude " << noise_amplitude << ", frequency " << noise_frequency << ", seed " << noise_seed << ")" << std::endl;
     std::cout << "  RHS:           Zero" << std::endl;
     std::cout << "  D:             " << std::scientific << D << std::defaultfloat << std::endl;
     std::cout << "  gamma:         " << std::scientific << gamma << std::defaultfloat << std::endl;
@@ -329,18 +343,20 @@ int main( int argc, char const *argv[] )
     auto range = idx_nd_type::make_ones() * grid_size;
     auto step  = grid_step_type::make_ones() / scalar( grid_size );
     auto cond  = boundary_cond<dim, tensor_dim>{
-        { { -1, -1 }, { -1, -1 }, { -1, -1 } }, // left: [x,y,z][psi,phi]
-        { { -1, -1 }, { -1, -1 }, { -1, -1 } }  // right: [x,y,z][psi,phi]
-    };                  // -1 = dirichlet, +1 = neumann
+        { { 0, 0 }, { 0, 0 }, { 0, 0 } }, // left: [x,y,z][psi,phi]
+        { { 0, 0 }, { 0, 0 }, { 0, 0 } }  // right: [x,y,z][psi,phi]
+    };
+    // Boundary condition values:
+    //   -1 = dirichlet (value = 0 at boundary)
+    //   +1 = neumann (derivative = 0 at boundary)
+    //    0 = periodic (left boundary uses value from N-1, right boundary uses value from 0)
 
     vector_t solution( range );
     auto     vspace = std::make_shared<vec_ops_t>( range );
 
-    // Initialize solution with 3D Perlin noise (amplitude 1.0)
+    // Initialize solution with 3D Perlin noise
     {
         vector_view_t solution_view( solution, false );
-        const scalar amplitude = 1.0;
-        const scalar frequency = 10.0; // Scale factor for noise frequency
 
         for ( int i = 0; i < range[0]; i++ )
         {
@@ -352,17 +368,15 @@ int main( int argc, char const *argv[] )
                     scalar y = step[1] * ( 0.5 + j );
                     scalar z = step[2] * ( 0.5 + k );
 
-                    // Generate Perlin noise value
-                    scalar noise_val = 2 * perlin_noise_3d<scalar>( x * frequency, y * frequency, z * frequency, noise_seed );
+                    // Generate Perlin noise value for psi (component 0)
+                    scalar noise_val_psi = perlin_noise_3d<scalar>( x * noise_frequency, y * noise_frequency, z * noise_frequency, noise_seed );
+                    noise_val_psi *= noise_amplitude;
+                    solution_view( i, j, k, 0 ) = noise_val_psi;
 
-                    // Scale to desired amplitude
-                    noise_val *= amplitude;
-
-                    // Set both tensor components to the noise value
-                    for ( int t = 0; t < tensor_dim; t++ )
-                    {
-                        solution_view( i, j, k, t ) = noise_val;
-                    }
+                    // Generate Perlin noise value for phi (component 1) using different seed
+                    scalar noise_val_phi = perlin_noise_3d<scalar>( x * noise_frequency, y * noise_frequency, z * noise_frequency, noise_seed + 1000 );
+                    noise_val_phi *= noise_amplitude;
+                    solution_view( i, j, k, 1 ) = noise_val_phi;
                 }
             }
         }

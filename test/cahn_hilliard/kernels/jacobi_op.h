@@ -32,8 +32,8 @@ struct jacobi_op_kernel
 
         auto curr = in.get_vec( idx );
 
-// D * laplace(d_psi) - d_psi / dt
-#pragma unroll
+        // First equation Jacobian: D * laplace(d_psi) - d(d_phi)/dt
+        #pragma unroll
         for ( int j = 0; j < IdxND::dim; j++ ) // iterate over x, y, z,... dimension
         {
             auto N = range[j];
@@ -41,17 +41,52 @@ struct jacobi_op_kernel
             auto ej = IdxND::make_unit( j );
             auto hj = step[j];
 
-            auto prev = idx[j] == 0 ? cond.left[j][0] * curr[0] : in.get_vec( idx - ej )[0];
-            auto next = idx[j] == N - 1 ? cond.right[j][0] * curr[0] : in.get_vec( idx + ej )[0];
+            Scalar prev_val;
+            if ( idx[j] == 0 )
+            {
+                if ( cond.left[j][0] == 0 ) // periodic
+                {
+                    IdxND periodic_idx = idx;
+                    periodic_idx[j] = N - 1;
+                    prev_val = in.get_vec( periodic_idx )[0];
+                }
+                else
+                {
+                    prev_val = cond.left[j][0] * curr[0];
+                }
+            }
+            else
+            {
+                prev_val = in.get_vec( idx - ej )[0];
+            }
 
-            state[0] += D * ( next + prev - 2 * curr[0] ) / ( hj * hj );
+            Scalar next_val;
+            if ( idx[j] == N - 1 )
+            {
+                if ( cond.right[j][0] == 0 ) // periodic
+                {
+                    IdxND periodic_idx = idx;
+                    periodic_idx[j] = 0;
+                    next_val = in.get_vec( periodic_idx )[0];
+                }
+                else
+                {
+                    next_val = cond.right[j][0] * curr[0];
+                }
+            }
+            else
+            {
+                next_val = in.get_vec( idx + ej )[0];
+            }
+
+            state[0] += D * ( next_val + prev_val - 2 * curr[0] ) / ( hj * hj );
         }
-        state[0] -= curr[0] * dt_inf;
+        state[0] -= curr[1] * dt_inf;
 
-        // d_psi + gamma * laplace(d_phi) - (3 * phi^2 - 1) * d_phi
+        // Second equation Jacobian: d_psi + gamma * laplace(d_phi) - f'(phi) * d_phi
         Scalar phi = vector.get_vec( idx )[1];
         state[1]   = curr[0] - phobic_en.get_derivative( phi ) * curr[1];
-#pragma unroll
+        #pragma unroll
         for ( int j = 0; j < IdxND::dim; j++ )
         {
             auto N = range[j];
@@ -59,10 +94,45 @@ struct jacobi_op_kernel
             auto ej = IdxND::make_unit( j );
             auto hj = step[j];
 
-            auto prev = idx[j] == 0u ? cond.left[j][1] * curr[1] : in.get_vec( idx - ej )[1];
-            auto next = idx[j] == N - 1u ? cond.right[j][1] * curr[1] : in.get_vec( idx + ej )[1];
+            Scalar prev_val;
+            if ( idx[j] == 0u )
+            {
+                if ( cond.left[j][1] == 0 ) // periodic
+                {
+                    IdxND periodic_idx = idx;
+                    periodic_idx[j] = N - 1;
+                    prev_val = in.get_vec( periodic_idx )[1];
+                }
+                else
+                {
+                    prev_val = cond.left[j][1] * curr[1];
+                }
+            }
+            else
+            {
+                prev_val = in.get_vec( idx - ej )[1];
+            }
 
-            state[1] += gamma * ( next + prev - 2 * curr[1] ) / ( hj * hj );
+            Scalar next_val;
+            if ( idx[j] == N - 1u )
+            {
+                if ( cond.right[j][1] == 0 ) // periodic
+                {
+                    IdxND periodic_idx = idx;
+                    periodic_idx[j] = 0;
+                    next_val = in.get_vec( periodic_idx )[1];
+                }
+                else
+                {
+                    next_val = cond.right[j][1] * curr[1];
+                }
+            }
+            else
+            {
+                next_val = in.get_vec( idx + ej )[1];
+            }
+
+            state[1] += gamma * ( next_val + prev_val - 2 * curr[1] ) / ( hj * hj );
         }
 
         out.set_vec( state, idx );

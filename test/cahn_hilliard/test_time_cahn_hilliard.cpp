@@ -309,7 +309,11 @@ int main( int argc, char const *argv[] )
     auto cond  = boundary_cond<dim, tensor_dim>{
         { { -1, -1 }, { -1, -1 }, { -1, -1 } }, // left: [x,y,z][psi,phi]
         { { -1, -1 }, { -1, -1 }, { -1, -1 } }  // right: [x,y,z][psi,phi]
-    };                  // -1 = dirichlet, +1 = neumann
+    };
+    // Boundary condition values:
+    //   -1 = dirichlet (value = 0 at boundary)
+    //   +1 = neumann (derivative = 0 at boundary)
+    //    0 = periodic (left boundary uses value from N-1, right boundary uses value from 0)
 
     vector_t solution( range ), exact_solution( range );
     rhs_t    rhs;

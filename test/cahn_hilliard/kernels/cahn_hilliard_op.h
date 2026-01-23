@@ -43,10 +43,10 @@ struct cahn_hilliard_op_kernel
         auto prev = previous_state.get_vec( idx );
 
         // Apply time derivative
-        state[0] -= (curr[0] - prev[0]) * dt_inf;
+        state[0] -= (curr[1] - prev[1]) * dt_inf;
 
-// D * laplace(psi)
-#pragma unroll
+        // First equation: D * laplace(psi)
+        #pragma unroll
         for ( int j = 0; j < IdxND::dim; j++ ) // iterate over x, y, z,... dimension
         {
             auto N = range[j];
@@ -54,15 +54,50 @@ struct cahn_hilliard_op_kernel
             auto ej = IdxND::make_unit( j );
             auto hj = step[j];
 
-            auto prev = idx[j] == 0 ? cond.left[j][0] * curr[0] : in.get_vec( idx - ej )[0];
-            auto next = idx[j] == N - 1 ? cond.right[j][0] * curr[0] : in.get_vec( idx + ej )[0];
+            Scalar prev_val;
+            if ( idx[j] == 0 )
+            {
+                if ( cond.left[j][0] == 0 ) // periodic
+                {
+                    IdxND periodic_idx = idx;
+                    periodic_idx[j] = N - 1;
+                    prev_val = in.get_vec( periodic_idx )[0];
+                }
+                else
+                {
+                    prev_val = cond.left[j][0] * curr[0];
+                }
+            }
+            else
+            {
+                prev_val = in.get_vec( idx - ej )[0];
+            }
 
-            state[0] += D * ( next + prev - 2 * curr[0] ) / ( hj * hj );
+            Scalar next_val;
+            if ( idx[j] == N - 1 )
+            {
+                if ( cond.right[j][0] == 0 ) // periodic
+                {
+                    IdxND periodic_idx = idx;
+                    periodic_idx[j] = 0;
+                    next_val = in.get_vec( periodic_idx )[0];
+                }
+                else
+                {
+                    next_val = cond.right[j][0] * curr[0];
+                }
+            }
+            else
+            {
+                next_val = in.get_vec( idx + ej )[0];
+            }
+
+            state[0] += D * ( next_val + prev_val - 2 * curr[0] ) / ( hj * hj );
         }
 
-        // psi + gamma * laplace(phi) - (phi^2 - 1) * phi
+        // Second equation: psi + gamma * laplace(phi) - f(phi) = 0
         state[1] += curr[0] - phobic_en( curr[1] );
-#pragma unroll
+        #pragma unroll
         for ( int j = 0; j < IdxND::dim; j++ )
         {
             auto N = range[j];
@@ -70,10 +105,45 @@ struct cahn_hilliard_op_kernel
             auto ej = IdxND::make_unit( j );
             auto hj = step[j];
 
-            auto prev = idx[j] == 0u ? cond.left[j][1] * curr[1] : in.get_vec( idx - ej )[1];
-            auto next = idx[j] == N - 1u ? cond.right[j][1] * curr[1] : in.get_vec( idx + ej )[1];
+            Scalar prev_val;
+            if ( idx[j] == 0u )
+            {
+                if ( cond.left[j][1] == 0 ) // periodic
+                {
+                    IdxND periodic_idx = idx;
+                    periodic_idx[j] = N - 1;
+                    prev_val = in.get_vec( periodic_idx )[1];
+                }
+                else
+                {
+                    prev_val = cond.left[j][1] * curr[1];
+                }
+            }
+            else
+            {
+                prev_val = in.get_vec( idx - ej )[1];
+            }
 
-            state[1] += gamma * ( next + prev - 2 * curr[1] ) / ( hj * hj );
+            Scalar next_val;
+            if ( idx[j] == N - 1u )
+            {
+                if ( cond.right[j][1] == 0 ) // periodic
+                {
+                    IdxND periodic_idx = idx;
+                    periodic_idx[j] = 0;
+                    next_val = in.get_vec( periodic_idx )[1];
+                }
+                else
+                {
+                    next_val = cond.right[j][1] * curr[1];
+                }
+            }
+            else
+            {
+                next_val = in.get_vec( idx + ej )[1];
+            }
+
+            state[1] += gamma * ( next_val + prev_val - 2 * curr[1] ) / ( hj * hj );
         }
 
         out.set_vec( state, idx );
