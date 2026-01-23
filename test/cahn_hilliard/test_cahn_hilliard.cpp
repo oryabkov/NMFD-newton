@@ -157,14 +157,36 @@ int main( int argc, char const *argv[] )
     std::string prefix      = "run";
     int         grid_size   = 32;
 
+    // Solver parameters (initialized to defaults)
+    int    max_iterations = DEFAULT_MAX_ITERATIONS;
+    int    gmres_basis    = DEFAULT_GMRES_BASIS;
+    int    mg_sweeps_pre  = DEFAULT_MG_SWEEPS_PRE;
+    int    mg_sweeps_post = DEFAULT_MG_SWEEPS_POST;
+    scalar newton_tol     = DEFAULT_NEWTON_TOL;
+    scalar gmres_tol      = DEFAULT_GMRES_TOL;
+
     if ( argc < 2 )
     {
-        std::cout << "USAGE: " << argv[0] << " <grid_size> [prefix] [--save-coords]" << std::endl;
+        std::cout << "USAGE: " << argv[0] << " <grid_size> [prefix] [options...]" << std::endl;
         std::cout << std::endl;
         std::cout << "Arguments:" << std::endl;
-        std::cout << "    grid_size      Number of grid points per dimension (e.g., 32)" << std::endl;
-        std::cout << "    prefix         Output prefix (default: 'run')" << std::endl;
-        std::cout << "    --save-coords  Save numerical and exact solutions to binary files" << std::endl;
+        std::cout << "    grid_size              Number of grid points per dimension (e.g., 32)" << std::endl;
+        std::cout << "    prefix                 Output prefix (default: 'run')" << std::endl;
+        std::cout << std::endl;
+        std::cout << "Options:" << std::endl;
+        std::cout << "    --save-coords          Save numerical and exact solutions to binary files" << std::endl;
+        std::cout << "    --max-iterations N     Maximum GMRES iterations (default: " << DEFAULT_MAX_ITERATIONS << ")"
+                  << std::endl;
+        std::cout << "    --gmres-basis N        GMRES basis size (default: " << DEFAULT_GMRES_BASIS << ")"
+                  << std::endl;
+        std::cout << "    --mg-sweeps-pre N      Multigrid pre-sweeps (default: " << DEFAULT_MG_SWEEPS_PRE << ")"
+                  << std::endl;
+        std::cout << "    --mg-sweeps-post N     Multigrid post-sweeps (default: " << DEFAULT_MG_SWEEPS_POST << ")"
+                  << std::endl;
+        std::cout << "    --newton-tol T         Newton solver tolerance (default: " << std::scientific
+                  << DEFAULT_NEWTON_TOL << std::defaultfloat << ")" << std::endl;
+        std::cout << "    --gmres-tol T          GMRES solver tolerance (default: " << std::scientific
+                  << DEFAULT_GMRES_TOL << std::defaultfloat << ")" << std::endl;
         return 1;
     }
 
@@ -174,9 +196,42 @@ int main( int argc, char const *argv[] )
     {
         std::string arg = argv[i];
         if ( arg == "--save-coords" )
+        {
             save_coords = true;
+        }
+        else if ( arg == "--max-iterations" && i + 1 < argc )
+        {
+            max_iterations = std::stoi( argv[++i] );
+        }
+        else if ( arg == "--gmres-basis" && i + 1 < argc )
+        {
+            gmres_basis = std::stoi( argv[++i] );
+        }
+        else if ( arg == "--mg-sweeps-pre" && i + 1 < argc )
+        {
+            mg_sweeps_pre = std::stoi( argv[++i] );
+        }
+        else if ( arg == "--mg-sweeps-post" && i + 1 < argc )
+        {
+            mg_sweeps_post = std::stoi( argv[++i] );
+        }
+        else if ( arg == "--newton-tol" && i + 1 < argc )
+        {
+            newton_tol = std::stod( argv[++i] );
+        }
+        else if ( arg == "--gmres-tol" && i + 1 < argc )
+        {
+            gmres_tol = std::stod( argv[++i] );
+        }
+        else if ( arg.find( "--" ) == 0 )
+        {
+            std::cerr << "Unknown option: " << arg << std::endl;
+            return 1;
+        }
         else
+        {
             prefix = arg;
+        }
     }
 
     // Create output directory with timestamp
@@ -209,18 +264,18 @@ int main( int argc, char const *argv[] )
               << std::endl;
     std::cout << std::endl;
     std::cout << "Newton Solver:" << std::endl;
-    std::cout << "  Tolerance:     " << std::scientific << DEFAULT_NEWTON_TOL << std::endl;
+    std::cout << "  Tolerance:     " << std::scientific << newton_tol << std::endl;
     std::cout << std::endl;
     std::cout << "GMRES Solver:" << std::endl;
-    std::cout << "  Tolerance:     " << std::scientific << DEFAULT_GMRES_TOL << std::endl;
-    std::cout << "  Max iters:     " << DEFAULT_MAX_ITERATIONS << std::endl;
-    std::cout << "  Basis size:    " << DEFAULT_GMRES_BASIS << std::endl;
+    std::cout << "  Tolerance:     " << std::scientific << gmres_tol << std::endl;
+    std::cout << "  Max iters:     " << max_iterations << std::endl;
+    std::cout << "  Basis size:    " << gmres_basis << std::endl;
     std::cout << "  Precond side:  L" << std::endl;
     std::cout << "  Reorthogon.:   true" << std::endl;
     std::cout << std::endl;
     std::cout << "Multigrid Preconditioner:" << std::endl;
-    std::cout << "  Pre-sweeps:    " << DEFAULT_MG_SWEEPS_PRE << std::endl;
-    std::cout << "  Post-sweeps:   " << DEFAULT_MG_SWEEPS_POST << std::endl;
+    std::cout << "  Pre-sweeps:    " << mg_sweeps_pre << std::endl;
+    std::cout << "  Post-sweeps:   " << mg_sweeps_post << std::endl;
     std::cout << "  Direct coarse: false" << std::endl;
     std::cout << std::endl;
     std::cout << "Output:" << std::endl;
@@ -275,17 +330,17 @@ int main( int argc, char const *argv[] )
 
     mg_utils.log              = &log;
     mg_params.direct_coarse   = false;
-    mg_params.num_sweeps_pre  = DEFAULT_MG_SWEEPS_PRE;
-    mg_params.num_sweeps_post = DEFAULT_MG_SWEEPS_POST;
+    mg_params.num_sweeps_pre  = mg_sweeps_pre;
+    mg_params.num_sweeps_post = mg_sweeps_post;
 
     precond = std::make_shared<mg_t>( mg_utils, mg_params );
 
     gmres_solver::params params_gmres;
-    params_gmres.monitor.rel_tol                      = DEFAULT_GMRES_TOL;
-    params_gmres.monitor.max_iters_num                = DEFAULT_MAX_ITERATIONS;
+    params_gmres.monitor.rel_tol                      = gmres_tol;
+    params_gmres.monitor.max_iters_num                = max_iterations;
     params_gmres.monitor.save_convergence_history     = true;
     params_gmres.do_restart_on_false_ritz_convergence = true;
-    params_gmres.basis_size                           = DEFAULT_GMRES_BASIS;
+    params_gmres.basis_size                           = gmres_basis;
     params_gmres.preconditioner_side                  = 'L';
     params_gmres.reorthogonalization                  = true;
     auto lin_solver = std::make_shared<gmres_solver>( cahn_hilliard_jacobi_op, vspace, &log, params_gmres, precond );
@@ -295,7 +350,7 @@ int main( int argc, char const *argv[] )
     auto error_monitor = std::make_shared<error_monitor_t>( vspace, exact_solution, &log );
 
     auto newton_solver = std::make_shared<newton_solver_t>( vspace, &log, newton_iteration );
-    newton_solver->convergence_strategy()->set_tolerance( DEFAULT_NEWTON_TOL );
+    newton_solver->convergence_strategy()->set_tolerance( newton_tol );
 
     // Verify that F(exact_solution) is close to zero
     vector_t F_exact( range );
@@ -307,7 +362,7 @@ int main( int argc, char const *argv[] )
     std::cout << std::endl << "Starting solve..." << std::endl;
     auto start = std::chrono::steady_clock::now();
     newton_solver->solve( cahn_hilliard_op.get(), error_monitor.get(), nullptr, solution );
-    auto end   = std::chrono::steady_clock::now();
+    auto                                      end           = std::chrono::steady_clock::now();
     std::chrono::duration<double, std::milli> solve_time_ms = ( end - start );
 
     // Final comparison

@@ -1,21 +1,18 @@
 #include "biharmonic_problem.h"
 #include "jacobi_op.h"
 #include "jacobi_pre.h"
-#include "cahn_hilliard_op.h"
 #include "coarsening.h"
-#include "error_monitor.h"
 #include "identity_op.h"
 #include "include/boundary.h"
-#include "jacobi_pre.h"
 #include "kernels/phobic_energy.h"
 #include "prolongator.h"
 #include "restrictor.h"
-#include "solver_logger.h"
+#include "solution_io.h"
 
 #include <chrono>
-#include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <memory>
 #include <nmfd/operations/rect_vector_space.h>
 #include <nmfd/preconditioners/mg.h>
@@ -23,10 +20,9 @@
 #include <nmfd/solvers/gmres.h>
 #include <nmfd/solvers/jacobi.h>
 #include <nmfd/solvers/monitor_krylov.h>
-#include <nmfd/solvers/newton_iteration.h>
-#include <nmfd/solvers/nonlinear_solver.h>
 #include <scfd/backend/backend.h>
 #include <scfd/utils/log.h>
+#include <sstream>
 #include <string>
 #include <type_traits>
 
@@ -68,11 +64,9 @@ using rhs_t           = tests::trig_rhs<scalar, tensor_t>;
 using prolongator_t = tests::prolongator<vec_ops_t, log_t>;
 using restrictor_t  = tests::restrictor<vec_ops_t, log_t>;
 using lin_op_t      = tests::jacobi_op<vec_ops_t, log_t, phobic_energy_t>;
-// using lin_op_t                  = tests::
-//     cahn_hilliard_op<vec_ops_t, jacobi_op_t, log_t, phobic_energy_t, zero_rhs_t>;
-using ident_op_t   = tests::identity_op<lin_op_t, vec_ops_t, log_t>;
-using smoother_t   = tests::jacobi_pre<vec_ops_t, log_t, phobic_energy_t>;
-using coarsening_t = tests::coarsening<lin_op_t, log_t>;
+using ident_op_t    = tests::identity_op<lin_op_t, vec_ops_t, log_t>;
+using smoother_t    = tests::jacobi_pre<vec_ops_t, log_t, phobic_energy_t>;
+using coarsening_t  = tests::coarsening<lin_op_t, log_t>;
 
 using precond_interface = nmfd::preconditioners::preconditioner_interface<vec_ops_t, lin_op_t>;
 
@@ -84,60 +78,232 @@ using mg_utils_t  = mg_t::utils_hierarchy;
 using jacobi_solver = nmfd::solvers::jacobi<vec_ops_t, lin_op_t, precond_interface, default_monitor_t, log_t>;
 using gmres_solver  = nmfd::solvers::gmres<vec_ops_t, krylov_monitor_t, log_t, lin_op_t, precond_interface>;
 
+/**************************************/
+// Logging helpers
+/**************************************/
+
+std::string get_timestamp_string()
+{
+    auto               now = std::chrono::system_clock::now();
+    std::time_t        t   = std::chrono::system_clock::to_time_t( now );
+    std::tm            tm  = *std::localtime( &t );
+    std::ostringstream oss;
+    oss << std::put_time( &tm, "%Y%m%d_%H%M%S" );
+    return oss.str();
+}
+
+class tee_streambuf : public std::streambuf
+{
+public:
+    tee_streambuf( std::streambuf *sb1, std::streambuf *sb2 ) : sb1_( sb1 ), sb2_( sb2 )
+    {
+    }
+
+protected:
+    int overflow( int c ) override
+    {
+        if ( c != EOF )
+        {
+            if ( sb1_ )
+                sb1_->sputc( c );
+            if ( sb2_ )
+                sb2_->sputc( c );
+        }
+        return c;
+    }
+
+    int sync() override
+    {
+        int r1 = sb1_ ? sb1_->pubsync() : 0;
+        int r2 = sb2_ ? sb2_->pubsync() : 0;
+        return ( r1 == 0 && r2 == 0 ) ? 0 : -1;
+    }
+
+private:
+    std::streambuf *sb1_;
+    std::streambuf *sb2_;
+};
+
+/**************************************/
+// Default solver parameters
+/**************************************/
+constexpr int    DEFAULT_MAX_ITERATIONS = 100;
+constexpr int    DEFAULT_GMRES_BASIS    = 25;
+constexpr int    DEFAULT_MG_SWEEPS_PRE  = 4;
+constexpr int    DEFAULT_MG_SWEEPS_POST = 4;
+constexpr scalar DEFAULT_TOLERANCE      = std::is_same_v<float, scalar> ? 5e-6f : 1e-10;
+
+/**************************************/
 
 int main( int argc, char const *argv[] )
 {
-    if ( argc < 6 )
+    // Parse CLI arguments
+    bool        save_coords = false;
+    std::string prefix      = "run";
+    int         grid_size   = 32;
+    std::string solver_type;
+    std::string preconditioner_type;
+
+    // Solver parameters (initialized to defaults)
+    int    max_iterations = DEFAULT_MAX_ITERATIONS;
+    int    gmres_basis    = DEFAULT_GMRES_BASIS;
+    int    mg_sweeps_pre  = DEFAULT_MG_SWEEPS_PRE;
+    int    mg_sweeps_post = DEFAULT_MG_SWEEPS_POST;
+    scalar tolerance      = DEFAULT_TOLERANCE;
+
+    if ( argc < 4 )
     {
-        std::cout << "USAGE: " << argv[0] << " <solver> <preconditioner> <grid_size> <max_iterations> <run_label>"
+        std::cout << "USAGE: " << argv[0] << " <solver> <preconditioner> <grid_size> [prefix] [options...]"
                   << std::endl;
         std::cout << std::endl;
         std::cout << "Required arguments:" << std::endl;
         std::cout << "    solver               Solver type: 'jacobi' or 'gmres'" << std::endl;
-        std::cout << "    preconditioner       Preconditioner type: 'diag' "
-                     "(diagonal/Jacobi) or "
-                     "'mg' (multigrid)"
+        std::cout << "    preconditioner       Preconditioner type: 'diag' (diagonal/Jacobi) or 'mg' (multigrid)"
                   << std::endl;
-        std::cout << "    grid_size            Number of grid points per dimension "
-                     "(e.g., 32 for "
-                     "32x32x32 grid)"
+        std::cout << "    grid_size            Number of grid points per dimension (e.g., 32)" << std::endl;
+        std::cout << std::endl;
+        std::cout << "Optional arguments:" << std::endl;
+        std::cout << "    prefix               Output prefix (default: 'run')" << std::endl;
+        std::cout << std::endl;
+        std::cout << "Options:" << std::endl;
+        std::cout << "    --save-coords        Save numerical and exact solutions to binary files" << std::endl;
+        std::cout << "    --max-iterations N   Maximum solver iterations (default: " << DEFAULT_MAX_ITERATIONS << ")"
                   << std::endl;
-        std::cout << "    max_iterations       Maximum number of solver iterations "
-                     "(e.g., 100)"
+        std::cout << "    --gmres-basis N      GMRES basis size (default: " << DEFAULT_GMRES_BASIS << ")" << std::endl;
+        std::cout << "    --mg-sweeps-pre N    Multigrid pre-sweeps (default: " << DEFAULT_MG_SWEEPS_PRE << ")"
                   << std::endl;
-        std::cout << "    run_label            Label for this run, used in output "
-                     "filenames (e.g., "
-                     "'cpu', 'gpu')"
+        std::cout << "    --mg-sweeps-post N   Multigrid post-sweeps (default: " << DEFAULT_MG_SWEEPS_POST << ")"
+                  << std::endl;
+        std::cout << "    --tolerance T        Solver tolerance (default: " << std::scientific << DEFAULT_TOLERANCE
+                  << std::defaultfloat << ")" << std::endl;
+        return 1;
+    }
+
+    solver_type         = argv[1];
+    preconditioner_type = argv[2];
+    grid_size           = std::stoi( argv[3] );
+
+    // Validate solver and preconditioner types
+    if ( solver_type != "jacobi" && solver_type != "gmres" )
+    {
+        std::cerr << "ERROR: Unknown solver type '" << solver_type << "'. Use 'jacobi' or 'gmres'." << std::endl;
+        return 1;
+    }
+
+    if ( preconditioner_type != "diag" && preconditioner_type != "mg" )
+    {
+        std::cerr << "ERROR: Unknown preconditioner type '" << preconditioner_type << "'. Use 'diag' or 'mg'."
                   << std::endl;
         return 1;
     }
 
-    // Parse command-line arguments
-    const std::string solver_type         = argv[1];
-    const std::string preconditioner_type = argv[2];
-    const int         grid_size           = std::stoi( argv[3] );
-    const int         max_iterations      = std::stoi( argv[4] );
-    const std::string run_label           = argv[5];
+    // Parse optional arguments
+    for ( int i = 4; i < argc; ++i )
+    {
+        std::string arg = argv[i];
+        if ( arg == "--save-coords" )
+        {
+            save_coords = true;
+        }
+        else if ( arg == "--max-iterations" && i + 1 < argc )
+        {
+            max_iterations = std::stoi( argv[++i] );
+        }
+        else if ( arg == "--gmres-basis" && i + 1 < argc )
+        {
+            gmres_basis = std::stoi( argv[++i] );
+        }
+        else if ( arg == "--mg-sweeps-pre" && i + 1 < argc )
+        {
+            mg_sweeps_pre = std::stoi( argv[++i] );
+        }
+        else if ( arg == "--mg-sweeps-post" && i + 1 < argc )
+        {
+            mg_sweeps_post = std::stoi( argv[++i] );
+        }
+        else if ( arg == "--tolerance" && i + 1 < argc )
+        {
+            tolerance = std::stod( argv[++i] );
+        }
+        else if ( arg.find( "--" ) == 0 )
+        {
+            std::cerr << "Unknown option: " << arg << std::endl;
+            return 1;
+        }
+        else
+        {
+            prefix = arg;
+        }
+    }
+
+    // Create output directory with timestamp
+    std::string output_dir = "data/" + prefix + "_" + get_timestamp_string();
+    std::filesystem::create_directories( output_dir );
+
+    // Open log file and set up tee output
+    std::ofstream log_file( output_dir + "/log.txt" );
+    tee_streambuf tee_buf( std::cout.rdbuf(), log_file.rdbuf() );
+    std::ostream  tee_out( &tee_buf );
+
+    // Redirect std::cout to tee
+    auto *old_cout_buf = std::cout.rdbuf( &tee_buf );
 
     // Solver configuration
-    const std::string solver_name  = solver_type;
     const std::string scalar_label = std::is_same_v<float, scalar> ? "float" : "double";
 
     log_t log;
+
+    // Write configuration header to log
+    std::cout << "========================================" << std::endl;
+    std::cout << "Biharmonic Solver Configuration" << std::endl;
+    std::cout << "========================================" << std::endl;
+    std::cout << std::endl;
+    std::cout << "Problem Settings:" << std::endl;
+    std::cout << "  Grid size:     " << grid_size << " x " << grid_size << " x " << grid_size << std::endl;
+    std::cout << "  Tensor dim:    " << tensor_dim << std::endl;
+    std::cout << "  Scalar type:   " << scalar_label << std::endl;
+    std::cout << "  DOFs:          " << static_cast<long long>( grid_size ) * grid_size * grid_size * tensor_dim
+              << std::endl;
+    std::cout << std::endl;
+    std::cout << "Solver:" << std::endl;
+    std::cout << "  Type:          " << solver_type << std::endl;
+    std::cout << "  Tolerance:     " << std::scientific << tolerance << std::endl;
+    std::cout << "  Max iters:     " << max_iterations << std::endl;
+    if ( solver_type == "gmres" )
+    {
+        std::cout << "  Basis size:    " << gmres_basis << std::endl;
+        std::cout << "  Precond side:  L" << std::endl;
+        std::cout << "  Reorthogon.:   true" << std::endl;
+    }
+    std::cout << std::endl;
+    std::cout << "Preconditioner:" << std::endl;
+    std::cout << "  Type:          " << preconditioner_type << std::endl;
+    if ( preconditioner_type == "mg" )
+    {
+        std::cout << "  Pre-sweeps:    " << mg_sweeps_pre << std::endl;
+        std::cout << "  Post-sweeps:   " << mg_sweeps_post << std::endl;
+        std::cout << "  Direct coarse: false" << std::endl;
+    }
+    std::cout << std::endl;
+    std::cout << "Output:" << std::endl;
+    std::cout << "  Directory:     " << output_dir << std::endl;
+    std::cout << "  Save coords:   " << ( save_coords ? "yes" : "no" ) << std::endl;
+    std::cout << "========================================" << std::endl;
+    std::cout << std::endl;
 
     auto range = idx_nd_type::make_ones() * grid_size;
     auto step  = grid_step_type::make_ones() / scalar( grid_size );
     auto cond  = boundary_cond<dim>{
         { -1, -1, -1 }, // left
         { -1, -1, -1 }  // right
-    };                  // -1 = dirichlet, +1 = neuman
+    };                  // -1 = dirichlet, +1 = neumann
 
     vector_t solution( range ), rhs( range ), exact_solution( range );
     rhs_t    rhs_function;
 
     auto vspace = std::make_shared<vec_ops_t>( range );
     {
-        vspace->assign_scalar( 0.f, solution ); // Initialize solution to zero
+        vspace->assign_scalar( 0.0, solution ); // Initialize solution to zero
         vector_view_t rhs_view( rhs, false ), exact_view( exact_solution, false );
 
         for ( int i = 0; i < range[0]; i++ )
@@ -146,12 +312,12 @@ int main( int argc, char const *argv[] )
             {
                 for ( int k = 0; k < range[2]; k++ )
                 {
-                    const auto coord_x = step[0] * ( 0.5f + i );
-                    const auto coord_y = step[1] * ( 0.5f + j );
-                    const auto coord_z = step[2] * ( 0.5f + k );
+                    scalar x = step[0] * ( 0.5 + i );
+                    scalar y = step[1] * ( 0.5 + j );
+                    scalar z = step[2] * ( 0.5 + k );
 
-                    auto rhs_val   = rhs_function.get_exact_solution( coord_x, coord_y, coord_z );
-                    auto exact_val = rhs_function( coord_x, coord_y, coord_z );
+                    auto rhs_val   = rhs_function.get_exact_solution( x, y, z );
+                    auto exact_val = rhs_function( x, y, z );
                     for ( int t = 0; t < tensor_dim; t++ )
                     {
                         rhs_view( i, j, k, t )   = rhs_val[t];
@@ -179,40 +345,15 @@ int main( int argc, char const *argv[] )
 
         mg_utils.log              = &log;
         mg_params.direct_coarse   = false;
-        mg_params.num_sweeps_pre  = 4;
-        mg_params.num_sweeps_post = 4;
+        mg_params.num_sweeps_pre  = mg_sweeps_pre;
+        mg_params.num_sweeps_post = mg_sweeps_post;
 
         precond = std::make_shared<mg_t>( mg_utils, mg_params );
     }
-    else
-    {
-        std::cout << "ERROR: Unknown preconditioner type '" << preconditioner_type << "'. Use 'diag' or 'mg'."
-                  << std::endl;
-        return 1;
-    }
-
-    // Ensure data directory exists
-    std::filesystem::create_directories( "data" );
-
-    // Build output filenames
-    const std::string grid_size_str = std::to_string( grid_size );
-    const std::string base_name =
-        solver_name + "_" + preconditioner_type + "_" + run_label + "_" + grid_size_str + "_" + scalar_label;
-
-    const std::string csv_file     = "data/" + base_name + "_metrics.csv";
-    const std::string log_file     = "data/" + base_name + ".log";
-    const std::string summary_file = "data/runs_summary.csv";
-
-    // Configure solver
-    const scalar tolerance = std::is_same_v<float, scalar> ? 5e-6f : 1e-10;
-
-    // Set up custom iteration logger (writes CSV + log file at each step)
-    auto iter_logger = std::make_shared<IterationLogger<vec_ops_t>>( csv_file, log_file, vspace, tolerance );
 
     // Solve the system and measure execution time
     std::chrono::duration<double, std::milli> solve_time_ms;
     bool                                      converged;
-    std::vector<std::pair<int, scalar>>       convergence_history;
 
     if ( solver_type == "jacobi" )
     {
@@ -222,32 +363,24 @@ int main( int argc, char const *argv[] )
         solver_params.monitor.save_convergence_history = true;
         jacobi_solver solver{ l_op, vspace, &log, solver_params, precond };
 
-        solver.monitor().set_custom_funcs( iter_logger );
-
         {
             auto start    = std::chrono::steady_clock::now();
             converged     = solver.solve( rhs, solution );
             auto end      = std::chrono::steady_clock::now();
             solve_time_ms = ( end - start );
         }
-
-        convergence_history = solver.monitor().convergence_history();
     }
     else // gmres
     {
         gmres_solver::params params_gmres;
-        params_gmres.monitor.rel_tol = std::is_same_v<float, scalar> ? 5e-6f : 1e-10;
-        // params_gmres.monitor.rel_tol = 1.0e-6;
+        params_gmres.monitor.rel_tol                      = tolerance;
         params_gmres.monitor.max_iters_num                = max_iterations;
         params_gmres.monitor.save_convergence_history     = true;
         params_gmres.do_restart_on_false_ritz_convergence = true;
-        params_gmres.basis_size                           = 25;
-        // params_gmres.basis_size = basis_size;
-        params_gmres.preconditioner_side = 'L';
-        params_gmres.reorthogonalization = true;
+        params_gmres.basis_size                           = gmres_basis;
+        params_gmres.preconditioner_side                  = 'L';
+        params_gmres.reorthogonalization                  = true;
         gmres_solver solver{ l_op, vspace, &log, params_gmres, precond };
-
-        solver.monitor().set_custom_funcs( iter_logger );
 
         {
             auto start    = std::chrono::steady_clock::now();
@@ -255,12 +388,7 @@ int main( int argc, char const *argv[] )
             auto end      = std::chrono::steady_clock::now();
             solve_time_ms = ( end - start );
         }
-
-        convergence_history = solver.monitor().convergence_history();
     }
-
-    // Close logger streams
-    iter_logger->close();
 
     // Verify that L(exact_solution) - rhs is close to zero
     vector_t L_exact( range );
@@ -275,75 +403,36 @@ int main( int argc, char const *argv[] )
     vspace->assign_lin_comb( scalar( 1 ), solution, scalar( -1 ), exact_solution, error );
     scalar error_norm = vspace->norm_l2( error );
     scalar exact_norm = vspace->norm_l2( exact_solution );
-    log.info_f(
-        "Final: ||solution - exact||_2 = %le, relative = %le",
-        static_cast<double>( error_norm ),
-        static_cast<double>( error_norm / exact_norm )
-    );
 
-    /* -------------------------------------------------- */
-    // Save solution and exact solution to binary files for visualization
-    std::string data_dir = "data/";
-    std::filesystem::create_directories( data_dir );
+    std::cout << std::endl;
+    std::cout << "========================================" << std::endl;
+    std::cout << "Results" << std::endl;
+    std::cout << "========================================" << std::endl;
+    std::cout << "  Converged:                  " << ( converged ? "yes" : "no" ) << std::endl;
+    std::cout << "  ||solution - exact||_2:     " << std::scientific << error_norm << std::endl;
+    std::cout << "  Relative error:             " << std::scientific << ( error_norm / exact_norm ) << std::endl;
+    std::cout << "  Total solve time:           " << std::fixed << std::setprecision( 2 ) << solve_time_ms.count()
+              << " ms" << std::endl;
+    std::cout << "========================================" << std::endl;
 
-    auto save_solution = [&]( const vector_t &vec, const std::string &filename ) {
-        std::ofstream out( filename, std::ios::binary );
-        // Write header: dimensions and grid size
-        int32_t dims[3]      = { grid_size, grid_size, grid_size };
-        int32_t n_components = tensor_dim;
-        out.write( reinterpret_cast<const char *>( dims ), sizeof( dims ) );
-        out.write( reinterpret_cast<const char *>( &n_components ), sizeof( n_components ) );
-        // Write data (psi, phi) for each grid point
-        for ( int k = 0; k < grid_size; ++k )
-        {
-            for ( int j = 0; j < grid_size; ++j )
-            {
-                for ( int i = 0; i < grid_size; ++i )
-                {
-                    idx_nd_type idx{ i, j, k };
-                    auto        v       = vec.get_vec( idx );
-                    double      vals[2] = { static_cast<double>( v[0] ), static_cast<double>( v[1] ) };
-                    out.write( reinterpret_cast<const char *>( vals ), sizeof( vals ) );
-                }
-            }
-        }
-        out.close();
-        log.info_f( "Saved solution to %s", filename.c_str() );
-    };
+    // Save solutions if requested
+    if ( save_coords )
+    {
+        std::string numerical_file = output_dir + "/numerical.bin";
+        std::string exact_file     = output_dir + "/exact.bin";
 
-    save_solution( solution, data_dir + run_label + "_numerical.bin" );
-    save_solution( exact_solution, data_dir + run_label + "_exact.bin" );
+        tests::save_solution_binary<vector_t, idx_nd_type>( solution, numerical_file, grid_size, tensor_dim );
+        tests::save_solution_binary<vector_t, idx_nd_type>( exact_solution, exact_file, grid_size, tensor_dim );
 
-    // Get convergence history for summary
-    auto [first_iter, initial_residual] = convergence_history.front();
-    auto [last_iter, final_residual]    = convergence_history.back();
-    int    total_iterations             = last_iter;
-    scalar convergence_rate =
-        std::pow( final_residual / initial_residual, scalar( 1 ) / std::max( 1, last_iter - first_iter ) );
+        std::cout << std::endl;
+        std::cout << "Saved solutions:" << std::endl;
+        std::cout << "  Numerical: " << numerical_file << std::endl;
+        std::cout << "  Exact:     " << exact_file << std::endl;
+    }
 
-    // Prepare results structure
-    SolverResults<scalar> results;
-    results.converged           = converged;
-    results.iterations          = total_iterations;
-    results.max_iterations      = max_iterations;
-    results.time_ms             = solve_time_ms.count();
-    results.initial_residual    = initial_residual;
-    results.final_residual      = final_residual;
-    results.tolerance           = tolerance;
-    results.convergence_rate    = convergence_rate;
-    results.solver_name         = solver_name;
-    results.preconditioner_type = preconditioner_type;
-    results.run_label           = run_label;
-    results.scalar_label        = scalar_label;
-    results.grid_size           = grid_size;
-    results.tensor_dim          = tensor_dim;
-    results.csv_file            = csv_file;
-    results.log_file            = log_file;
-    results.summary_file        = summary_file;
-
-    // Write summary CSV and print to console
-    write_summary_csv( results );
-    print_solver_summary( results );
+    // Restore cout
+    std::cout.rdbuf( old_cout_buf );
+    log_file.close();
 
     return converged ? 0 : 1;
 }
