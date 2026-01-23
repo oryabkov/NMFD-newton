@@ -22,6 +22,7 @@ struct jacobi_pre_kernel
     GridStep     step;
     BoundaryCond cond;
     PhobicEnergy phobic_en;
+    Scalar       dt_inf;
 
     Scalar D;
     Scalar gamma;
@@ -53,6 +54,7 @@ struct jacobi_pre_kernel
             mat( 0, 0 ) += D * diag_j / ( hj * hj );
             mat( 1, 1 ) += gamma * diag_j / ( hj * hj );
         }
+        mat( 0, 0 ) -= dt_inf;
         Scalar phi = vector.get_vec( idx )[1];
         mat( 1, 1 ) -= phobic_en.get_derivative( phi );
         mat( 1, 0 ) = 1.;

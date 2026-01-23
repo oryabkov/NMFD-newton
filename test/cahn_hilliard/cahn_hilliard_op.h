@@ -5,6 +5,7 @@
 #include "kernels/cahn_hilliard_op.h"
 #include "kernels/jacobi_op.h"
 #include "kernels/phobic_energy.h"
+#include "time_derivative.h"
 
 #include <memory>
 #include <scfd/static_vec/vec.h>
@@ -18,6 +19,7 @@ template <
     class Log,
     class PhobicEnergy,
     class Rhs,
+    class TimeDerivative,
     /**********************************************/
     class Backend = typename VectorSpace::backend_type>
 class cahn_hilliard_op
@@ -44,6 +46,8 @@ public:
     using jacobi_operator_type = JacobiOperator;
     using jacobi_operator_ptr  = std::shared_ptr<JacobiOperator>;
 
+    using time_derivative_ptr = std::shared_ptr<TimeDerivative>;
+
 public: // Especially for SYCL
     using cahn_hilliard_kernel = kernels::cahn_hilliard_op_kernel<
         idx_nd_type,
@@ -58,7 +62,7 @@ public: // Especially for SYCL
 public:
     cahn_hilliard_op( idx_nd_type range, grid_step_type step, boundary_cond_type b_cond, jacobi_operator_ptr jacobi_op )
         : vspace_( std::make_shared<vector_space_type>( range ) ), range_( range ), step_( step ), b_cond_( b_cond ),
-          jacobi_op_( jacobi_op ), phobic_en_(), rhs_()
+          jacobi_op_( jacobi_op ), phobic_en_(), rhs_(), time_derivative_( std::make_shared<TimeDerivative>( range ) )
     {
     }
 
@@ -66,6 +70,29 @@ public:
         const vector_space_type &vspace, grid_step_type step, boundary_cond_type b_cond, jacobi_operator_ptr jacobi_op
     )
         : cahn_hilliard_op( vspace.get_size(), step, b_cond, jacobi_op )
+    {
+    }
+
+    cahn_hilliard_op(
+        idx_nd_type         range,
+        grid_step_type      step,
+        boundary_cond_type  b_cond,
+        jacobi_operator_ptr jacobi_op,
+        time_derivative_ptr time_derivative
+    )
+        : vspace_( std::make_shared<vector_space_type>( range ) ), range_( range ), step_( step ), b_cond_( b_cond ),
+          jacobi_op_( jacobi_op ), phobic_en_(), rhs_(), time_derivative_( time_derivative )
+    {
+    }
+
+    cahn_hilliard_op(
+        const vector_space_type &vspace,
+        grid_step_type           step,
+        boundary_cond_type       b_cond,
+        jacobi_operator_ptr      jacobi_op,
+        time_derivative_ptr      time_derivative
+    )
+        : cahn_hilliard_op( vspace.get_size(), step, b_cond, jacobi_op, time_derivative )
     {
     }
 
@@ -100,7 +127,20 @@ public:
     {
         for_each_nd_type for_each_nd_inst;
         for_each_nd_inst(
-            cahn_hilliard_kernel{ in, out, range_, step_, b_cond_, phobic_en_, rhs_, D_, gamma_ }, range_
+            cahn_hilliard_kernel{
+                in,
+                out,
+                range_,
+                step_,
+                b_cond_,
+                phobic_en_,
+                rhs_,
+                time_derivative_->get_previous_state(),
+                time_derivative_->get_dt_inf(),
+                D_,
+                gamma_
+            },
+            range_
         );
     };
 
@@ -123,6 +163,7 @@ private:
     jacobi_operator_ptr jacobi_op_;
     PhobicEnergy        phobic_en_;
     Rhs                 rhs_;
+    time_derivative_ptr time_derivative_;
 
     scalar_type D_     = 1.0;
     scalar_type gamma_ = 1.0;

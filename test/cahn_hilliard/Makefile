@@ -2,11 +2,19 @@
 
 all: test_biharmonic
 
-test_biharmonic: test_biharmonic.cpp
-	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) -DPLATFORM_SERIAL_CPU test_biharmonic.cpp -o test_biharmonic.bin
+# ----- Biharmonic -----
 
-test_cahn_hilliard: test_cahn_hilliard.cpp
-	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) -DPLATFORM_SERIAL_CPU test_cahn_hilliard.cpp -o test_cahn_hilliard.bin
+test_biharmonic_cpu: test_biharmonic.cpp
+	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) -DPLATFORM_SERIAL_CPU test_biharmonic.cpp -o test_biharmonic_cpu.bin
+
+test_biharmonic_omp: test_biharmonic.cpp
+	$(HOSTCOMPILER) $(OMP_FLAGS) $(HOSTFLAGS) $(INCLUDE_CONTRIB) -DPLATFORM_OMP test_biharmonic.cpp -o test_biharmonic_omp.bin
+
+test_biharmonic_cuda: test_biharmonic.cpp
+	nvcc $(HOSTFLAGS) $(INCLUDE_CONTRIB) -DPLATFORM_CUDA -x cu test_biharmonic.cpp -o test_biharmonic_cuda.bin
+
+
+# ----- Cahn-Hilliard -----
 
 test_cahn_hilliard_cpu: test_cahn_hilliard.cpp
 	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) -DPLATFORM_SERIAL_CPU test_cahn_hilliard.cpp -o test_cahn_hilliard_cpu.bin
@@ -16,3 +24,14 @@ test_cahn_hilliard_omp: test_cahn_hilliard.cpp
 
 test_cahn_hilliard_cuda: test_cahn_hilliard.cpp
 	nvcc $(HOSTFLAGS) $(INCLUDE_CONTRIB) -DPLATFORM_CUDA -x cu test_cahn_hilliard.cpp -o test_cahn_hilliard_cuda.bin
+
+# ----- Time depentent Cahn-Hilliard -----
+
+test_time_cahn_hilliard_cpu: test_time_cahn_hilliard.cpp
+	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) -DPLATFORM_SERIAL_CPU test_time_cahn_hilliard.cpp -o test_time_cahn_hilliard_cpu.bin
+
+test_time_cahn_hilliard_omp: test_time_cahn_hilliard.cpp
+	$(HOSTCOMPILER) $(OMP_FLAGS) $(HOSTFLAGS) $(INCLUDE_CONTRIB) -DPLATFORM_OMP test_time_cahn_hilliard.cpp -o test_time_cahn_hilliard_omp.bin
+
+test_time_cahn_hilliard_omp: test_time_cahn_hilliard.cpp
+	nvcc $(HOSTFLAGS) $(INCLUDE_CONTRIB) -DPLATFORM_CUDA -x cu test_time_cahn_hilliard.cpp -o test_time_cahn_hilliard_cuda.bin

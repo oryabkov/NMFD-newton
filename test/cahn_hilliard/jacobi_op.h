@@ -15,6 +15,7 @@ template <
     class VectorSpace,
     class Log,
     class PhobicEnergy,
+    class TimeDerivative,
     /**********************************************/
     class Backend = typename VectorSpace::backend_type>
 class jacobi_op
@@ -38,6 +39,8 @@ public:
 
     using for_each_nd_type = typename Backend::template for_each_nd_type<dim>;
 
+    using time_derivative_ptr = std::shared_ptr<TimeDerivative>;
+
 public: // Especially for SYCL
     using jacobi_op_kernel = kernels::jacobi_op_kernel<
         idx_nd_type,
@@ -49,21 +52,27 @@ public: // Especially for SYCL
         PhobicEnergy>;
 
 public:
-    jacobi_op(
-        idx_nd_type        range,
-        grid_step_type     step,
-        boundary_cond_type b_cond,
-        scalar_type        D     = scalar_type( 1 ),
-        scalar_type        gamma = scalar_type( 1 )
-    )
+    jacobi_op( idx_nd_type range, grid_step_type step, boundary_cond_type b_cond )
         : vspace_( std::make_shared<vector_space_type>( range ) ), range_( range ), step_( step ), b_cond_( b_cond ),
-          vector_wrap_( *vspace_ ), phobic_en_(), D_( D ), gamma_( gamma )
+          vector_wrap_( *vspace_ ), phobic_en_(), time_derivative_( std::make_shared<TimeDerivative>(range) )
     {
-        vspace_->assign_scalar(0.0, *vector_wrap_);
+        vspace_->assign_scalar( 0.0, *vector_wrap_ );
     }
 
-    jacobi_op( const vector_space_type &vspace, grid_step_type step, boundary_cond_type b_cond, vector_type vector_ )
+    jacobi_op( const vector_space_type &vspace, grid_step_type step, boundary_cond_type b_cond, vector_type vector_)
         : jacobi_op( vspace.get_size(), step, b_cond, vector_ )
+    {
+    }
+
+    jacobi_op( idx_nd_type range, grid_step_type step, boundary_cond_type b_cond, time_derivative_ptr time_derivative )
+        : vspace_( std::make_shared<vector_space_type>( range ) ), range_( range ), step_( step ), b_cond_( b_cond ),
+          vector_wrap_( *vspace_ ), phobic_en_(), time_derivative_( time_derivative )
+    {
+        vspace_->assign_scalar( 0.0, *vector_wrap_ );
+    }
+
+    jacobi_op( const vector_space_type &vspace, grid_step_type step, boundary_cond_type b_cond, time_derivative_ptr time_derivative)
+        : jacobi_op( vspace.get_size(), step, b_cond, time_derivative )
     {
     }
 
@@ -111,11 +120,16 @@ public:
         vspace_->assign( vector, *vector_wrap_ );
     }
 
+    time_derivative_ptr get_time_derivative() const
+    {
+        return  time_derivative_;
+    }
+
     void apply( const vector_type &in, vector_type &out ) const
     {
         for_each_nd_type for_each_nd_inst;
         for_each_nd_inst(
-            jacobi_op_kernel{ in, out, *vector_wrap_, range_, step_, b_cond_, phobic_en_, D_, gamma_ }, range_
+            jacobi_op_kernel{ in, out, *vector_wrap_, range_, step_, b_cond_, phobic_en_, time_derivative_->get_dt_inf(), D_, gamma_ }, range_
         );
     };
 
@@ -126,10 +140,12 @@ private:
     boundary_cond_type b_cond_;
 
     using vector_wrap_t = nmfd::detail::vector_wrap<VectorSpace, true, true>;
-    vector_wrap_t vector_wrap_;
-    PhobicEnergy  phobic_en_;
-    scalar_type   D_     = scalar_type( 1 );
-    scalar_type   gamma_ = scalar_type( 1 );
+    vector_wrap_t       vector_wrap_;
+    PhobicEnergy        phobic_en_;
+    time_derivative_ptr time_derivative_;
+
+    scalar_type D_     = scalar_type( 1 );
+    scalar_type gamma_ = scalar_type( 1 );
 };
 
 } // namespace tests

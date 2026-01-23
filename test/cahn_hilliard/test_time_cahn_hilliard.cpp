@@ -12,6 +12,7 @@
 #include <sstream>
 #include <string>
 #include <type_traits>
+#include <vector>
 
 #include "cahn_hilliard_op.h"
 #include "jacobi_op.h"
@@ -66,8 +67,8 @@ using monitor_funcs_t   = default_monitor_t::custom_funcs_type;
 using monitor_funcs_ptr = default_monitor_t::custom_funcs_ptr;
 
 // Problem
-using phobic_energy = tests::double_well_potential<scalar>;
-using rhs_t         = tests::trig_rhs<scalar, tensor_t, 3, 3, 1>;
+using phobic_energy     = tests::double_well_potential<scalar>;
+using rhs_t             = tests::trig_rhs<scalar, tensor_t, 4, 3, 1>;
 using time_derivative_t = tests::time_derivative<vec_ops_t, tensor_t>;
 
 // MG
@@ -148,6 +149,8 @@ constexpr int    DEFAULT_MG_SWEEPS_PRE  = 4;
 constexpr int    DEFAULT_MG_SWEEPS_POST = 4;
 constexpr scalar DEFAULT_NEWTON_TOL     = std::is_same_v<float, scalar> ? 5e-6f : 1e-10;
 constexpr scalar DEFAULT_GMRES_TOL      = std::is_same_v<float, scalar> ? 5e-6f : 1e-10;
+constexpr int    DEFAULT_MAX_TIME_STEPS = 1;
+constexpr scalar DEFAULT_DT_INF         = 1.0;
 
 /**************************************/
 
@@ -165,6 +168,8 @@ int main( int argc, char const *argv[] )
     int    mg_sweeps_post = DEFAULT_MG_SWEEPS_POST;
     scalar newton_tol     = DEFAULT_NEWTON_TOL;
     scalar gmres_tol      = DEFAULT_GMRES_TOL;
+    int    max_time_steps = DEFAULT_MAX_TIME_STEPS;
+    scalar dt_inf         = DEFAULT_DT_INF;
 
     if ( argc < 2 )
     {
@@ -188,6 +193,8 @@ int main( int argc, char const *argv[] )
                   << DEFAULT_NEWTON_TOL << std::defaultfloat << ")" << std::endl;
         std::cout << "    --gmres-tol T          GMRES solver tolerance (default: " << std::scientific
                   << DEFAULT_GMRES_TOL << std::defaultfloat << ")" << std::endl;
+        std::cout << "    --max-time-steps N     Maximum number of time steps (default: " << DEFAULT_MAX_TIME_STEPS << ")" << std::endl;
+        std::cout << "    --dt-inf T             dt_inf parameter (1/dt, default: " << DEFAULT_DT_INF << ")" << std::endl;
         return 1;
     }
 
@@ -223,6 +230,14 @@ int main( int argc, char const *argv[] )
         else if ( arg == "--gmres-tol" && i + 1 < argc )
         {
             gmres_tol = std::stod( argv[++i] );
+        }
+        else if ( arg == "--max-time-steps" && i + 1 < argc )
+        {
+            max_time_steps = std::stoi( argv[++i] );
+        }
+        else if ( arg == "--dt-inf" && i + 1 < argc )
+        {
+            dt_inf = std::stod( argv[++i] );
         }
         else if ( arg.find( "--" ) == 0 )
         {
@@ -279,6 +294,10 @@ int main( int argc, char const *argv[] )
     std::cout << "  Post-sweeps:   " << mg_sweeps_post << std::endl;
     std::cout << "  Direct coarse: false" << std::endl;
     std::cout << std::endl;
+    std::cout << "Time Integration:" << std::endl;
+    std::cout << "  Max time steps: " << max_time_steps << std::endl;
+    std::cout << "  dt_inf:         " << dt_inf << std::endl;
+    std::cout << std::endl;
     std::cout << "Output:" << std::endl;
     std::cout << "  Directory:     " << output_dir << std::endl;
     std::cout << "  Save coords:   " << ( save_coords ? "yes" : "no" ) << std::endl;
@@ -321,8 +340,11 @@ int main( int argc, char const *argv[] )
         exact_view.release();
     }
 
-    auto cahn_hilliard_jacobi_op = std::make_shared<jacobi_op_t>( range, step, cond );
-    auto cahn_hilliard_op        = std::make_shared<cahn_hilliard_op_t>( range, step, cond, cahn_hilliard_jacobi_op );
+    auto time_derivative = std::make_shared<time_derivative_t>( range );
+    time_derivative->set_dt_inf( dt_inf );
+
+    auto cahn_hilliard_jacobi_op = std::make_shared<jacobi_op_t>( range, step, cond, time_derivative );
+    auto cahn_hilliard_op        = std::make_shared<cahn_hilliard_op_t>( range, step, cond, cahn_hilliard_jacobi_op, time_derivative );
 
     std::shared_ptr<precond_interface> precond;
 
@@ -359,14 +381,74 @@ int main( int argc, char const *argv[] )
     scalar F_exact_norm = vspace->norm_l2( F_exact );
     log.info_f( "Verification: ||F(exact_solution)||_2 = %le", static_cast<double>( F_exact_norm ) );
 
-    // Solve and measure time
-    std::cout << std::endl << "Starting solve..." << std::endl;
-    auto start = std::chrono::steady_clock::now();
-    newton_solver->solve( cahn_hilliard_op.get(), error_monitor.get(), nullptr, solution );
-    auto                                      end           = std::chrono::steady_clock::now();
-    std::chrono::duration<double, std::milli> solve_time_ms = ( end - start );
+    // Save initial approximation (index 0) if requested
+    if ( save_coords )
+    {
+        std::string numerical_file = output_dir + "/numerical_0.bin";
+        tests::save_solution_binary<vector_t, idx_nd_type>( solution, numerical_file, grid_size, tensor_dim );
+    }
 
-    // Final comparison
+    // Solve and measure time for each iteration
+    std::vector<double> iteration_times;
+    double              total_time_ms = 0.0;
+
+    for ( int step = 0; step < max_time_steps; step++ )
+    {
+        std::cout << std::endl;
+        std::cout << "Time iteration #" << ( step + 1 ) << " has started" << std::endl;
+        std::cout << std::endl;
+
+        auto start = std::chrono::steady_clock::now();
+        newton_solver->solve( cahn_hilliard_op.get(), error_monitor.get(), nullptr, solution );
+        auto end = std::chrono::steady_clock::now();
+        std::chrono::duration<double, std::milli> solve_time_ms = ( end - start );
+        double                                      iteration_time = solve_time_ms.count();
+        iteration_times.push_back( iteration_time );
+        total_time_ms += iteration_time;
+
+        // Compute norm of difference between solution and previous state
+        vector_t previous_state = time_derivative->get_previous_state();
+        vector_t diff_prev( range );
+        vspace->assign_lin_comb( scalar( 1 ), solution, scalar( -1 ), previous_state, diff_prev );
+        scalar diff_prev_norm = vspace->norm_l2( diff_prev );
+        log.info_f( "||solution - previous_state||_2 = %le", static_cast<double>( diff_prev_norm ) );
+
+        // Compute norm of difference between solution and exact solution
+        vector_t diff_exact( range );
+        vspace->assign_lin_comb( scalar( 1 ), solution, scalar( -1 ), exact_solution, diff_exact );
+        scalar diff_exact_norm = vspace->norm_l2( diff_exact );
+        log.info_f( "||solution - exact||_2 = %le", static_cast<double>( diff_exact_norm ) );
+
+        // Update previous step before the next step
+        time_derivative->set_previous_state( solution );
+
+        // Save numerical solution at each step if requested
+        // Save as numerical_1.bin, numerical_2.bin, ... (index 0 was initial state)
+        if ( save_coords )
+        {
+            std::string numerical_file = output_dir + "/numerical_" + std::to_string( step + 1 ) + ".bin";
+            tests::save_solution_binary<vector_t, idx_nd_type>( solution, numerical_file, grid_size, tensor_dim );
+        }
+
+        // Initialize solution for next iteration with current solution (as initial guess)
+        // Don't reset to zero - use the current solution as initial guess for the next time step
+        // The solution vector will be updated by the Newton solver in the next iteration
+
+        // Separate iterations with empty line
+        if ( step < max_time_steps - 1 )
+        {
+            std::cout << std::endl;
+        }
+    }
+
+    // Save exact solution once at the end if requested
+    if ( save_coords )
+    {
+        std::string exact_file = output_dir + "/exact.bin";
+        tests::save_solution_binary<vector_t, idx_nd_type>( exact_solution, exact_file, grid_size, tensor_dim );
+    }
+
+    // Final comparison with exact solution
     vector_t error( range );
     vspace->assign_lin_comb( scalar( 1 ), solution, scalar( -1 ), exact_solution, error );
     scalar error_norm = vspace->norm_l2( error );
@@ -378,23 +460,18 @@ int main( int argc, char const *argv[] )
     std::cout << "========================================" << std::endl;
     std::cout << "  ||solution - exact||_2:          " << std::scientific << error_norm << std::endl;
     std::cout << "  Relative error:                  " << std::scientific << ( error_norm / exact_norm ) << std::endl;
-    std::cout << "  Total solve time:                " << std::fixed << std::setprecision( 2 ) << solve_time_ms.count()
+    std::cout << "  Average iteration time:          " << std::fixed << std::setprecision( 2 )
+              << ( total_time_ms / max_time_steps ) << " ms" << std::endl;
+    std::cout << "  Total solve time:                " << std::fixed << std::setprecision( 2 ) << total_time_ms
               << " ms" << std::endl;
     std::cout << "========================================" << std::endl;
 
-    // Save solutions if requested
     if ( save_coords )
     {
-        std::string numerical_file = output_dir + "/numerical.bin";
-        std::string exact_file     = output_dir + "/exact.bin";
-
-        tests::save_solution_binary<vector_t, idx_nd_type>( solution, numerical_file, grid_size, tensor_dim );
-        tests::save_solution_binary<vector_t, idx_nd_type>( exact_solution, exact_file, grid_size, tensor_dim );
-
         std::cout << std::endl;
         std::cout << "Saved solutions:" << std::endl;
-        std::cout << "  Numerical: " << numerical_file << std::endl;
-        std::cout << "  Exact:     " << exact_file << std::endl;
+        std::cout << "  Numerical: " << output_dir << "/numerical_*.bin" << std::endl;
+        std::cout << "  Exact:     " << output_dir << "/exact.bin" << std::endl;
     }
 
     // Restore cout

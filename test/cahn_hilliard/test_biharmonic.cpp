@@ -7,6 +7,7 @@
 #include "kernels/phobic_energy.h"
 #include "prolongator.h"
 #include "restrictor.h"
+#include "time_derivative.h"
 #include "solution_io.h"
 
 #include <chrono>
@@ -60,12 +61,13 @@ using monitor_funcs_ptr = default_monitor_t::custom_funcs_ptr;
 using phobic_energy_t = tests::zero_potential<scalar>;
 using zero_rhs_t      = tests::zero_rhs<scalar, tensor_t>;
 using rhs_t           = tests::trig_rhs<scalar, tensor_t>;
+using time_derivative_t = tests::time_derivative<vec_ops_t, tensor_t>;
 
 using prolongator_t = tests::prolongator<vec_ops_t, log_t>;
 using restrictor_t  = tests::restrictor<vec_ops_t, log_t>;
-using lin_op_t      = tests::jacobi_op<vec_ops_t, log_t, phobic_energy_t>;
+using lin_op_t      = tests::jacobi_op<vec_ops_t, log_t, phobic_energy_t, time_derivative_t>;
 using ident_op_t    = tests::identity_op<lin_op_t, vec_ops_t, log_t>;
-using smoother_t    = tests::jacobi_pre<vec_ops_t, log_t, phobic_energy_t>;
+using smoother_t    = tests::jacobi_pre<vec_ops_t, log_t, phobic_energy_t, time_derivative_t>;
 using coarsening_t  = tests::coarsening<lin_op_t, log_t>;
 
 using precond_interface = nmfd::preconditioners::preconditioner_interface<vec_ops_t, lin_op_t>;

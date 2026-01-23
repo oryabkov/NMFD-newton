@@ -21,6 +21,7 @@ struct jacobi_op_kernel
     GridStep     step;
     BoundaryCond cond;
     PhobicEnergy phobic_en;
+    Scalar       dt_inf;
 
     Scalar D;
     Scalar gamma;
@@ -31,7 +32,7 @@ struct jacobi_op_kernel
 
         auto curr = in.get_vec( idx );
 
-// D * laplace(d_psi)
+// D * laplace(d_psi) - d_psi / dt
 #pragma unroll
         for ( int j = 0; j < IdxND::dim; j++ ) // iterate over x, y, z,... dimension
         {
@@ -45,6 +46,7 @@ struct jacobi_op_kernel
 
             state[0] += D * ( next + prev - 2 * curr[0] ) / ( hj * hj );
         }
+        state[0] -= curr[0] * dt_inf;
 
         // d_psi + gamma * laplace(d_phi) - (3 * phi^2 - 1) * d_phi
         Scalar phi = vector.get_vec( idx )[1];

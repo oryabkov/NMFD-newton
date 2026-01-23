@@ -16,8 +16,9 @@ template <
     class VectorSpace,
     class Log,
     class PhobicEnergy,
+    class TimeDerivative,
     /**********************************************/
-    class LinOp   = jacobi_op<VectorSpace, Log, PhobicEnergy>,
+    class LinOp   = jacobi_op<VectorSpace, Log, PhobicEnergy, TimeDerivative>,
     class Backend = typename VectorSpace::backend_type>
 class jacobi_pre : public nmfd::preconditioners::preconditioner_interface<VectorSpace, LinOp>
 {
@@ -40,6 +41,8 @@ public:
     using grid_step_type     = scfd::static_vec::vec<scalar_type, dim>;
     using boundary_cond_type = boundary_cond<dim>;
     using mat_type           = scfd::static_mat::mat<scalar_type, tensor_dim, tensor_dim>;
+
+    using time_derivative_ptr = std::shared_ptr<TimeDerivative>;
 
 public: // Especially for SYCL
     using preconditioner_kernel = kernels::jacobi_pre_kernel<
@@ -68,11 +71,20 @@ public:
     {
     }
 
-    jacobi_pre( vector_space_ptr vspace, grid_step_type step, boundary_cond_type b_cond )
+    jacobi_pre( vector_space_ptr vspace, grid_step_type step, boundary_cond_type b_cond)
         : vspace_( vspace ), range_( vspace_->get_range() ), step_( step ), b_cond_( b_cond ),
-          vector_wrap_( std::make_unique<vector_wrap_t>( *vspace ) ), phobic_en_()
+          vector_wrap_( std::make_unique<vector_wrap_t>( *vspace ) ), phobic_en_(), time_derivative_( std::make_shared<TimeDerivative>(vspace) )
     {
-        vspace_->assign_scalar(0.0, *vector_wrap_);
+        vspace_->assign_scalar( 0.0, *vector_wrap_ );
+    }
+
+    jacobi_pre(
+        vector_space_ptr vspace, grid_step_type step, boundary_cond_type b_cond, time_derivative_ptr time_derivative
+    )
+        : vspace_( vspace ), range_( vspace_->get_range() ), step_( step ), b_cond_( b_cond ),
+          vector_wrap_( std::make_unique<vector_wrap_t>( *vspace ) ), phobic_en_(), time_derivative_( time_derivative )
+    {
+        vspace_->assign_scalar( 0.0, *vector_wrap_ );
     }
 
     jacobi_pre( std::shared_ptr<const lin_op_t> op )
@@ -92,6 +104,8 @@ public:
         // Always recreate vector_wrap_ with the current VectorSpace
         vector_wrap_ = std::make_unique<vector_wrap_t>( *vspace_ );
         vspace_->assign( op->get_vector(), **vector_wrap_ );
+
+        time_derivative_ = op->get_time_derivative();
     }
 
 public:
@@ -126,7 +140,10 @@ public:
     {
         for_each_nd_type for_each_nd_inst;
         for_each_nd_inst(
-            preconditioner_kernel{ v, **vector_wrap_, range_, step_, b_cond_, phobic_en_, D_, gamma_ }, range_
+            preconditioner_kernel{
+                v, **vector_wrap_, range_, step_, b_cond_, phobic_en_, time_derivative_->get_dt_inf(), D_, gamma_
+            },
+            range_
         );
     };
     void apply( const vector_type &x, vector_type &y ) const
@@ -144,8 +161,10 @@ private:
     using vector_wrap_t = nmfd::detail::vector_wrap<VectorSpace, true, true>;
     std::unique_ptr<vector_wrap_t> vector_wrap_;
     PhobicEnergy                   phobic_en_;
-    scalar_type                    D_     = scalar_type( 1 );
-    scalar_type                    gamma_ = scalar_type( 1 );
+    time_derivative_ptr            time_derivative_;
+
+    scalar_type D_     = scalar_type( 1 );
+    scalar_type gamma_ = scalar_type( 1 );
 };
 
 } // namespace tests

@@ -17,12 +17,14 @@ template <
     class Rhs>
 struct cahn_hilliard_op_kernel
 {
-    VectorType   in, out;
-    IdxND        range;
-    GridStep     step;
-    BoundaryCond cond;
-    PhobicEnergy phobic_en;
-    Rhs          rhs;
+    VectorType     in, out;
+    IdxND          range;
+    GridStep       step;
+    BoundaryCond   cond;
+    PhobicEnergy   phobic_en;
+    Rhs            rhs;
+    VectorType     previous_state;
+    Scalar         dt_inf;
 
     Scalar D;     // diffusion coefficient
     Scalar gamma; // squared length of the transition regions between the domains
@@ -34,9 +36,14 @@ struct cahn_hilliard_op_kernel
         Scalar y = step[1] * ( 0.5 + idx[1] );
         Scalar z = step[2] * ( 0.5 + idx[2] );
 
+        // Apply rhs
         TensorType state = -rhs( x, y, z );
 
         auto curr = in.get_vec( idx );
+        auto prev = previous_state.get_vec( idx );
+
+        // Apply time derivative
+        state[0] -= (curr[0] - prev[0]) * dt_inf;
 
 // D * laplace(psi)
 #pragma unroll

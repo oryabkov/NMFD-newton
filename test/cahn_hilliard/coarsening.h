@@ -54,9 +54,9 @@ public:
         auto coarse_size = op.get_size() / Ord{ 2 };
         auto coarse_h    = op.get_h() * Scalar{ 2 };
 
-        // Create coarse operator with same D and gamma parameters
+        // Create coarse operator with same time_derivative parameters, D and gamma
         auto coarse_op =
-            std::make_shared<operator_type>( coarse_size, coarse_h, op.get_b_cond(), op.get_D(), op.get_gamma() );
+            std::make_shared<operator_type>( coarse_size, coarse_h, op.get_b_cond(), op.get_time_derivative() );
 
         // Restrict the linearization point from fine to coarse level
         vector_type fine_vector = op.get_vector();
