@@ -1,17 +1,19 @@
 -include ../common.mk
 
+EXTRAFLAGS = -DSCFD_ARRAYS_ENABLE_INDEX_SHIFT=1
+
 all: test_biharmonic
 
 # ----- Biharmonic -----
 
 test_biharmonic_cpu: test_biharmonic.cpp
-	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) -DPLATFORM_SERIAL_CPU test_biharmonic.cpp -o test_biharmonic_cpu.bin
+	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_SERIAL_CPU test_biharmonic.cpp -o test_biharmonic_cpu.bin
 
 test_biharmonic_omp: test_biharmonic.cpp
-	$(HOSTCOMPILER) $(OMP_FLAGS) $(HOSTFLAGS) $(INCLUDE_CONTRIB) -DPLATFORM_OMP test_biharmonic.cpp -o test_biharmonic_omp.bin
+	$(HOSTCOMPILER) $(OMP_FLAGS) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_OMP test_biharmonic.cpp -o test_biharmonic_omp.bin
 
 test_biharmonic_cuda: test_biharmonic.cpp
-	nvcc $(HOSTFLAGS) $(INCLUDE_CONTRIB) -DPLATFORM_CUDA -x cu test_biharmonic.cpp -o test_biharmonic_cuda.bin
+	nvcc $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA -x cu test_biharmonic.cpp -o test_biharmonic_cuda.bin
 
 
 # ----- Cahn-Hilliard -----
