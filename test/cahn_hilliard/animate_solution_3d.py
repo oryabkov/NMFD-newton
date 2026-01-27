@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 """
-Script to create GIF animations from Cahn-Hilliard solution files.
+Script to create GIF animations from Cahn-Hilliard solution files with 3D cube face visualization.
+
+The phi function values are displayed on the 6 faces of the cube using the viridis colormap.
 
 Usage:
-    python animate_solution.py <folder> --axis <x|y|z> --layer <N> [--fps <fps>] [--component <0|1>]
+    python animate_solution_3d.py <folder> [--fps <fps>] [--azimuth <deg>] [--elevation <deg>] [--rotation-angle <deg>]
 
 Example:
-    python animate_solution.py data/random_init_ch_test_20260123_181946 --axis z --layer 32 --fps 2
+    python animate_solution_3d.py data/random_init_ch_test_20260123_181946 --fps 2 --azimuth 45 --elevation 30 --rotation-angle 360
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import argparse
 import os
 import glob
@@ -140,7 +143,6 @@ def calculate_frame_indices(num_frames, fps, use_non_linear=True, frac=0.0, vide
     try:
         coeffs = np.linalg.solve(A, b_vec)
         a, b, c = coeffs
-        print(a, b, c)
     except np.linalg.LinAlgError:
         # If system is singular or ill-conditioned, fall back to linear
         print("Warning: Could not solve linear system, falling back to linear frame selection")
@@ -174,22 +176,20 @@ def calculate_frame_indices(num_frames, fps, use_non_linear=True, frac=0.0, vide
     return sorted(selected_frames)
 
 
-def create_animation(folder_path, slice_axis, layer_idx, fps=2, component=1, output_filename=None, use_non_linear=False, frac=0.0, video_length=None):
+def create_animation(folder_path, fps=2, output_filename=None, use_non_linear=False, frac=0.0,
+                     video_length=None, azimuth=45, elevation=30, rotation_angle=360):
     """
-    Create a GIF animation from solution files.
+    Create a GIF animation from solution files with 3D cube face visualization.
+
+    The phi function values are displayed on the 6 faces of the cube (x=0, x=1, y=0, y=1, z=0, z=1)
+    using the viridis colormap, matching the 2D visualization style.
 
     Parameters:
     -----------
     folder_path : str
         Path to folder containing numerical_*.bin files
-    slice_axis : str
-        Axis to slice along ('x', 'y', or 'z')
-    layer_idx : int
-        Layer index along the slice axis (0 to N-1)
     fps : float
         Frames per second for the animation (default: 2)
-    component : int
-        Component to visualize (0=psi, 1=phi, default: 1)
     output_filename : str, optional
         Output filename. If None, auto-generated from folder and parameters.
     use_non_linear : bool
@@ -198,6 +198,12 @@ def create_animation(folder_path, slice_axis, layer_idx, fps=2, component=1, out
         Controls frame number at T/2: y(T/2) = frac*N (0.0 to 1.0). Only used when use_non_linear=True.
     video_length : float, optional
         Desired video length in seconds. If None, calculated automatically.
+    azimuth : float
+        Initial azimuth angle for camera position in degrees (default: 45)
+    elevation : float
+        Initial elevation angle for camera position in degrees (default: 30)
+    rotation_angle : float
+        Total rotation angle for camera during the entire video in degrees (default: 360)
     """
     folder_path = Path(folder_path)
 
@@ -232,32 +238,17 @@ def create_animation(folder_path, slice_axis, layer_idx, fps=2, component=1, out
         print(f"Selected frame indices: {frame_indices[:10]}{'...' if len(frame_indices) > 10 else ''}")
     else:
         print(f"Using all frames linearly")
-    print(f"Component: {'ψ (psi)' if component == 0 else 'φ (phi)'}")
+    print(f"Camera: azimuth={azimuth:.1f}°, elevation={elevation:.1f}°, rotation={rotation_angle:.1f}°")
 
     # Load only the selected frames
     numerical_solutions = []
     for frame_idx in frame_indices:
         filename = numerical_files[frame_idx]
-        try:
-            data, N = load_solution(filename)
-            numerical_solutions.append(data)
-        except Exception as e:
-            raise RuntimeError(f"Failed to load solution file {filename} (frame index {frame_idx}): {e}")
-
-    if len(numerical_solutions) == 0:
-        raise RuntimeError(f"No solutions were successfully loaded. Check that files exist and are readable.")
+        data, N = load_solution(filename)
+        numerical_solutions.append(data)
 
     # Convert to numpy array: shape will be (num_selected_frames, N, N, N, 2)
-    try:
-        numerical = np.array(numerical_solutions)
-    except Exception as e:
-        # Check if arrays have inconsistent shapes
-        if len(numerical_solutions) > 0:
-            shapes = [arr.shape for arr in numerical_solutions]
-            raise RuntimeError(f"Failed to convert solutions to numpy array. "
-                             f"Array shapes: {shapes}. "
-                             f"This might indicate inconsistent data shapes. Error: {e}")
-        raise RuntimeError(f"Failed to convert solutions to numpy array: {e}")
+    numerical = np.array(numerical_solutions)
     num_selected_frames = len(frame_indices)
 
     # Ensure numerical always has 5 dimensions (frames, N, N, N, components)
@@ -265,99 +256,109 @@ def create_animation(folder_path, slice_axis, layer_idx, fps=2, component=1, out
         numerical = numerical[np.newaxis, ...]
         num_selected_frames = 1
 
-    # Validate that we actually loaded data
-    if numerical.size == 0:
-        raise RuntimeError(f"Loaded numerical array is empty. Expected {num_selected_frames} frames but got 0.")
-
-    if len(numerical_solutions) != num_selected_frames:
-        raise RuntimeError(f"Mismatch: expected {num_selected_frames} frames but loaded {len(numerical_solutions)} frames.")
-
-    # Validate array shape
-    if numerical.shape[0] == 0:
-        raise RuntimeError(f"numerical array has 0 frames on axis 0. Shape: {numerical.shape}, "
-                         f"expected at least {num_selected_frames} frames.")
-
     print(f"Loaded solutions with grid size N = {N}")
-    print(f"numerical array shape: {numerical.shape}")
 
-    # Validate layer index
-    if layer_idx < 0 or layer_idx >= N:
-        raise ValueError(f"Layer index {layer_idx} is out of range [0, {N-1}]")
+    # Rescale coordinates: map cell-centered coordinates [h/2, ..., 1-h/2] to [0, 1]
+    # This eliminates the need for interpolation at boundaries
+    rescaled_coords = np.linspace(0.0, 1.0, N)
 
-    # Map axis name to index
-    axis_map = {'x': 0, 'y': 1, 'z': 2}
-    if slice_axis.lower() not in axis_map:
-        raise ValueError(f"Invalid axis '{slice_axis}'. Must be 'x', 'y', or 'z'")
-    slice_axis_idx = axis_map[slice_axis.lower()]
+    # Precompute global min/max for consistent colorbar scaling across all frames
+    phi_min = numerical[:, :, :, :, 1].min()
+    phi_max = numerical[:, :, :, :, 1].max()
 
-    # Calculate cell-centered coordinate values: h*(0.5 + i) for i = 0, 1, ..., N-1
-    h = 1.0 / N
-    cell_centered_coords = np.array([h * (0.5 + i) for i in range(N)])
+    # Normalize function for color mapping
+    def normalize_phi(phi_data):
+        """Normalize phi data to [0, 1] range for colormap."""
+        if phi_max == phi_min:
+            return np.zeros_like(phi_data)
+        return (phi_data - phi_min) / (phi_max - phi_min)
 
-    # Extract 2D slice based on slice_axis and layer_idx
-    axis_names = ['x', 'y', 'z']
-    component_names = ['ψ (psi)', 'φ (phi)']
+    # Create coordinate grids for the faces
+    Y_face, Z_face = np.meshgrid(rescaled_coords, rescaled_coords, indexing='ij')
+    X_face, Z_face_xz = np.meshgrid(rescaled_coords, rescaled_coords, indexing='ij')
+    X_face_xy, Y_face_xy = np.meshgrid(rescaled_coords, rescaled_coords, indexing='ij')
 
-    # Determine coordinate labels and slice data extraction
-    if slice_axis_idx == 0:  # Slice along x-axis: show y-z plane
-        x_coords = cell_centered_coords  # y coordinates
-        y_coords = cell_centered_coords  # z coordinates
-        xlabel = 'y'
-        ylabel = 'z'
-        title_axis = f'x = {cell_centered_coords[layer_idx]:.4f}'
-    elif slice_axis_idx == 1:  # Slice along y-axis: show x-z plane
-        x_coords = cell_centered_coords  # x coordinates
-        y_coords = cell_centered_coords  # z coordinates
-        xlabel = 'x'
-        ylabel = 'z'
-        title_axis = f'y = {cell_centered_coords[layer_idx]:.4f}'
-    else:  # slice_axis_idx == 2, Slice along z-axis: show x-y plane
-        x_coords = cell_centered_coords  # x coordinates
-        y_coords = cell_centered_coords  # y coordinates
-        xlabel = 'x'
-        ylabel = 'y'
-        title_axis = f'z = {cell_centered_coords[layer_idx]:.4f}'
-
-    # Create meshgrid for plotting
-    X, Y = np.meshgrid(x_coords, y_coords, indexing='ij')
+    # Calculate angular velocity for camera rotation
+    # Total video time = num_selected_frames / fps
+    if num_selected_frames > 1:
+        total_video_time = num_selected_frames / fps
+        angular_velocity = rotation_angle / total_video_time  # degrees per second
+    else:
+        angular_velocity = 0.0
 
     # Generate frames
     print("Generating frames...")
     frames = []
 
     for anim_frame_idx, source_frame_idx in enumerate(frame_indices):
-        if anim_frame_idx >= numerical.shape[0]:
-            raise IndexError(f"Frame index {anim_frame_idx} is out of bounds. "
-                           f"numerical array has shape {numerical.shape}, "
-                           f"but trying to access frame {anim_frame_idx}. "
-                           f"Expected {num_selected_frames} frames but got {numerical.shape[0]}.")
         numerical_frame = numerical[anim_frame_idx]
 
-        # Extract 2D slice
-        if slice_axis_idx == 0:
-            slice_data = numerical_frame[layer_idx, :, :, component]
-        elif slice_axis_idx == 1:
-            slice_data = numerical_frame[:, layer_idx, :, component]
-        else:  # slice_axis_idx == 2
-            slice_data = numerical_frame[:, :, layer_idx, component]
+        # Get phi component (component 1) for the selected frame
+        phi_data = numerical_frame[:, :, :, 1]  # Shape: (N, N, N)
 
-        # Create figure
-        fig, ax = plt.subplots(figsize=(10, 8))
+        # Calculate current camera azimuth (rotates during animation)
+        current_time = anim_frame_idx / fps
+        current_azimuth = azimuth + angular_velocity * current_time
 
-        # Create heatmap with automatic scaling for each frame
-        im = ax.pcolormesh(X, Y, slice_data,
-                          cmap='viridis',
-                          shading='gouraud')
+        # Create figure and 3D axis
+        fig = plt.figure(figsize=(12, 10))
+        ax = fig.add_subplot(111, projection='3d')
 
-        # Add colorbar
-        cbar = plt.colorbar(im, ax=ax)
-        cbar.set_label(component_names[component], fontsize=14)
+        # Enable perspective projection (matplotlib 3D uses perspective by default)
+        # Adjust viewing distance to make perspective more pronounced
+        ax.dist = 10  # Smaller values = more perspective distortion
 
-        ax.set_xlabel(xlabel, fontsize=14)
-        ax.set_ylabel(ylabel, fontsize=14)
+        # Face 1: x = 0 (y-z plane)
+        face_data = phi_data[0, :, :]
+        face_colors = plt.cm.viridis(normalize_phi(face_data))
+        ax.plot_surface(np.zeros_like(Y_face), Y_face, Z_face, facecolors=face_colors,
+                       shade=False, alpha=1.0, cstride=1, rstride=1, antialiased=False)
+
+        # Face 2: x = 1 (y-z plane)
+        face_data = phi_data[-1, :, :]
+        face_colors = plt.cm.viridis(normalize_phi(face_data))
+        ax.plot_surface(np.ones_like(Y_face), Y_face, Z_face, facecolors=face_colors,
+                       shade=False, alpha=1.0, cstride=1, rstride=1, antialiased=False)
+
+        # Face 3: y = 0 (x-z plane)
+        face_data = phi_data[:, 0, :]
+        face_colors = plt.cm.viridis(normalize_phi(face_data))
+        ax.plot_surface(X_face, np.zeros_like(X_face), Z_face_xz, facecolors=face_colors,
+                       shade=False, alpha=1.0, cstride=1, rstride=1, antialiased=False)
+
+        # Face 4: y = 1 (x-z plane)
+        face_data = phi_data[:, -1, :]
+        face_colors = plt.cm.viridis(normalize_phi(face_data))
+        ax.plot_surface(X_face, np.ones_like(X_face), Z_face_xz, facecolors=face_colors,
+                       shade=False, alpha=1.0, cstride=1, rstride=1, antialiased=False)
+
+        # Face 5: z = 0 (x-y plane)
+        face_data = phi_data[:, :, 0]
+        face_colors = plt.cm.viridis(normalize_phi(face_data))
+        ax.plot_surface(X_face_xy, Y_face_xy, np.zeros_like(X_face_xy), facecolors=face_colors,
+                       shade=False, alpha=1.0, cstride=1, rstride=1, antialiased=False)
+
+        # Face 6: z = 1 (x-y plane)
+        face_data = phi_data[:, :, -1]
+        face_colors = plt.cm.viridis(normalize_phi(face_data))
+        ax.plot_surface(X_face_xy, Y_face_xy, np.ones_like(X_face_xy), facecolors=face_colors,
+                       shade=False, alpha=1.0, cstride=1, rstride=1, antialiased=False)
+
+        # Set axis limits to show the full cube [0, 1]^3
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.set_zlim(0, 1)
+
+        # Set labels
+        ax.set_xlabel('x', fontsize=14)
+        ax.set_ylabel('y', fontsize=14)
+        ax.set_zlabel('z', fontsize=14)
+
+        # Set camera position
+        ax.view_init(elev=elevation, azim=current_azimuth)
 
         # Title
-        title = f'Cahn-Hilliard: {component_names[component]} slice at {title_axis}'
+        title = 'Cahn-Hilliard: φ on cube faces'
         if num_selected_frames > 1:
             if source_frame_idx == 0:
                 title += ', Initial approximation'
@@ -366,7 +367,6 @@ def create_animation(folder_path, slice_axis, layer_idx, fps=2, component=1, out
                 title += f', {time_str}'
         ax.set_title(title, fontsize=14)
 
-        ax.set_aspect('equal')
         plt.tight_layout()
 
         # Convert figure to numpy array
@@ -387,7 +387,7 @@ def create_animation(folder_path, slice_axis, layer_idx, fps=2, component=1, out
     # Generate output filename if not provided
     if output_filename is None:
         folder_name = folder_path.name
-        output_filename = folder_path / f'animation_{slice_axis}_layer{layer_idx}_comp{component}.gif'
+        output_filename = folder_path / f'animation_3d_comp1_az{azimuth:.0f}_el{elevation:.0f}_rot{rotation_angle:.0f}.gif'
     else:
         output_filename = Path(output_filename)
 
@@ -399,31 +399,25 @@ def create_animation(folder_path, slice_axis, layer_idx, fps=2, component=1, out
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Create GIF animation from Cahn-Hilliard solution files',
+        description='Create 3D cube face GIF animation from Cahn-Hilliard solution files',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Create animation slicing along z-axis at layer 32
-  python animate_solution.py data/random_init_ch_test_20260123_181946 --axis z --layer 32
+  # Create 3D animation with default camera settings
+  python animate_solution_3d.py data/random_init_ch_test_20260123_181946
 
-  # Create animation with custom FPS and component
-  python animate_solution.py data/random_init_ch_test_20260123_181946 --axis z --layer 32 --fps 5 --component 0
+  # Create animation with custom camera position and rotation
+  python animate_solution_3d.py data/random_init_ch_test_20260123_181946 --azimuth 45 --elevation 30 --rotation-angle 360
 
-  # Create animation with custom output filename
-  python animate_solution.py data/random_init_ch_test_20260123_181946 --axis z --layer 32 --output my_animation.gif
+  # Create animation with non-linear frame selection
+  python animate_solution_3d.py data/random_init_ch_test_20260123_181946 --non-lin --frac 0.5 --video-length 10
         """
     )
 
     parser.add_argument('folder', type=str,
                        help='Path to folder containing numerical_*.bin files')
-    parser.add_argument('--axis', type=str, choices=['x', 'y', 'z'], required=True,
-                       help='Axis along which to slice (x, y, or z)')
-    parser.add_argument('--layer', type=int, required=True,
-                       help='Layer index along the slice axis (0 to N-1)')
     parser.add_argument('--fps', type=float, default=2.0,
                        help='Frames per second for the animation (default: 2.0)')
-    parser.add_argument('--component', type=int, choices=[0, 1], default=1,
-                       help='Component to visualize: 0=psi, 1=phi (default: 1)')
     parser.add_argument('--output', type=str, default=None,
                        help='Output filename. If not specified, auto-generated.')
     parser.add_argument('--non-lin', dest='non_lin', action='store_true',
@@ -435,6 +429,12 @@ Examples:
     parser.add_argument('--video-length', type=float, default=None,
                        help='Desired video length in seconds. Only used with --non-lin. '
                             'If not specified, calculated automatically based on fps and number of frames.')
+    parser.add_argument('--azimuth', type=float, default=45.0,
+                       help='Initial azimuth angle for camera position in degrees (default: 45.0)')
+    parser.add_argument('--elevation', type=float, default=30.0,
+                       help='Initial elevation angle for camera position in degrees (default: 30.0)')
+    parser.add_argument('--rotation-angle', type=float, default=360.0,
+                       help='Total rotation angle for camera during the entire video in degrees (default: 360.0)')
 
     args = parser.parse_args()
 
@@ -453,14 +453,14 @@ Examples:
     try:
         create_animation(
             folder_path=args.folder,
-            slice_axis=args.axis,
-            layer_idx=args.layer,
             fps=args.fps,
-            component=args.component,
             output_filename=args.output,
             use_non_linear=args.non_lin,
             frac=args.frac,
-            video_length=args.video_length
+            video_length=args.video_length,
+            azimuth=args.azimuth,
+            elevation=args.elevation,
+            rotation_angle=args.rotation_angle
         )
     except Exception as e:
         print(f"Error: {e}")

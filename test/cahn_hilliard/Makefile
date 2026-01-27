@@ -38,12 +38,10 @@ test_time_cahn_hilliard_omp: test_time_cahn_hilliard.cpp
 test_time_cahn_hilliard_cuda: test_time_cahn_hilliard.cpp
 	nvcc $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA -x cu test_time_cahn_hilliard.cpp -o test_time_cahn_hilliard_cuda.bin
 
-
 # ----- Random init time depentent Cahn-Hilliard -----
 
 test_random_init_hilliard_cpu: test_random_init_cahn_hilliard.cpp
 	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_SERIAL_CPU test_random_init_cahn_hilliard.cpp -o test_random_init_cahn_hilliard_cpu.bin
-
 
 test_random_init_hilliard_cuda: test_random_init_cahn_hilliard.cpp
 	nvcc $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA -x cu test_random_init_cahn_hilliard.cpp -o test_random_init_cahn_hilliard_cuda.bin
