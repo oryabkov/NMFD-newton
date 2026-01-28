@@ -6,14 +6,25 @@ all: test_biharmonic
 
 # ----- Biharmonic -----
 
-test_biharmonic_cpu: test_biharmonic.cpp
-	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_SERIAL_CPU test_biharmonic.cpp -o test_biharmonic_cpu.bin
+# Single precision (float)
+test_biharmonic_cpu_f: test_biharmonic.cpp
+	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_SERIAL_CPU test_biharmonic.cpp -o test_biharmonic_cpu_f.bin
 
-test_biharmonic_omp: test_biharmonic.cpp
-	$(HOSTCOMPILER) $(OMP_FLAGS) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_OMP test_biharmonic.cpp -o test_biharmonic_omp.bin
+test_biharmonic_omp_f: test_biharmonic.cpp
+	$(HOSTCOMPILER) $(OMP_FLAGS) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_OMP test_biharmonic.cpp -o test_biharmonic_omp_f.bin
 
-test_biharmonic_cuda: test_biharmonic.cpp
-	nvcc $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA -x cu test_biharmonic.cpp -o test_biharmonic_cuda.bin
+test_biharmonic_cuda_f: test_biharmonic.cpp
+	nvcc $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA -x cu test_biharmonic.cpp -o test_biharmonic_cuda_f.bin
+
+# Double precision (double)
+test_biharmonic_cpu_d: test_biharmonic.cpp
+	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_SERIAL_CPU -DUSE_DOUBLE_PRECISION test_biharmonic.cpp -o test_biharmonic_cpu_d.bin
+
+test_biharmonic_omp_d: test_biharmonic.cpp
+	$(HOSTCOMPILER) $(OMP_FLAGS) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DUSE_DOUBLE_PRECISION -DPLATFORM_OMP test_biharmonic.cpp -o test_biharmonic_omp_d.bin
+
+test_biharmonic_cuda_d: test_biharmonic.cpp
+	nvcc $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA -x cu -DUSE_DOUBLE_PRECISION test_biharmonic.cpp -o test_biharmonic_cuda_d.bin
 
 
 # ----- Cahn-Hilliard -----

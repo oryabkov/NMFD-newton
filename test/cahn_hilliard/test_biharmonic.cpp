@@ -1,4 +1,5 @@
 #include "biharmonic_problem.h"
+#include "convergence_history_io.h"
 #include "jacobi_op.h"
 #include "jacobi_pre.h"
 #include "coarsening.h"
@@ -23,6 +24,7 @@
 #include <nmfd/solvers/monitor_krylov.h>
 #include <scfd/backend/backend.h>
 #include <scfd/utils/log.h>
+#include <algorithm>
 #include <sstream>
 #include <string>
 #include <type_traits>
@@ -42,7 +44,12 @@ struct backend
 constexpr int dim        = 3;
 constexpr int tensor_dim = 2;
 
-using scalar         = double;
+#ifndef USE_DOUBLE_PRECISION
+using scalar      = float;
+#else
+using scalar      = double;
+#endif
+
 using grid_step_type = scfd::static_vec::vec<scalar, dim>;
 using idx_nd_type    = scfd::static_vec::vec<int, dim>;
 
@@ -141,6 +148,7 @@ int main( int argc, char const *argv[] )
 {
     // Parse CLI arguments
     bool        save_coords = false;
+    bool        verbose     = false;
     std::string prefix      = "run";
     int         grid_size   = 32;
     std::string solver_type;
@@ -169,6 +177,7 @@ int main( int argc, char const *argv[] )
         std::cout << std::endl;
         std::cout << "Options:" << std::endl;
         std::cout << "    --save-coords        Save numerical and exact solutions to binary files" << std::endl;
+        std::cout << "    --verbose            Save convergence history to conv_history.dat" << std::endl;
         std::cout << "    --max-iterations N   Maximum solver iterations (default: " << DEFAULT_MAX_ITERATIONS << ")"
                   << std::endl;
         std::cout << "    --gmres-basis N      GMRES basis size (default: " << DEFAULT_GMRES_BASIS << ")" << std::endl;
@@ -206,6 +215,10 @@ int main( int argc, char const *argv[] )
         if ( arg == "--save-coords" )
         {
             save_coords = true;
+        }
+        else if ( arg == "--verbose" )
+        {
+            verbose = true;
         }
         else if ( arg == "--max-iterations" && i + 1 < argc )
         {
@@ -366,7 +379,7 @@ int main( int argc, char const *argv[] )
         jacobi_solver::params solver_params;
         solver_params.monitor.rel_tol                  = tolerance;
         solver_params.monitor.max_iters_num            = max_iterations;
-        solver_params.monitor.save_convergence_history = true;
+        solver_params.monitor.save_convergence_history = verbose;
         jacobi_solver solver{ l_op, vspace, &log, solver_params, precond };
 
         {
@@ -375,13 +388,20 @@ int main( int argc, char const *argv[] )
             auto end      = std::chrono::steady_clock::now();
             solve_time_ms = ( end - start );
         }
+
+        // Save convergence history and statistics if verbose
+        if ( verbose )
+        {
+            save_convergence_history<default_monitor_t, scalar>( solver.monitor(), solver_type, preconditioner_type,
+                                                                 grid_size, solve_time_ms, output_dir );
+        }
     }
     else // gmres
     {
         gmres_solver::params params_gmres;
         params_gmres.monitor.rel_tol                      = tolerance;
         params_gmres.monitor.max_iters_num                = max_iterations;
-        params_gmres.monitor.save_convergence_history     = true;
+        params_gmres.monitor.save_convergence_history     = verbose;
         params_gmres.do_restart_on_false_ritz_convergence = true;
         params_gmres.basis_size                           = gmres_basis;
         params_gmres.preconditioner_side                  = 'L';
@@ -393,6 +413,13 @@ int main( int argc, char const *argv[] )
             converged     = solver.solve( rhs, solution );
             auto end      = std::chrono::steady_clock::now();
             solve_time_ms = ( end - start );
+        }
+
+        // Save convergence history and statistics if verbose
+        if ( verbose )
+        {
+            save_convergence_history<krylov_monitor_t, scalar>( solver.monitor(), solver_type, preconditioner_type,
+                                                                  grid_size, solve_time_ms, output_dir );
         }
     }
 
