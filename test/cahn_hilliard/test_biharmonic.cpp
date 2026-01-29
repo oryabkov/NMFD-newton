@@ -10,6 +10,7 @@
 #include "restrictor.h"
 #include "time_derivative.h"
 #include "solution_io.h"
+#include "timers.h"
 
 #include <chrono>
 #include <filesystem>
@@ -267,6 +268,8 @@ int main( int argc, char const *argv[] )
     const std::string scalar_label = std::is_same_v<float, scalar> ? "float" : "double";
 
     log_t log;
+    // Set log verbosity: 0 suppresses INFO messages, 1 allows them
+    log.set_verbosity( verbose ? 1 : 0 );
 
     // Write configuration header to log
     std::cout << "========================================" << std::endl;
@@ -371,37 +374,38 @@ int main( int argc, char const *argv[] )
     }
 
     // Solve the system and measure execution time
-    std::chrono::duration<double, std::milli> solve_time_ms;
-    bool                                      converged;
+    double solve_time_ms;
+    bool   converged;
 
     if ( solver_type == "jacobi" )
     {
         jacobi_solver::params solver_params;
         solver_params.monitor.rel_tol                  = tolerance;
         solver_params.monitor.max_iters_num            = max_iterations;
-        solver_params.monitor.save_convergence_history = verbose;
+        solver_params.monitor.save_convergence_history = true;
         jacobi_solver solver{ l_op, vspace, &log, solver_params, precond };
 
         {
-            auto start    = std::chrono::steady_clock::now();
+            Timer timer("Solve", false); // Don't print automatically, we'll print in Results section
             converged     = solver.solve( rhs, solution );
-            auto end      = std::chrono::steady_clock::now();
-            solve_time_ms = ( end - start );
+            solve_time_ms = timer.stop_and_get_ms();
         }
 
-        // Save convergence history and statistics if verbose
-        if ( verbose )
+        // Save times.dat and convergence history
         {
-            save_convergence_history<default_monitor_t, scalar>( solver.monitor(), solver_type, preconditioner_type,
-                                                                 grid_size, solve_time_ms, output_dir );
+            std::chrono::duration<double, std::milli> solve_time_duration(solve_time_ms);
+            save_times_dat<default_monitor_t, scalar>( solver.monitor(), solver_type, preconditioner_type,
+                                                        grid_size, solve_time_duration, output_dir );
+            save_convergence_history<default_monitor_t, scalar>( solver.monitor(), output_dir );
         }
+
     }
     else // gmres
     {
         gmres_solver::params params_gmres;
         params_gmres.monitor.rel_tol                      = tolerance;
         params_gmres.monitor.max_iters_num                = max_iterations;
-        params_gmres.monitor.save_convergence_history     = verbose;
+        params_gmres.monitor.save_convergence_history     = true;
         params_gmres.do_restart_on_false_ritz_convergence = true;
         params_gmres.basis_size                           = gmres_basis;
         params_gmres.preconditioner_side                  = 'L';
@@ -409,17 +413,17 @@ int main( int argc, char const *argv[] )
         gmres_solver solver{ l_op, vspace, &log, params_gmres, precond };
 
         {
-            auto start    = std::chrono::steady_clock::now();
+            Timer timer("Solve", false); // Don't print automatically, we'll print in Results section
             converged     = solver.solve( rhs, solution );
-            auto end      = std::chrono::steady_clock::now();
-            solve_time_ms = ( end - start );
+            solve_time_ms = timer.stop_and_get_ms();
         }
 
-        // Save convergence history and statistics if verbose
-        if ( verbose )
+        // Save times.dat and convergence history
         {
-            save_convergence_history<krylov_monitor_t, scalar>( solver.monitor(), solver_type, preconditioner_type,
-                                                                  grid_size, solve_time_ms, output_dir );
+            std::chrono::duration<double, std::milli> solve_time_duration(solve_time_ms);
+            save_times_dat<krylov_monitor_t, scalar>( solver.monitor(), solver_type, preconditioner_type,
+                                                        grid_size, solve_time_duration, output_dir );
+            save_convergence_history<krylov_monitor_t, scalar>( solver.monitor(), output_dir );
         }
     }
 
@@ -444,7 +448,7 @@ int main( int argc, char const *argv[] )
     std::cout << "  Converged:                  " << ( converged ? "yes" : "no" ) << std::endl;
     std::cout << "  ||solution - exact||_2:     " << std::scientific << error_norm << std::endl;
     std::cout << "  Relative error:             " << std::scientific << ( error_norm / exact_norm ) << std::endl;
-    std::cout << "  Total solve time:           " << std::fixed << std::setprecision( 2 ) << solve_time_ms.count()
+    std::cout << "  Total solve time:           " << std::fixed << std::setprecision( 2 ) << solve_time_ms
               << " ms" << std::endl;
     std::cout << "========================================" << std::endl;
 

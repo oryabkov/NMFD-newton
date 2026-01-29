@@ -12,6 +12,25 @@
 template <class Monitor, class Scalar>
 void save_convergence_history(
     const Monitor& monitor,
+    const std::string& output_dir )
+{
+    // Convergence history goes in the output directory for this run
+    std::string conv_file_name = output_dir + "/conv_history.dat";
+
+    std::ofstream conv_history( conv_file_name, std::ios::out | std::ios::trunc );
+
+    auto res_by_it = monitor.convergence_history();
+    std::for_each( begin( res_by_it ), end( res_by_it ),
+                   [&]( std::pair<int, Scalar> &pair ) {
+                       conv_history << pair.first << " " << pair.second << std::endl;
+                   } );
+
+    conv_history.close();
+}
+
+template <class Monitor, class Scalar>
+void save_times_dat(
+    const Monitor& monitor,
     const std::string& solver_type,
     const std::string& preconditioner_type,
     int grid_size,
@@ -33,22 +52,15 @@ void save_convergence_history(
     // Determine type (f or d)
     std::string type = std::is_same_v<float, Scalar> ? "f" : "d";
 
-    // Convergence history and times.dat go in the output directory for this run
-    std::string conv_file_name = output_dir + "/conv_history.dat";
+    // times.dat goes in the output directory for this run
     std::string exec_time_file_name = output_dir + "/times.dat";
 
-    std::ofstream conv_history( conv_file_name, std::ios::out | std::ios::trunc );
     std::ofstream exec_times( exec_time_file_name, std::ios::out | std::ios::trunc );
-
-    auto res_by_it = monitor.convergence_history();
-    std::for_each( begin( res_by_it ), end( res_by_it ),
-                   [&]( std::pair<int, Scalar> &pair ) {
-                       conv_history << pair.first << " " << pair.second << std::endl;
-                   } );
 
     // Write header to times.dat
     exec_times << "solver,prec,arch,float_type,size,time(ms),iters_n,reduction_rate" << std::endl;
 
+    auto res_by_it = monitor.convergence_history();
     if ( !res_by_it.empty() )
     {
         auto [i_0, init_res] = res_by_it.front();
@@ -61,8 +73,19 @@ void save_convergence_history(
                    << grid_size << "," << solve_time_ms.count() << "," << i_n << "," << conv_rate
                    << std::endl;
     }
+    else
+    {
+        // If no convergence history, still save basic info
+        // Try to get iteration count from monitor if available
+        int iters_n = 0;
+        // Note: This assumes the monitor has some way to get final iteration count
+        // If not available, we'll use 0
+        exec_times << std::fixed << std::setprecision( 10 );
+        exec_times << solver_type << "," << preconditioner_type << "," << arch << "," << type << ","
+                   << grid_size << "," << solve_time_ms.count() << "," << iters_n << "," << 0.0
+                   << std::endl;
+    }
 
-    conv_history.close();
     exec_times.close();
 }
 

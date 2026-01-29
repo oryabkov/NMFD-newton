@@ -15,8 +15,8 @@ NMFD_INCLUDE = $(PROJECT_ROOT_PATH)/include
 #INCLUDE_ROOT = -I$(PROJECT_ROOT_PATH)/sourse
 #INCLUDE_LOCAL = -I$(PROJECT_ROOT_PATH)/sourse/solver
 INCLUDE_CONTRIB = -I$(SCFD_INCLUDE) -I$(NMFD_INCLUDE)
-# OMP_FLAGS = -fopenmp
-OMP_FLAGS = -Xpreprocessor -fopenmp -lomp -I/opt/homebrew/opt/libomp/include -L/opt/homebrew/opt/libomp/lib
+OMP_FLAGS = -fopenmp
+# OMP_FLAGS = -Xpreprocessor -fopenmp -lomp -I/opt/homebrew/opt/libomp/include -L/opt/homebrew/opt/libomp/lib
 HOSTFLAGS = $(TARGET_GCC) -std=c++17
 HOSTCOMPILER = g++
 #CUDAFLAGS = $(TARGET_NVCC)

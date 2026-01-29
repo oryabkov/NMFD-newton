@@ -3,11 +3,12 @@
 # Production run script for test_biharmonic
 # Runs all combinations of solver, preconditioner, and precision
 #
-# Usage: ./run_prod_biharmonic.sh [arch] [grid_size] [output_base] [max_iterations]
+# Usage: ./run_prod_biharmonic.sh [arch] [grid_size] [output_base] [max_iterations] [gpu_device]
 #   arch: Architecture to use (cpu, omp, or cuda). Default: cuda
 #   grid_size: Grid size (number of points per dimension). Default: 32
 #   output_base: Base output directory. Default: conv_biharmonic_prod
 #   max_iterations: Maximum number of iterations. Default: 100000
+#   gpu_device: GPU device ID to use (for CUDA). Default: 0
 #
 # This script runs 8 combinations:
 #   - Solvers: jacobi, gmres
@@ -26,6 +27,13 @@ ARCH="${1:-cuda}"
 GRID_SIZE="${2:-32}"
 OUTPUT_BASE="${3:-conv_biharmonic_prod}"
 MAX_ITERATIONS="${4:-100000}"
+GPU_DEVICE="${5:-0}"
+
+# Set CUDA_VISIBLE_DEVICES if using CUDA
+if [ "$ARCH" == "cuda" ]; then
+    export CUDA_VISIBLE_DEVICES="${GPU_DEVICE}"
+    echo "Using GPU device: ${GPU_DEVICE}"
+fi
 
 # Create output directory (ensure data/ prefix if not present and not absolute path)
 # if [[ "$OUTPUT_BASE" != /* ]] && [[ "$OUTPUT_BASE" != data/* ]]; then
@@ -54,6 +62,9 @@ for solver in jacobi gmres; do
 
             echo "=========================================="
             echo "Running: solver=${solver}, prec=${prec}, arch=${ARCH}, type=${type_label}, size=${GRID_SIZE}"
+            if [ "$ARCH" == "cuda" ]; then
+                echo "GPU device: ${GPU_DEVICE}"
+            fi
             echo "=========================================="
 
             # Check if binary exists

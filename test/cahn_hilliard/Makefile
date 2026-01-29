@@ -27,6 +27,10 @@ test_biharmonic_cuda_d: test_biharmonic.cpp
 	nvcc $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA -x cu -DUSE_DOUBLE_PRECISION test_biharmonic.cpp -o test_biharmonic_cuda_d.bin
 
 
+test_biharmonic_all: test_biharmonic_cpu_f test_biharmonic_omp_f test_biharmonic_cuda_f \
+                     test_biharmonic_cpu_d test_biharmonic_omp_d test_biharmonic_cuda_d
+
+
 # ----- Cahn-Hilliard -----
 
 test_cahn_hilliard_cpu: test_cahn_hilliard.cpp
