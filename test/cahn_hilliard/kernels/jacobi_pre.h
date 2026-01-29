@@ -70,8 +70,8 @@ struct jacobi_pre_kernel
                 }
             }
 
-            mat( 0, 0 ) += D * diag_j[0] / ( hj * hj );
-            mat( 1, 1 ) += gamma * diag_j[1] / ( hj * hj );
+            mat( 0, 0 ) += D * diag_j[0] / Scalar(hj * hj);
+            mat( 1, 1 ) += gamma * diag_j[1] / Scalar(hj * hj);
         }
         mat( 0, 1 ) = -dt_inf;
         Scalar phi = vector.get_vec( idx )[1];
