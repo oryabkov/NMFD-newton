@@ -14,7 +14,7 @@ test_biharmonic_omp_f: test_biharmonic.cpp
 	$(HOSTCOMPILER) $(OMP_FLAGS) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_OMP test_biharmonic.cpp -o test_biharmonic_omp_f.bin
 
 test_biharmonic_cuda_f: test_biharmonic.cpp
-	nvcc $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA -x cu test_biharmonic.cpp -o test_biharmonic_cuda_f.bin
+	$(CUDACOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA -x cu test_biharmonic.cpp -o test_biharmonic_cuda_f.bin
 
 # Double precision (double)
 test_biharmonic_cpu_d: test_biharmonic.cpp
@@ -24,7 +24,7 @@ test_biharmonic_omp_d: test_biharmonic.cpp
 	$(HOSTCOMPILER) $(OMP_FLAGS) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DUSE_DOUBLE_PRECISION -DPLATFORM_OMP test_biharmonic.cpp -o test_biharmonic_omp_d.bin
 
 test_biharmonic_cuda_d: test_biharmonic.cpp
-	nvcc $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA -x cu -DUSE_DOUBLE_PRECISION test_biharmonic.cpp -o test_biharmonic_cuda_d.bin
+	$(CUDACOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA -x cu -DUSE_DOUBLE_PRECISION test_biharmonic.cpp -o test_biharmonic_cuda_d.bin
 
 
 test_biharmonic_all: test_biharmonic_cpu_f test_biharmonic_omp_f test_biharmonic_cuda_f \
@@ -40,7 +40,7 @@ test_cahn_hilliard_omp: test_cahn_hilliard.cpp
 	$(HOSTCOMPILER) $(OMP_FLAGS) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_OMP test_cahn_hilliard.cpp -o test_cahn_hilliard_omp.bin
 
 test_cahn_hilliard_cuda: test_cahn_hilliard.cpp
-	nvcc $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA -x cu test_cahn_hilliard.cpp -o test_cahn_hilliard_cuda.bin
+	$(CUDACOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA -x cu test_cahn_hilliard.cpp -o test_cahn_hilliard_cuda.bin
 
 # ----- Time depentent Cahn-Hilliard -----
 
@@ -51,7 +51,7 @@ test_time_cahn_hilliard_omp: test_time_cahn_hilliard.cpp
 	$(HOSTCOMPILER) $(OMP_FLAGS) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_OMP test_time_cahn_hilliard.cpp -o test_time_cahn_hilliard_omp.bin
 
 test_time_cahn_hilliard_cuda: test_time_cahn_hilliard.cpp
-	nvcc $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA -x cu test_time_cahn_hilliard.cpp -o test_time_cahn_hilliard_cuda.bin
+	$(CUDACOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA -x cu test_time_cahn_hilliard.cpp -o test_time_cahn_hilliard_cuda.bin
 
 # ----- Random init time depentent Cahn-Hilliard -----
 
@@ -59,4 +59,4 @@ test_random_init_hilliard_cpu: test_random_init_cahn_hilliard.cpp
 	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_SERIAL_CPU test_random_init_cahn_hilliard.cpp -o test_random_init_cahn_hilliard_cpu.bin
 
 test_random_init_hilliard_cuda: test_random_init_cahn_hilliard.cpp
-	nvcc $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA -x cu test_random_init_cahn_hilliard.cpp -o test_random_init_cahn_hilliard_cuda.bin
+	$(CUDACOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA -x cu test_random_init_cahn_hilliard.cpp -o test_random_init_cahn_hilliard_cuda.bin

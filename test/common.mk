@@ -21,10 +21,10 @@ HOSTFLAGS = $(TARGET_GCC) -std=c++17
 HOSTCOMPILER = g++
 #CUDAFLAGS = $(TARGET_NVCC)
 #MPICOMPILER = $(MPI_ROOT_PATH)/bin/mpic++
-#CUDA = $(CUDA_ROOT_PATH)#/opt/cuda#/opt/cuda_all/cuda_11.2
+CUDA = /usr/local/cuda-12.0 #/opt/cuda#/opt/cuda_all/cuda_11.2
 #SM = $(CUDA_ARCH)
 #MPI = $(MPI_ROOT_PATH)
-#CUDACOMPILER = ${CUDA}/bin/nvcc
+CUDACOMPILER = ${CUDA}/bin/nvcc
 #HYPRELIBRARY = -lHYPRE
 #CUDALIBRARIES = -lcudart -lcurand -lcusparse -lcublas
 IPROJECT = ${INCLUDE_CONTRIB}
