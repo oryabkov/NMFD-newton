@@ -34,7 +34,7 @@
 
 namespace nmfd
 {
-namespace solvers 
+namespace solvers
 {
 
 //demands for template parameters:
@@ -47,10 +47,10 @@ namespace solvers
 
 template
 <
-     class VectorOperations, class Monitor, class Log, 
+     class VectorOperations, class Monitor, class Log,
      class LinearOperator, class Preconditioner = preconditioners::dummy<VectorOperations,LinearOperator>,
      class ResidualRegulariation = detail::residual_regularization_dummy,
-     class DenseOperations = detail::dense_operations<typename VectorOperations::Ord, typename VectorOperations::scalar_type> 
+     class DenseOperations = detail::dense_operations<typename VectorOperations::Ord, typename VectorOperations::scalar_type>
 >
 class gmres : public iter_solver_base<VectorOperations, Monitor, Log, LinearOperator, Preconditioner>
 {
@@ -82,10 +82,10 @@ public:
 
         params(const std::string &log_prefix = "", const std::string &log_name = "gmres::") :
             logged_obj_params_t(0, log_prefix+log_name),
-            basis_size(20), 
-            batch_size(5), 
-            preconditioner_side('R'), 
-            reorthogonalization(false), 
+            basis_size(20),
+            batch_size(5),
+            preconditioner_side('R'),
+            reorthogonalization(false),
             do_restart_on_false_ritz_convergence(false),
             monitor( typename Monitor::params(this->log_msg_prefix) )
         {
@@ -127,8 +127,8 @@ public:
             std::shared_ptr<vector_operations_type> vec_ops_, Log *log_ = nullptr,
             std::shared_ptr<residual_regulaization_t> residual_reg_ = std::make_shared<residual_regulaization_t>(),
             std::shared_ptr<dense_operations_t> dense_ops_ = std::make_shared<dense_operations_t>()
-        ) : 
-            vec_ops(vec_ops_), log(log_), residual_reg(residual_reg_), dense_ops(dense_ops_) 
+        ) :
+            vec_ops(vec_ops_), log(log_), residual_reg(residual_reg_), dense_ops(dense_ops_)
         {
         }
     };
@@ -137,13 +137,13 @@ public:
     {
         preconditioner_params_hierarchy_type preconditioner;
 
-        params_hierarchy(const std::string &log_prefix = "", const std::string &log_name = "gmres::") : 
+        params_hierarchy(const std::string &log_prefix = "", const std::string &log_name = "gmres::") :
             params(log_prefix, log_name),
             preconditioner(this->log_msg_prefix)
         {
         }
         params_hierarchy(
-            const params &prm_, 
+            const params &prm_,
             const preconditioner_params_hierarchy_type &preconditioner_
         ) : params(prm_), preconditioner(preconditioner_)
         {
@@ -174,10 +174,10 @@ public:
         utils_hierarchy(
             preconditioner_utils_hierarchy_type preconditioner_,
             Args... args
-        ) : 
+        ) :
             utils(args...),
             preconditioner(preconditioner_)
-        {        
+        {
         }
     };
 
@@ -198,7 +198,7 @@ private:
     mutable T_vec r_;
     mutable T_vec y_;
     mutable T_vec x_tmp_;
-    
+
     //parameters:
     params prms_;
 
@@ -213,10 +213,10 @@ private:
 
     void calc_left_preconditioned_residual(const linear_operator_type &A, const T_vec &x, const T_vec &b, T_vec &r)const
     {
-        
+
         A.apply(x, r);
         vec_ops_->add_lin_comb(static_cast<T>(1.0), b, static_cast<T>(-1.0), r);
-        
+
         if ((prec_ != nullptr)&&(prms_.preconditioner_side == 'L'))
         {
             prec_->apply(r);
@@ -240,12 +240,12 @@ private:
         }
         else
         {
-            if(prms_.preconditioner_side == 'L') 
+            if(prms_.preconditioner_side == 'L')
             {
                 A.apply(x, r);
                 prec_->apply(r);
             }
-            else if(prms_.preconditioner_side == 'R') 
+            else if(prms_.preconditioner_side == 'R')
             {
                 vec_ops_->assign(x, y_);
                 prec_->apply(y_);
@@ -288,7 +288,7 @@ private:
         vec_ops_->start_use_vector( r_ );
         vec_ops_->start_use_vector( y_ );
         vec_ops_->start_use_vector( x_tmp_ );
-        vec_ops_->start_use_multivector( V_, prms_.basis_size+1 );    
+        vec_ops_->start_use_multivector( V_, prms_.basis_size+1 );
     }
 
     void stop_use_all() const
@@ -296,7 +296,7 @@ private:
         vec_ops_->stop_use_vector( r_ );
         vec_ops_->stop_use_vector( y_ );
         vec_ops_->stop_use_vector( x_tmp_ );
-        vec_ops_->stop_use_multivector( V_, prms_.basis_size+1 );        
+        vec_ops_->stop_use_multivector( V_, prms_.basis_size+1 );
     }
     void free_all() const
     {
@@ -321,16 +321,16 @@ private:
     {
         // x= V(1:N,0:i)*s(0:i)+x
         vec_ops_->assign_scalar(0, x);
-        for (int j = 0; j <= i; j++) 
+        for (int j = 0; j <= i; j++)
         {
             // x = x + s[j] * V(j)
 
             //old version
             ////add_lin_comb(scalar_type mul_x, const vector_type& x, vector_type& y)
             //T_vec Vj = vec_ops_->at(V_, prms_.basis_size+1, j);
-            //vec_ops_->add_lin_comb(s(j), (const T_vec)Vj, 1.0, x);          
+            //vec_ops_->add_lin_comb(s(j), (const T_vec)Vj, 1.0, x);
 
-            vec_ops_->add_lin_comb(s(j), V_, prms_.basis_size+1, j, 1.0, x);          
+            vec_ops_->add_lin_comb(s(j), V_, prms_.basis_size+1, j, 1.0, x);
         }
     }
 
@@ -349,15 +349,15 @@ public:
         free_all();
     }
 
-    gmres(  
-        std::shared_ptr<vector_operations_type> vec_ops, 
+    gmres(
+        std::shared_ptr<vector_operations_type> vec_ops,
         Log *log = nullptr,
         const params& prm = params(),
         std::shared_ptr<preconditioner_type> prec = nullptr,
         std::shared_ptr<residual_regulaization_t> residual_reg = std::make_shared<residual_regulaization_t>(),
         std::shared_ptr<dense_operations_t> dense_ops = std::make_shared<dense_operations_t>()
-    ) : 
-        parent_t(std::move(vec_ops), log, prm, prm.monitor, std::move(prec) ), 
+    ) :
+        parent_t(std::move(vec_ops), log, prm, prm.monitor, std::move(prec) ),
         prms_(prm),
         residual_reg_(std::move(residual_reg)),
         dense_ops_(std::move(dense_ops))
@@ -367,25 +367,25 @@ public:
         init_all();
         init_error_L2_basic_type();
     }
-    gmres(  
+    gmres(
         std::shared_ptr<const linear_operator_type> A,
-        std::shared_ptr<vector_operations_type> vec_ops, 
+        std::shared_ptr<vector_operations_type> vec_ops,
         Log *log = nullptr,
         const params& prm = params(),
         std::shared_ptr<preconditioner_type> prec = nullptr,
         std::shared_ptr<residual_regulaization_t> residual_reg = std::make_shared<residual_regulaization_t>(),
         std::shared_ptr<dense_operations_t> dense_ops = std::make_shared<dense_operations_t>()
-    ) : 
+    ) :
         gmres(std::move(vec_ops),log,prm,std::move(prec),std::move(residual_reg),std::move(dense_ops))
     {
         parent_t::set_operator(std::move(A));
     }
 
-    gmres(  
+    gmres(
         const utils_hierarchy& utils,
-        const params_hierarchy& prm = params_hierarchy()      
-    ) : 
-        gmres(  
+        const params_hierarchy& prm = params_hierarchy()
+    ) :
+        gmres(
             utils.vec_ops, utils.log, prm,
             nmfd::detail::algo_hierarchy_creator<preconditioner_type>::get(utils.preconditioner,prm.preconditioner),
             utils.residual_reg, utils.dense_ops
@@ -399,8 +399,8 @@ public:
     }
 
     virtual bool solve(const linear_operator_type &A, const T_vec &b, T_vec &x)const
-    {                
-    
+    {
+
         auto restart_ = prms_.basis_size;
         start_use_all();
         // if (prec_ != nullptr)
@@ -408,15 +408,15 @@ public:
         //     throw std::logic_error("gmres::solve: use_precond_resid_ == false with non-empty preconditioner is not supported");
         // }
 
-        /*if (prec_ != nullptr) 
+        /*if (prec_ != nullptr)
         {
             prec_->set_operator(&A);
         }*/
 
         zero_host_H();
         monitor_call_wrap_t monitor_wrap(monitor_);
-        
-        if ((prec_ != nullptr)&&(prms_.preconditioner_side == 'L')) 
+
+        if ((prec_ != nullptr)&&(prms_.preconditioner_side == 'L'))
         {
             vec_ops_->assign(b, r_);
             prec_->apply(r_);
@@ -426,7 +426,7 @@ public:
         else
         {
             monitor_wrap.start(b);
-            
+
         }
 
         bool res = true;
@@ -438,13 +438,13 @@ public:
         // logged_obj_t::info_f("||r|| = %e", vec_ops_->norm(r_) );
         bool converged_by_checked_ritz_norm = false;
         std::size_t total_iterations = 0;
-        
+
         T previous_res = vec_ops_->norm(r_);
-        std::vector<scalar_type> reduction_rates; 
+        std::vector<scalar_type> reduction_rates;
         reduction_rates.reserve(prms_.batch_size);
 
         if( !monitor_.check_finished(x, r_) )
-        {            
+        {
             do
             {
                 T beta = vec_ops_->norm(r_);
@@ -460,6 +460,11 @@ public:
                 {
                     ++i;
                     ++monitor_;
+                    // Check max iterations after incrementing monitor
+                    if (monitor_.iters_performed() >= monitor_.max_iters_num())
+                    {
+                        break;
+                    }
                     vec_ops_->assign(r_, y_);
                     calc_krylov_vector(A, y_, r_);
                     residual_reg_->apply(r_);
@@ -472,7 +477,7 @@ public:
                         //T_vec V_k = vec_ops_->at(V_, restart_+1, k);
                         //T alpha = vec_ops_->scalar_prod(V_k, r_); // H(k,i) = (V[k],V[i+1])
 
-                        T alpha = vec_ops_->scalar_prod(V_, restart_+1, k, r_); // H(k,i) = (V[k],V[i+1])                        
+                        T alpha = vec_ops_->scalar_prod(V_, restart_+1, k, r_); // H(k,i) = (V[k],V[i+1])
                         // std::cout << "i = " << i << ", k = " << k << ", (v_k,r_) = " << alpha  << ", ||v_k|| = " << vec_ops_->norm(V_k) << std::endl;
 
                         ////old version
@@ -494,7 +499,7 @@ public:
                             if(correction_iterations>10)
                             {
                                 //if we are here, then the method will probably diverge.
-                                logged_obj_t::warning_f("failed in Gram-Schmidt reorthogonalization in iteration %i, restart %i with error %e", k, i, c_norm); 
+                                logged_obj_t::warning_f("failed in Gram-Schmidt reorthogonalization in iteration %i, restart %i with error %e", k, i, c_norm);
                                 break;
                             }
                         }
@@ -515,11 +520,11 @@ public:
                     dense_ops_->matrix_at(H_, i+1, i) = h_ip;
 
                     //T_vec V_ip1 = vec_ops_->at(V_, restart_+1, i+1); //old version
-                    
+
                     vec_ops_->scale(1.0/h_ip, r_);
                     //vec_ops_->assign(r_, V_ip1); //old version
                     vec_ops_->assign(r_, V_, restart_+1, i+1);
-                    
+
                     // plane_rotation_(H_, cs_, sn_, s_, i); //QR via Givens rotations
                     dense_ops_->plane_rotation_col(H_, cs_, sn_, s_, i);
 
@@ -568,13 +573,13 @@ public:
                         // std::cout << "residual: " << std::endl;
                         // dense_ops_->print_col_vector(rr,2);
                         // std::cout << "H_:" << std::endl;
-                        // dense_ops_->print_matrix(H_,15);            
+                        // dense_ops_->print_matrix(H_,15);
 
                         construct_solution(i, s_h_, y_);
                         calc_right_precond_solution(y_);
                         residual_reg_->apply(y_);
                         vec_ops_->add_lin_comb(1.0, y_, 1.0, x);
-                        calc_left_preconditioned_residual(A, x, b, r_); 
+                        calc_left_preconditioned_residual(A, x, b, r_);
                         residual_reg_->apply(r_);
 
                         //resid_estimate = vec_ops_->norm(r_);
@@ -592,7 +597,7 @@ public:
                     }
                 }
                 while( i + 1 < restart_);
-                
+
                 if(!converged_by_checked_ritz_norm)
                 {
                     // std::cout << "s_:" << std::endl;
@@ -605,12 +610,12 @@ public:
                         residual_reg_->apply(y_);
                         vec_ops_->add_lin_comb(1.0, y_, 1.0, x);
                         calc_left_preconditioned_residual(A, x, b, r_);
-                        residual_reg_->apply(r_);   
+                        residual_reg_->apply(r_);
                     // std::cout << "norm r = " << vec_ops_->norm(r_);
                     // exit(-1);
                 }
 
-            } 
+            }
             while(!converged_by_checked_ritz_norm && !monitor_.check_finished(x, r_) );
 
         }
@@ -618,11 +623,11 @@ public:
         res = monitor_.converged();
         if(!res)
             logged_obj_t::error_f("solve: linear solver failed to converge");
-        
+
         stop_use_all();
 
         return res;
-    
+
     }
 
     bool solve(const vector_type &b, vector_type &x)const
