@@ -28,7 +28,7 @@ struct jacobi_op_kernel
 
     __DEVICE_TAG__ void operator()( const IdxND idx ) const
     {
-        TensorType state{ 0, 0 };
+        TensorType state{ Scalar(0), Scalar(0) };
 
         auto curr = in.get_vec( idx );
 
@@ -79,7 +79,7 @@ struct jacobi_op_kernel
                 next_val = in.get_vec( idx + ej )[0];
             }
 
-            state[0] += D * ( next_val + prev_val - 2 * curr[0] ) / ( hj * hj );
+            state[0] += D * ( next_val + prev_val - Scalar(2) * curr[0] ) / ( hj * hj );
         }
         state[0] -= curr[1] * dt_inf;
 
@@ -132,7 +132,7 @@ struct jacobi_op_kernel
                 next_val = in.get_vec( idx + ej )[1];
             }
 
-            state[1] += gamma * ( next_val + prev_val - 2 * curr[1] ) / ( hj * hj );
+            state[1] += gamma * ( next_val + prev_val - Scalar(2) * curr[1] ) / ( hj * hj );
         }
 
         out.set_vec( state, idx );

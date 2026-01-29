@@ -30,7 +30,7 @@ struct jacobi_pre_kernel
 
     __DEVICE_TAG__ void operator()( const IdxND idx ) const
     {
-        MatType mat{ 0., 0., 0., 0. };
+        MatType mat{ Scalar(0), Scalar(0), Scalar(0), Scalar(0) };
 
         auto vec = v.get_vec( idx );
 
@@ -40,7 +40,7 @@ struct jacobi_pre_kernel
             const auto N  = range[j];
             const auto hj = step[j];
 
-            TensorType diag_j{ -2.0, -2.0 };
+            TensorType diag_j{ Scalar(-2), Scalar(-2) };
 
             if ( idx[j] == 0 )
             {
@@ -76,7 +76,7 @@ struct jacobi_pre_kernel
         mat( 0, 1 ) = -dt_inf;
         Scalar phi = vector.get_vec( idx )[1];
         mat( 1, 1 ) -= phobic_en.get_derivative( phi );
-        mat( 1, 0 ) = 1.;
+        mat( 1, 0 ) = Scalar(1);
 
         auto result = inv( mat ) * vec;
         v.set_vec( result, idx );

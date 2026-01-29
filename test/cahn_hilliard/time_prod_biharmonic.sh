@@ -31,7 +31,7 @@ OUTPUT_BASE="time_biharmonic_prod"
 GPU_DEVICE="${1:-0}"
 
 # OMP thread counts to test
-OMP_THREADS=(2 4 8 16 32 64)
+OMP_THREADS=(32 64 96 128)
 
 echo "=========================================="
 echo "Grandiose Timing Measurement"
@@ -97,17 +97,17 @@ export CUDA_VISIBLE_DEVICES="${GPU_DEVICE}"
 # ==========================================
 # CPU Platform
 # ==========================================
-echo "=========================================="
-echo "Testing CPU Platform"
-echo "=========================================="
-for solver in jacobi gmres; do
-    for prec in diag mg; do
-        for float_type in f d; do
-            run_test "cpu" "1" "$solver" "$prec" "$float_type"
-            echo ""
-        done
-    done
-done
+# echo "=========================================="
+# echo "Testing CPU Platform"
+# echo "=========================================="
+# for solver in jacobi gmres; do
+#     for prec in diag mg; do
+#         for float_type in f d; do
+#             run_test "cpu" "1" "$solver" "$prec" "$float_type"
+#             echo ""
+#         done
+#     done
+# done
 
 # ==========================================
 # OMP Platform (with different thread counts)
