@@ -19,7 +19,7 @@
 # Each run creates its own times.dat and conv_history.dat files in its output folder
 
 # Tolerance settings (adjust these as needed)
-TOLERANCE_FLOAT=1e-5
+TOLERANCE_FLOAT=6e-4
 TOLERANCE_DOUBLE=1e-10
 
 # Parse CLI arguments with defaults
@@ -74,7 +74,7 @@ for solver in jacobi gmres; do
             fi
 
             # Run the solver
-            if ./"$binary" "$solver" "$prec" "$GRID_SIZE" "$prefix" --tolerance "$tolerance" --max-iterations "$MAX_ITERATIONS" --verbose ; then
+            if ./"$binary" "$solver" "$prec" "$GRID_SIZE" "$prefix" --tolerance "$tolerance" --max-iterations "$MAX_ITERATIONS" ; then
                 echo "SUCCESS: solver=${solver}, prec=${prec}, arch=${ARCH}, type=${type_label}, size=${GRID_SIZE}"
             else
                 echo "ERROR: Execution failed for solver=${solver}, prec=${prec}, arch=${ARCH}, type=${type_label}, size=${GRID_SIZE}"

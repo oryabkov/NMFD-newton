@@ -6,7 +6,9 @@ This script:
 1. Scans a directory for nvprof CSV files (nvprof_*.csv)
 2. Extracts solver, preconditioner, size, and precision from each file
 3. Sums all FLOP operations from the "Avg" column
-4. Generates profile_summary_float.csv and profile_summary_double.csv
+4. Reads iteration count from times.dat in corresponding folders
+5. Divides total FLOP by iteration count to get per-iteration TFLOP
+6. Generates profile_summary_float.csv and profile_summary_double.csv
 """
 
 import csv
@@ -50,10 +52,58 @@ def extract_size_from_csv(csv_path):
     return None
 
 
-def process_csv_file(csv_path):
+def find_matching_folder(directory, solver, prec, precision, size):
+    """
+    Find the folder matching the pattern: <solver>_<prec>_cuda_<precision>_<size>_*
+    Returns Path to the folder or None if not found.
+    """
+    directory = Path(directory)
+    # Pattern: <solver>_<prec>_cuda_<float|double>_<size>_*
+    pattern = f"{solver}_{prec}_cuda_{precision}_{size}_*"
+
+    matching_folders = list(directory.glob(pattern))
+    if not matching_folders:
+        return None
+    if len(matching_folders) > 1:
+        print(f"Warning: Multiple folders match pattern {pattern}, using first: {matching_folders[0]}", file=sys.stderr)
+    return matching_folders[0]
+
+
+def read_iterations_from_times_dat(folder_path):
+    """
+    Read the number of iterations from times.dat file in the given folder.
+    Returns iters_n as integer or None if not found.
+    """
+    times_dat_path = Path(folder_path) / 'times.dat'
+    if not times_dat_path.exists():
+        return None
+
+    try:
+        with open(times_dat_path, 'r') as f:
+            reader = csv.reader(f)
+            # Read header
+            header = next(reader)
+            if 'iters_n' not in header:
+                print(f"Warning: 'iters_n' column not found in {times_dat_path}", file=sys.stderr)
+                return None
+
+            iters_n_idx = header.index('iters_n')
+
+            # Read data row
+            data_row = next(reader)
+            if len(data_row) > iters_n_idx:
+                iters_n = int(float(data_row[iters_n_idx]))
+                return iters_n
+    except Exception as e:
+        print(f"Warning: Could not read iterations from {times_dat_path}: {e}", file=sys.stderr)
+
+    return None
+
+
+def process_csv_file(csv_path, directory):
     """
     Process a single nvprof CSV file and return summary data.
-    Returns: (solver, prec, size, precision, total_flop) or None if error
+    Returns: (solver, prec, size, precision, total_flop, iters_n) or None if error
     """
     filename = os.path.basename(csv_path)
     parsed = parse_filename(filename)
@@ -69,6 +119,18 @@ def process_csv_file(csv_path):
     if size is None:
         print(f"Warning: Could not extract size from {filename}, skipping", file=sys.stderr)
         return None
+
+    # Find matching folder and read iterations
+    matching_folder = find_matching_folder(directory, solver, prec, precision, size)
+    iters_n = None
+    if matching_folder:
+        iters_n = read_iterations_from_times_dat(matching_folder)
+        if iters_n is None:
+            print(f"Warning: Could not read iterations from {matching_folder}/times.dat, using 1", file=sys.stderr)
+            iters_n = 1
+    else:
+        print(f"Warning: Could not find matching folder for {filename}, using 1 iteration", file=sys.stderr)
+        iters_n = 1
 
     # Read CSV and sum FLOPs from "Avg" column multiplied by "Invocations"
     total_flop = 0
@@ -118,7 +180,7 @@ def process_csv_file(csv_path):
         print(f"Error processing {csv_path}: {e}", file=sys.stderr)
         return None
 
-    return (solver, prec, size, precision, total_flop)
+    return (solver, prec, size, precision, total_flop, iters_n)
 
 
 def process_directory(directory):
@@ -139,12 +201,14 @@ def process_directory(directory):
     print(f"Found {len(csv_files)} CSV files to process...", file=sys.stderr)
 
     for csv_file in csv_files:
-        data = process_csv_file(csv_file)
+        data = process_csv_file(csv_file, directory)
         if data:
-            solver, prec, size, precision, total_flop = data
-            tflop = total_flop / 1e12  # Convert to TFLOP
+            solver, prec, size, precision, total_flop, iters_n = data
+            # Divide by number of iterations to get per-iteration FLOP
+            flop_per_iter = total_flop / iters_n
+            tflop = flop_per_iter / 1e12  # Convert to TFLOP
             results[precision].append((solver, prec, size, tflop))
-            print(f"  Processed {csv_file.name}: {solver}, {prec}, size={size}, {precision}, {tflop:.6f} TFLOP", file=sys.stderr)
+            print(f"  Processed {csv_file.name}: {solver}, {prec}, size={size}, {precision}, {iters_n} iters, {tflop:.6f} TFLOP/iter", file=sys.stderr)
 
     return results
 

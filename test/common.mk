@@ -21,7 +21,7 @@ HOSTFLAGS = $(TARGET_GCC) -std=c++17
 HOSTCOMPILER = g++
 #CUDAFLAGS = $(TARGET_NVCC)
 #MPICOMPILER = $(MPI_ROOT_PATH)/bin/mpic++
-CUDA = /usr/local/cuda-12.0 #/opt/cuda#/opt/cuda_all/cuda_11.2
+CUDA = /usr/local/cuda-12.0#/opt/cuda#/opt/cuda_all/cuda_11.2
 #SM = $(CUDA_ARCH)
 #MPI = $(MPI_ROOT_PATH)
 CUDACOMPILER = ${CUDA}/bin/nvcc

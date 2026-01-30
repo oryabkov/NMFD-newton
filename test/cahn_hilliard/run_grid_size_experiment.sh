@@ -22,7 +22,8 @@ GPU_DEVICE="${3:-0}"
 
 # Default grid sizes if not provided
 if [ $# -lt 4 ]; then
-    GRID_SIZES=(2 4 8 16 32 64)
+    GRID_SIZES=(2 4 8 16 32 64 128 256)
+    # GRID_SIZES=(64)
 else
     # Shift to skip arch, max_iterations, and gpu_device arguments
     shift
