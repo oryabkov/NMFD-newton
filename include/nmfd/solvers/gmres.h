@@ -460,11 +460,7 @@ public:
                 {
                     ++i;
                     ++monitor_;
-                    // Check max iterations after incrementing monitor
-                    if (monitor_.iters_performed() >= monitor_.max_iters_num())
-                    {
-                        break;
-                    }
+
                     vec_ops_->assign(r_, y_);
                     calc_krylov_vector(A, y_, r_);
                     residual_reg_->apply(r_);
