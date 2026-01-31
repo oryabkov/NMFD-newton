@@ -33,14 +33,28 @@ test_biharmonic_all: test_biharmonic_cpu_f test_biharmonic_omp_f test_biharmonic
 
 # ----- Cahn-Hilliard -----
 
-test_cahn_hilliard_cpu: test_cahn_hilliard.cpp
-	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_SERIAL_CPU test_cahn_hilliard.cpp -o test_cahn_hilliard_cpu.bin
+test_cahn_hilliard_cpu_f: test_cahn_hilliard.cpp
+	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_SERIAL_CPU test_cahn_hilliard.cpp -o test_cahn_hilliard_cpu_f.bin
 
-test_cahn_hilliard_omp: test_cahn_hilliard.cpp
-	$(HOSTCOMPILER) $(OMP_FLAGS) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_OMP test_cahn_hilliard.cpp -o test_cahn_hilliard_omp.bin
+test_cahn_hilliard_omp_f: test_cahn_hilliard.cpp
+	$(HOSTCOMPILER) $(OMP_FLAGS) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_OMP test_cahn_hilliard.cpp -o test_cahn_hilliard_omp_f.bin
 
-test_cahn_hilliard_cuda: test_cahn_hilliard.cpp
-	$(CUDACOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA -x cu test_cahn_hilliard.cpp -o test_cahn_hilliard_cuda.bin
+test_cahn_hilliard_cuda_f: test_cahn_hilliard.cpp
+	$(CUDACOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA -x cu test_cahn_hilliard.cpp -o test_cahn_hilliard_cuda_f.bin
+
+test_cahn_hilliard_cpu_d: test_cahn_hilliard.cpp
+	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_SERIAL_CPU -DUSE_DOUBLE_PRECISION test_cahn_hilliard.cpp -o test_cahn_hilliard_cpu_d.bin
+
+test_cahn_hilliard_omp_d: test_cahn_hilliard.cpp
+	$(HOSTCOMPILER) $(OMP_FLAGS) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_OMP -DUSE_DOUBLE_PRECISION test_cahn_hilliard.cpp -o test_cahn_hilliard_omp_d.bin
+
+test_cahn_hilliard_cuda_d: test_cahn_hilliard.cpp
+	$(CUDACOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA -DUSE_DOUBLE_PRECISION -x cu test_cahn_hilliard.cpp -o test_cahn_hilliard_cuda_d.bin
+
+
+test_cahn_hilliard_all: test_cahn_hilliard_cpu_f test_cahn_hilliard_omp_f test_cahn_hilliard_cuda_f \
+                        test_cahn_hilliard_cpu_d test_cahn_hilliard_omp_d test_cahn_hilliard_cuda_d
+
 
 # ----- Time depentent Cahn-Hilliard -----
 
