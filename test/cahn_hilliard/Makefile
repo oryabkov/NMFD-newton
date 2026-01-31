@@ -58,14 +58,28 @@ test_cahn_hilliard_all: test_cahn_hilliard_cpu_f test_cahn_hilliard_omp_f test_c
 
 # ----- Time depentent Cahn-Hilliard -----
 
-test_time_cahn_hilliard_cpu: test_time_cahn_hilliard.cpp
-	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_SERIAL_CPU test_time_cahn_hilliard.cpp -o test_time_cahn_hilliard_cpu.bin
+test_time_cahn_hilliard_cpu_f: test_time_cahn_hilliard.cpp
+	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_SERIAL_CPU test_time_cahn_hilliard.cpp -o test_time_cahn_hilliard_cpu_f.bin
 
-test_time_cahn_hilliard_omp: test_time_cahn_hilliard.cpp
-	$(HOSTCOMPILER) $(OMP_FLAGS) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_OMP test_time_cahn_hilliard.cpp -o test_time_cahn_hilliard_omp.bin
+test_time_cahn_hilliard_omp_f: test_time_cahn_hilliard.cpp
+	$(HOSTCOMPILER) $(OMP_FLAGS) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_OMP test_time_cahn_hilliard.cpp -o test_time_cahn_hilliard_omp_f.bin
 
-test_time_cahn_hilliard_cuda: test_time_cahn_hilliard.cpp
-	$(CUDACOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA -x cu test_time_cahn_hilliard.cpp -o test_time_cahn_hilliard_cuda.bin
+test_time_cahn_hilliard_cuda_f: test_time_cahn_hilliard.cpp
+	$(CUDACOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA -x cu test_time_cahn_hilliard.cpp -o test_time_cahn_hilliard_cuda_f.bin
+
+test_time_cahn_hilliard_cpu_d: test_time_cahn_hilliard.cpp
+	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_SERIAL_CPU -DUSE_DOUBLE_PRECISION test_time_cahn_hilliard.cpp -o test_time_cahn_hilliard_cpu_d.bin
+
+test_time_cahn_hilliard_omp_d: test_time_cahn_hilliard.cpp
+	$(HOSTCOMPILER) $(OMP_FLAGS) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_OMP -DUSE_DOUBLE_PRECISION test_time_cahn_hilliard.cpp -o test_time_cahn_hilliard_omp_d.bin
+
+test_time_cahn_hilliard_cuda_d: test_time_cahn_hilliard.cpp
+	$(CUDACOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA -DUSE_DOUBLE_PRECISION -x cu test_time_cahn_hilliard.cpp -o test_time_cahn_hilliard_cuda_d.bin
+
+
+test_time_cahn_hilliard_all: test_time_cahn_hilliard_cpu_f test_time_cahn_hilliard_omp_f test_time_cahn_hilliard_cuda_f \
+                             test_time_cahn_hilliard_cpu_d test_time_cahn_hilliard_omp_d test_time_cahn_hilliard_cuda_d
+
 
 # ----- Random init time depentent Cahn-Hilliard -----
 
