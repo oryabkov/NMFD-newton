@@ -25,7 +25,7 @@ TOLERANCE_DOUBLE=1e-10
 # Fixed parameters
 GRID_SIZE=256
 MAX_ITERATIONS=100
-OUTPUT_BASE="time_biharmonic_prod"
+OUTPUT_BASE="time_biharmonic_prod_h100"
 
 # Parse CLI arguments
 GPU_DEVICE="${1:-0}"
