@@ -15,331 +15,366 @@ template <class Type, class VectorTraits, class Backend, class Ordinal = std::pt
 class dense_vector_space
 {
 public:
-    using scalar_type = typename VectorTraits::scalar_type;
-    using vector_type = typename VectorTraits::vector_type;
+    using scalar_type   = typename VectorTraits::scalar_type;
+    using vector_type   = typename VectorTraits::vector_type;
     using for_each_type = typename Backend::template for_each_type<Ordinal>;
-    using reduce_type = typename Backend::reduce_type;
+    using reduce_type   = typename Backend::reduce_type;
+    using memory_type   = typename Backend::memory_type;
 
 public:
     using check_is_valid_number_kernel = kernels::check_is_valid_number<scalar_type, vector_type>;
-    using scalar_prod_kernel = kernels::scalar_prod<scalar_type, vector_type>;
-    using add_mul_scalar_kernel = kernels::add_mul_scalar<scalar_type>;
-    using assign_scalar_kernel = kernels::assign_scalar<scalar_type>;
-    using norm_inf_kernel = kernels::norm_inf<scalar_type, vector_type>;
-    using sum_kernel = kernels::sum<scalar_type, vector_type>;
-    using asum_kernel = kernels::asum<scalar_type, vector_type>;
-    using assign_kernel = kernels::assign<scalar_type>;
-    using assign_lin_comb_kernel = kernels::assign_lin_comb<scalar_type>;
-    using add_lin_comb_kernel = kernels::add_lin_comb<scalar_type>;
-    using make_abs_copy_kernel = kernels::make_abs_copy<scalar_type>;
-    using make_abs_kernel = kernels::make_abs<scalar_type>;
-    using max_pointwise_kernel = kernels::max_pointwise<scalar_type>;
-    using min_pointwise_kernel = kernels::min_pointwise<scalar_type>;
-    using mul_pointwise_kernel = kernels::mul_pointwise<scalar_type>;
-    using div_pointwise_kernel = kernels::div_pointwise<scalar_type>;
+    using scalar_prod_kernel           = kernels::scalar_prod<scalar_type, vector_type>;
+    using add_mul_scalar_kernel        = kernels::add_mul_scalar<scalar_type>;
+    using assign_scalar_kernel         = kernels::assign_scalar<scalar_type>;
+    using norm_inf_kernel              = kernels::norm_inf<scalar_type, vector_type>;
+    using sum_kernel                   = kernels::sum<scalar_type, vector_type>;
+    using asum_kernel                  = kernels::asum<scalar_type, vector_type>;
+    using assign_kernel                = kernels::assign<scalar_type>;
+    using assign_lin_comb_1_kernel     = kernels::assign_lin_comb_1<scalar_type>;
+    using assign_lin_comb_2_kernel     = kernels::assign_lin_comb_2<scalar_type>;
+    using add_lin_comb_1_kernel        = kernels::add_lin_comb_1<scalar_type>;
+    using add_lin_comb_2_kernel        = kernels::add_lin_comb_2<scalar_type>;
+    using add_lin_comb_3_kernel        = kernels::add_lin_comb_3<scalar_type>;
+    using make_abs_copy_kernel         = kernels::make_abs_copy<scalar_type>;
+    using make_abs_kernel              = kernels::make_abs<scalar_type>;
+    using max_pointwise_kernel         = kernels::max_pointwise<scalar_type>;
+    using min_pointwise_kernel         = kernels::min_pointwise<scalar_type>;
+    using mul_pointwise_kernel         = kernels::mul_pointwise<scalar_type>;
+    using div_pointwise_kernel         = kernels::div_pointwise<scalar_type>;
 
 public:
-    [[nodiscard]] size_t get_size() const
+    dense_vector_space() = default;
+    explicit dense_vector_space( const VectorTraits &vt ) : vt_( vt )
     {
-        return vt_.get_size();
+        vt_.alloc( vt_.loc_size(), helper_ );
     }
 
-    [[nodiscard]] Ordinal get_loc_size(const vector_type& x) const
+    [[nodiscard]] size_t size() const
     {
-        return vt_.get_loc_size(x);
+        return vt_.size();
     }
 
-    void init_vector(vector_type& vec) const
+    [[nodiscard]] Ordinal get_loc_size( const vector_type &x ) const
     {
-        vt_.alloc(vt_.loc_size(), vec);
+        return vt_.get_loc_size( x );
+    }
+
+    void init_vector( vector_type &vec ) const
+    {
+        vt_.alloc( vt_.loc_size(), vec );
     }
     template <class... Args>
-    void init_vectors(Args&&... args) const
+    void init_vectors( Args &&...args ) const
     {
-        std::initializer_list<int>{((void)init_vector(std::forward<Args>(args)), 0)...};
+        std::initializer_list<int>{ ( (void)init_vector( std::forward<Args>( args ) ), 0 )... };
     }
 
-    void free_vector(vector_type& vec) const
+    void free_vector( vector_type &vec ) const
     {
-        vt_.dealloc(vec);
+        vt_.dealloc( vec );
     }
     template <class... Args>
-    void free_vectors(Args&&... args) const
+    void free_vectors( Args &&...args ) const
     {
-        std::initializer_list<int>{((void)free_row_vector(std::forward<Args>(args)), 0)...};
+        std::initializer_list<int>{ ( (void)free_row_vector( std::forward<Args>( args ) ), 0 )... };
     }
 
-    void start_use_vector(vector_type& x) const
-    {
-    }
-    template <class... Args>
-    void start_use_vectors(Args&&... args) const
-    {
-    }
-
-    void stop_use_vector(vector_type& x) const
+    void start_use_vector( vector_type &x ) const
     {
     }
     template <class... Args>
-    void stop_use_vectors(Args&&... args) const
+    void start_use_vectors( Args &&...args ) const
     {
     }
 
-    bool check_is_valid_number(const vector_type& x) const
+    void stop_use_vector( vector_type &x ) const
     {
-
-        for_each_inst_(check_is_valid_number_kernel{vt_.get_raw_ptr(x), vt_.get_raw_ptr(helper_)}, get_loc_size(x));
-        return reduce_inst_(get_loc_size(x), vt_.get_raw_ptr(helper_), scalar_type{0});
     }
-    [[nodiscard]] scalar_type scalar_prod(const vector_type& x, const vector_type& y) const
+    template <class... Args>
+    void stop_use_vectors( Args &&...args ) const
     {
-        for_each_inst_(scalar_prod_kernel{vt_.get_raw_ptr(x), vt_.get_raw_ptr(y), vt_.get_raw_ptr(helper_)},
-                       get_loc_size(x));
-        return reduce_inst_(get_loc_size(x), vt_.get_raw_ptr(helper_), scalar_type{0.f});
-    }
-    [[nodiscard]] scalar_type scalar_prod_l2(const vector_type& x, const vector_type& y) const
-    {
-        return scalar_prod(x, y);
     }
 
-    [[nodiscard]] scalar_type norm(const vector_type& x) const
+    bool check_is_valid_number( const vector_type &x ) const
     {
-        return std::sqrt(scalar_prod(x, x));
+        return std::isfinite( norm2_sq( x ) );
     }
-    [[nodiscard]] scalar_type norm_sq(const vector_type& x) const
+    [[nodiscard]] scalar_type scalar_prod( const vector_type &x, const vector_type &y ) const
     {
-        return scalar_prod(x, x);
+        for_each_inst_(
+            scalar_prod_kernel{ vt_.get_raw_ptr( x ), vt_.get_raw_ptr( y ), vt_.get_raw_ptr( helper_ ) },
+            get_loc_size( x )
+        );
+        return reduce_inst_( get_loc_size( x ), vt_.get_raw_ptr( helper_ ), scalar_type{ 0.f } );
     }
-    [[nodiscard]] scalar_type norm2_sq(const vector_type& x) const
+    [[nodiscard]] scalar_type scalar_prod_l2( const vector_type &x, const vector_type &y ) const
     {
-        return norm_sq(x);
+        return scalar_prod( x, y );
     }
-    [[nodiscard]] scalar_type norm2(const vector_type& x) const
+
+    [[nodiscard]] scalar_type norm( const vector_type &x ) const
     {
-        return std::sqrt(scalar_prod(x, x));
+        return std::sqrt( scalar_prod( x, x ) );
     }
-    [[nodiscard]] scalar_type norm_l2_sq(const vector_type& x) const
+    [[nodiscard]] scalar_type norm_sq( const vector_type &x ) const
     {
-        return norm_sq(x);
+        return scalar_prod( x, x );
     }
-    [[nodiscard]] scalar_type norm_l2(const vector_type& x) const
+    [[nodiscard]] scalar_type norm2_sq( const vector_type &x ) const
     {
-        return std::sqrt(scalar_prod(x, x));
+        return norm_sq( x );
+    }
+    [[nodiscard]] scalar_type norm2( const vector_type &x ) const
+    {
+        return std::sqrt( scalar_prod( x, x ) );
+    }
+    [[nodiscard]] scalar_type norm_l2_sq( const vector_type &x ) const
+    {
+        return norm_sq( x );
+    }
+    [[nodiscard]] scalar_type norm_l2( const vector_type &x ) const
+    {
+        return std::sqrt( scalar_prod( x, x ) );
     }
     /// asum(x)
-    [[nodiscard]] scalar_type norm1(const vector_type& x) const
+    [[nodiscard]] scalar_type norm1( const vector_type &x ) const
     {
-        return asum(x);
+        return asum( x );
     }
     /// returns some weighted L1/l1 norm (problem dependent)
-    [[nodiscard]] scalar_type norm_l1(const vector_type& x) const
+    [[nodiscard]] scalar_type norm_l1( const vector_type &x ) const
     {
-        return norm1(x);
+        return norm1( x );
     }
-    [[nodiscard]] scalar_type norm_inf(const vector_type& x) const
+    [[nodiscard]] scalar_type norm_inf( const vector_type &x ) const
     {
         scalar_type max_val = 0.0;
-        for (size_t j = 0; j < get_loc_size(x); j++)
+        for ( size_t j = 0; j < get_loc_size( x ); j++ )
         {
-            max_val = (max_val < std::abs(x[j])) ? std::abs(x[j]) : max_val;
+            const auto x_j = std::abs( get_value_at_point( j, x ) );
+            max_val        = max_val < x_j ? x_j : max_val;
         }
         return max_val;
     }
     /// returns maximum of all elements absolute weighted values (problem
     /// dependent)
-    [[nodiscard]] scalar_type norm_l_inf(const vector_type& x) const
+    [[nodiscard]] scalar_type norm_l_inf( const vector_type &x ) const
     {
-        return norm_inf(x);
+        return norm_inf( x );
     }
 
-    [[nodiscard]] scalar_type sum(const vector_type& x) const
+    [[nodiscard]] scalar_type sum( const vector_type &x ) const
     {
-        for_each_inst_(sum_kernel{vt_.get_raw_ptr(x), vt_.get_raw_ptr(helper_)}, get_loc_size(x));
-        return reduce_inst_(get_loc_size(x), vt_.get_raw_ptr(helper_), scalar_type{0});
+        for_each_inst_( sum_kernel{ vt_.get_raw_ptr( x ), vt_.get_raw_ptr( helper_ ) }, get_loc_size( x ) );
+        return reduce_inst_( get_loc_size( x ), vt_.get_raw_ptr( helper_ ), scalar_type{ 0 } );
     }
-    [[nodiscard]] scalar_type asum(const vector_type& x) const
+    [[nodiscard]] scalar_type asum( const vector_type &x ) const
     {
-        for_each_inst_(asum_kernel{vt_.get_raw_ptr(x), vt_.get_raw_ptr(helper_)}, get_loc_size(x));
-        return reduce_inst_(get_loc_size(x), vt_.get_raw_ptr(helper_), scalar_type{0});
+        for_each_inst_( asum_kernel{ vt_.get_raw_ptr( x ), vt_.get_raw_ptr( helper_ ) }, get_loc_size( x ) );
+        return reduce_inst_( get_loc_size( x ), vt_.get_raw_ptr( helper_ ), scalar_type{ 0 } );
     }
 
-    scalar_type normalize(vector_type& x) const
+    scalar_type normalize( vector_type &x ) const
     {
-        auto norm_x = norm(x);
-        if (norm_x > 0.0)
+        auto norm_x = norm( x );
+        if ( norm_x > 0.0 )
         {
-            scale(static_cast<scalar_type>(1.0) / norm_x, x);
+            scale( static_cast<scalar_type>( 1.0 ) / norm_x, x );
         }
         return norm_x;
     }
 
-    void set_value_at_point(scalar_type val_x, size_t at, vector_type& x) const
+    void set_value_at_point( scalar_type val_x, size_t at, vector_type &x ) const
     {
-        x[at] = val_x;
+        memory_type::copy_from_host( sizeof( scalar_type ), &val_x, vt_.get_raw_ptr( x ) + at );
     }
-    scalar_type get_value_at_point(size_t at, const vector_type& x) const
+    scalar_type get_value_at_point( size_t at, const vector_type &x ) const
     {
-        return x[at];
+        scalar_type result;
+        memory_type::copy_to_host( sizeof( scalar_type ), vt_.get_raw_ptr( x ) + at, &result );
+        return result;
     }
     // calc: x := <vector_type with all elements equal to given scalar value>
-    void assign_scalar(const scalar_type scalar, vector_type& x) const
+    void assign_scalar( const scalar_type scalar, vector_type &x ) const
     {
-        for_each_inst_(assign_scalar_kernel{scalar, vt_.get_raw_ptr(x)}, get_loc_size(x));
+        for_each_inst_( assign_scalar_kernel{ scalar, vt_.get_raw_ptr( x ) }, get_loc_size( x ) );
     }
     // calc: x := mul_x*x + <vector_type of all scalar value>
-    void add_mul_scalar(const scalar_type scalar, const scalar_type mul_x, vector_type& x) const
+    void add_mul_scalar( const scalar_type scalar, const scalar_type mul_x, vector_type &x ) const
     {
-        for_each_inst_(add_mul_scalar_kernel{scalar, mul_x, vt_.get_raw_ptr(x)}, get_loc_size(x));
+        for_each_inst_( add_mul_scalar_kernel{ scalar, mul_x, vt_.get_raw_ptr( x ) }, get_loc_size( x ) );
     }
-    void scale(scalar_type scale, vector_type& x) const
+    void scale( scalar_type scale, vector_type &x ) const
     {
-        add_mul_scalar(static_cast<scalar_type>(0.0), scale, x);
+        add_mul_scalar( static_cast<scalar_type>( 0.0 ), scale, x );
     }
     // copy: y := x
-    void assign(const vector_type& x, vector_type& y) const
+    void assign( const vector_type &x, vector_type &y ) const
     {
-        for_each_inst_(assign_kernel{vt_.get_raw_ptr(x), vt_.get_raw_ptr(y)}, get_loc_size(x));
+        for_each_inst_( assign_kernel{ vt_.get_raw_ptr( x ), vt_.get_raw_ptr( y ) }, get_loc_size( x ) );
     }
     // calc: y := mul_x*x
-    void assign_lin_comb(scalar_type mul_x, const vector_type& x, vector_type& y) const
+    void assign_lin_comb( scalar_type mul_x, const vector_type &x, vector_type &y ) const
     {
-        // y := mul_x*x + 0*x
         for_each_inst_(
-            assign_lin_comb_kernel{mul_x, vt_.get_raw_ptr(x), scalar_type{0}, vt_.get_raw_ptr(x), vt_.get_raw_ptr(y)},
-            get_loc_size(x));
+            assign_lin_comb_1_kernel{ mul_x, vt_.get_raw_ptr( x ), vt_.get_raw_ptr( y ) }, get_loc_size( x )
+        );
     }
 
     // calc: z := mul_x*x + mul_y*y
-    void assign_lin_comb(scalar_type mul_x, const vector_type& x, scalar_type mul_y, const vector_type& y,
-                         vector_type& z) const
+    void assign_lin_comb(
+        scalar_type mul_x, const vector_type &x, scalar_type mul_y, const vector_type &y, vector_type &z
+    ) const
     {
-        for_each_inst_(assign_lin_comb_kernel{mul_x, vt_.get_raw_ptr(x), mul_y, vt_.get_raw_ptr(y), vt_.get_raw_ptr(z)},
-                       get_loc_size(x));
+        for_each_inst_(
+            assign_lin_comb_2_kernel{ mul_x, vt_.get_raw_ptr( x ), mul_y, vt_.get_raw_ptr( y ), vt_.get_raw_ptr( z ) },
+            get_loc_size( x )
+        );
     }
     // calc: result := mul_x*x + mul_y*y (alias for assign_lin_comb with different
     // argument order)
-    void assign_mul(scalar_type mul_x, const vector_type& x, scalar_type mul_y, const vector_type& y,
-                    vector_type& result) const
+    void assign_mul(
+        scalar_type mul_x, const vector_type &x, scalar_type mul_y, const vector_type &y, vector_type &result
+    ) const
     {
-        assign_lin_comb(mul_x, x, mul_y, y, result);
+        assign_lin_comb( mul_x, x, mul_y, y, result );
     }
     // calc: y := mul_x*x + y
-    void add_lin_comb(scalar_type mul_x, const vector_type& x, vector_type& y) const
+    void add_lin_comb( scalar_type mul_x, const vector_type &x, vector_type &y ) const
     {
-        // y := mul_x*x + 0*x + 1*y (using x as dummy for second vector since mul=0)
-        for_each_inst_(add_lin_comb_kernel{mul_x, vt_.get_raw_ptr(x), scalar_type{0}, vt_.get_raw_ptr(x),
-                                           scalar_type{1}, vt_.get_raw_ptr(y)},
-                       get_loc_size(x));
+        for_each_inst_( add_lin_comb_1_kernel{ mul_x, vt_.get_raw_ptr( x ), vt_.get_raw_ptr( y ) }, get_loc_size( x ) );
     }
     // calc: y := mul_x*x + mul_y*y
-    void add_lin_comb(scalar_type mul_x, const vector_type& x, scalar_type mul_y, vector_type& y) const
+    void add_lin_comb( scalar_type mul_x, const vector_type &x, scalar_type mul_y, vector_type &y ) const
     {
-        // y := mul_x*x + mul_y*y + 0*y
-        for_each_inst_(add_lin_comb_kernel{mul_x, vt_.get_raw_ptr(x), mul_y, vt_.get_raw_ptr(y), scalar_type{0},
-                                           vt_.get_raw_ptr(y)},
-                       get_loc_size(x));
+        for_each_inst_(
+            add_lin_comb_2_kernel{ mul_x, vt_.get_raw_ptr( x ), mul_y, vt_.get_raw_ptr( y ) }, get_loc_size( x )
+        );
     }
     // calc: z := mul_x*x + mul_y*y + mul_z*z
-    void add_lin_comb(scalar_type mul_x, const vector_type& x, scalar_type mul_y, const vector_type& y,
-                      scalar_type mul_z, vector_type& z) const
+    void add_lin_comb(
+        scalar_type        mul_x,
+        const vector_type &x,
+        scalar_type        mul_y,
+        const vector_type &y,
+        scalar_type        mul_z,
+        vector_type       &z
+    ) const
     {
         for_each_inst_(
-            add_lin_comb_kernel{mul_x, vt_.get_raw_ptr(x), mul_y, vt_.get_raw_ptr(y), mul_z, vt_.get_raw_ptr(z)},
-            get_loc_size(x));
+            add_lin_comb_3_kernel{
+                mul_x, vt_.get_raw_ptr( x ), mul_y, vt_.get_raw_ptr( y ), mul_z, vt_.get_raw_ptr( z )
+            },
+            get_loc_size( x )
+        );
     }
 
-    void make_abs_copy(const vector_type& x, vector_type& y) const
+    void make_abs_copy( const vector_type &x, vector_type &y ) const
     {
-        for_each_inst_(make_abs_copy_kernel{vt_.get_raw_ptr(x), vt_.get_raw_ptr(y)}, get_loc_size(x));
+        for_each_inst_( make_abs_copy_kernel{ vt_.get_raw_ptr( x ), vt_.get_raw_ptr( y ) }, get_loc_size( x ) );
     }
-    void make_abs(vector_type& x) const
+    void make_abs( vector_type &x ) const
     {
-        for_each_inst_(make_abs_kernel{vt_.get_raw_ptr(x)}, get_loc_size(x));
+        for_each_inst_( make_abs_kernel{ vt_.get_raw_ptr( x ) }, get_loc_size( x ) );
     }
     // y_j = max(x_j,y_j,sc)
-    void max_pointwise(const scalar_type sc, const vector_type& x, vector_type& y) const
+    void max_pointwise( const scalar_type sc, const vector_type &x, vector_type &y ) const
     {
-        for_each_inst_(max_pointwise_kernel{sc, vt_.get_raw_ptr(x), vt_.get_raw_ptr(y)}, get_loc_size(x));
+        for_each_inst_( max_pointwise_kernel{ sc, vt_.get_raw_ptr( x ), vt_.get_raw_ptr( y ) }, get_loc_size( x ) );
     }
-    void max_pointwise(const scalar_type sc, vector_type& y) const
+    void max_pointwise( const scalar_type sc, vector_type &y ) const
     {
-        for_each_inst_(max_pointwise_kernel{sc, vt_.get_raw_ptr(y), vt_.get_raw_ptr(y)}, get_loc_size(y));
+        for_each_inst_( max_pointwise_kernel{ sc, vt_.get_raw_ptr( y ), vt_.get_raw_ptr( y ) }, get_loc_size( y ) );
     }
     // y_j = min(x_j,y_j,sc)
-    void min_pointwise(const scalar_type sc, const vector_type& x, vector_type& y) const
+    void min_pointwise( const scalar_type sc, const vector_type &x, vector_type &y ) const
     {
-        for_each_inst_(min_pointwise_kernel{sc, vt_.get_raw_ptr(x), vt_.get_raw_ptr(y)}, get_loc_size(x));
+        for_each_inst_( min_pointwise_kernel{ sc, vt_.get_raw_ptr( x ), vt_.get_raw_ptr( y ) }, get_loc_size( x ) );
     }
-    void min_pointwise(const scalar_type sc, vector_type& y) const
+    void min_pointwise( const scalar_type sc, vector_type &y ) const
     {
-        for_each_inst_(min_pointwise_kernel{sc, vt_.get_raw_ptr(y), vt_.get_raw_ptr(y)}, get_loc_size(y));
+        for_each_inst_( min_pointwise_kernel{ sc, vt_.get_raw_ptr( y ), vt_.get_raw_ptr( y ) }, get_loc_size( y ) );
     }
     // calc: x := x*mul_y*y
-    void mul_pointwise(vector_type& x, const scalar_type mul_y, const vector_type& y) const
+    void mul_pointwise( vector_type &x, const scalar_type mul_y, const vector_type &y ) const
     {
         for_each_inst_(
-            mul_pointwise_kernel{scalar_type{1}, vt_.get_raw_ptr(x), mul_y, vt_.get_raw_ptr(y), vt_.get_raw_ptr(x)},
-            get_loc_size(x));
+            mul_pointwise_kernel{
+                scalar_type{ 1 }, vt_.get_raw_ptr( x ), mul_y, vt_.get_raw_ptr( y ), vt_.get_raw_ptr( x )
+            },
+            get_loc_size( x )
+        );
     }
     // calc: z := mul_x*x*mul_y*y
-    void mul_pointwise(const scalar_type mul_x, const vector_type& x, const scalar_type mul_y, const vector_type& y,
-                       vector_type& z) const
-    {
-        for_each_inst_(mul_pointwise_kernel{mul_x, vt_.get_raw_ptr(x), mul_y, vt_.get_raw_ptr(y), vt_.get_raw_ptr(z)},
-                       get_loc_size(x));
-    }
-    // calc: z := (mul_x*x)/(mul_y*y)
-    void div_pointwise(const scalar_type mul_x, const vector_type& x, const scalar_type mul_y, const vector_type& y,
-                       vector_type& z) const
-    {
-        for_each_inst_(div_pointwise_kernel{mul_x, vt_.get_raw_ptr(x), mul_y, vt_.get_raw_ptr(y), vt_.get_raw_ptr(z)},
-                       get_loc_size(x));
-    }
-    // calc: x := x/(mul_y*y)
-    void div_pointwise(vector_type& x, const scalar_type mul_y, const vector_type& y) const
+    void mul_pointwise(
+        const scalar_type mul_x, const vector_type &x, const scalar_type mul_y, const vector_type &y, vector_type &z
+    ) const
     {
         for_each_inst_(
-            div_pointwise_kernel{scalar_type{1}, vt_.get_raw_ptr(x), mul_y, vt_.get_raw_ptr(y), vt_.get_raw_ptr(x)},
-            get_loc_size(x));
+            mul_pointwise_kernel{ mul_x, vt_.get_raw_ptr( x ), mul_y, vt_.get_raw_ptr( y ), vt_.get_raw_ptr( z ) },
+            get_loc_size( x )
+        );
+    }
+    // calc: z := (mul_x*x)/(mul_y*y)
+    void div_pointwise(
+        const scalar_type mul_x, const vector_type &x, const scalar_type mul_y, const vector_type &y, vector_type &z
+    ) const
+    {
+        for_each_inst_(
+            div_pointwise_kernel{ mul_x, vt_.get_raw_ptr( x ), mul_y, vt_.get_raw_ptr( y ), vt_.get_raw_ptr( z ) },
+            get_loc_size( x )
+        );
+    }
+    // calc: x := x/(mul_y*y)
+    void div_pointwise( vector_type &x, const scalar_type mul_y, const vector_type &y ) const
+    {
+        for_each_inst_(
+            div_pointwise_kernel{
+                scalar_type{ 1 }, vt_.get_raw_ptr( x ), mul_y, vt_.get_raw_ptr( y ), vt_.get_raw_ptr( x )
+            },
+            get_loc_size( x )
+        );
     }
 
     // TODO:!
     /*std::pair<scalar_type, size_t> max_argmax_element(vector_type& y) const
 {
-    auto max_iterator = std::max_element(y.begin(), y.end());
-    size_t argmax = std::distance(y.begin(), max_iterator);
+  auto max_iterator = std::max_element(y.begin(), y.end());
+  size_t argmax = std::distance(y.begin(), max_iterator);
 
-    return {*max_iterator, argmax};
+  return {*max_iterator, argmax};
 }
 
 scalar_type max_element(vector_type& x)const
 {
-    auto ret = max_argmax_element(x);
-    return ret.first;
+  auto ret = max_argmax_element(x);
+  return ret.first;
 }
 
 size_t argmax_element(vector_type& x)const
 {
-    auto ret = max_argmax_element(x);
-    return ret.second;
+  auto ret = max_argmax_element(x);
+  return ret.second;
 }*/
 
-    void assign_slices(const vector_type& x, const std::vector<std::pair<size_t, size_t>> slices, vector_type& y) const
+    void
+    assign_slices( const vector_type &x, const std::vector<std::pair<size_t, size_t>> slices, vector_type &y ) const
     {
-        SCFD_TODO("Implement assign_slices");
+        SCFD_TODO( "Implement assign_slices" );
     }
 
-    void assign_skip_slices(const vector_type& x, const std::vector<std::pair<size_t, size_t>> skip_slices,
-                            vector_type& y) const
+    void assign_skip_slices(
+        const vector_type &x, const std::vector<std::pair<size_t, size_t>> skip_slices, vector_type &y
+    ) const
     {
-        SCFD_TODO("Implement assign_skip_lices");
+        SCFD_TODO( "Implement assign_skip_lices" );
     }
 
 protected:
     mutable VectorTraits vt_;
-    mutable vector_type helper_;
-    for_each_type for_each_inst_;
-    reduce_type reduce_inst_;
+    mutable vector_type  helper_;
+    for_each_type        for_each_inst_;
+    reduce_type          reduce_inst_;
 };
 
 } // namespace operations

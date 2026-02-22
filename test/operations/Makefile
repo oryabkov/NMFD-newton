@@ -13,3 +13,6 @@ test_dense1_extended_operator: test_dense1_extended_operator.cpp
 
 test_dense_vector_space: test_dense_vector_space.cpp
 	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) test_dense_vector_space.cpp -o test_dense_vector_space.bin
+
+test_dense_vector_space_static: test_dense_vector_space_static.cpp
+	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) test_dense_vector_space_static.cpp -o test_dense_vector_space_static.bin
