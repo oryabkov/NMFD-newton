@@ -41,7 +41,8 @@ public:
     )
     {
         return std::make_tuple(
-            std::make_shared<restrictor_type>( op.get_size() ), std::make_shared<prolongator_type>( op.get_size() )
+            std::make_shared<restrictor_type>( op.get_size(), op.get_b_cond() ),
+            std::make_shared<prolongator_type>( op.get_size(), op.get_b_cond() )
         );
     }
 
