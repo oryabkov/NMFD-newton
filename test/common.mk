@@ -9,22 +9,68 @@ endif
 
 -include $(CONFIG_FILE)
 
+ifndef TARGET_GCC
+TARGET_GCC =
+endif
+
+ifndef TARGET_NVCC
+TARGET_NVCC =
+endif
+
+ifndef CUDA_ROOT_PATH
+CUDA_ROOT_PATH =
+endif
+
+ifndef BOOST_INCLUDE
+BOOST_INCLUDE =
+endif
+
+ifndef AMGCL_INCLUDE
+AMGCL_INCLUDE =
+endif
+
+ifndef FLOAT_TYPE
+FLOAT_TYPE = float
+endif
+
+ifeq ($(FLOAT_TYPE),double)
+PRECISION_SUFFIX = d
+PRECISION_DEFINE = -DUSE_DOUBLE_PRECISION
+else
+PRECISION_SUFFIX = f
+PRECISION_DEFINE =
+endif
+
+ifndef USE_APPLE_OMP
+USE_APPLE_OMP = False
+endif
+
 PROJECT_ROOT_PATH = ../..
 SCFD_INCLUDE = $(PROJECT_ROOT_PATH)/contrib/SCFD/include
 NMFD_INCLUDE = $(PROJECT_ROOT_PATH)/include
 #INCLUDE_ROOT = -I$(PROJECT_ROOT_PATH)/sourse
 #INCLUDE_LOCAL = -I$(PROJECT_ROOT_PATH)/sourse/solver
 INCLUDE_CONTRIB = -I$(SCFD_INCLUDE) -I$(NMFD_INCLUDE)
-OMP_FLAGS = -fopenmp
-# OMP_FLAGS = -Xpreprocessor -fopenmp -lomp -I/opt/homebrew/opt/libomp/include -L/opt/homebrew/opt/libomp/lib
+
+ifeq ($(USE_APPLE_OMP),True)
+	OMP_FLAGS = -Xpreprocessor -fopenmp -lomp -I/opt/homebrew/opt/libomp/include -L/opt/homebrew/opt/libomp/lib
+else
+	OMP_FLAGS = -fopenmp
+endif
+
 HOSTFLAGS = $(TARGET_GCC) -std=c++17
 HOSTCOMPILER = g++
-#CUDAFLAGS = $(TARGET_NVCC)
+
+ifneq ($(strip $(CUDA_ARCH)),)
+CUDA_ARCH_FLAG = -arch=$(CUDA_ARCH)
+endif
+CUDAFLAGS = $(TARGET_NVCC) -std=c++17 $(CUDA_ARCH_FLAG)
+CUDACOMPILER = $(CUDA_ROOT_PATH)nvcc
+
+
 #MPICOMPILER = $(MPI_ROOT_PATH)/bin/mpic++
-CUDA = /usr/local/cuda-12.0#/opt/cuda#/opt/cuda_all/cuda_11.2
 #SM = $(CUDA_ARCH)
 #MPI = $(MPI_ROOT_PATH)
-CUDACOMPILER = ${CUDA}/bin/nvcc
 #HYPRELIBRARY = -lHYPRE
 #CUDALIBRARIES = -lcudart -lcurand -lcusparse -lcublas
 IPROJECT = ${INCLUDE_CONTRIB}
