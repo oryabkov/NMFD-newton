@@ -147,8 +147,8 @@ constexpr int    DEFAULT_MAX_ITERATIONS = 100;
 constexpr int    DEFAULT_GMRES_BASIS    = 25;
 constexpr int    DEFAULT_MG_SWEEPS_PRE  = 4;
 constexpr int    DEFAULT_MG_SWEEPS_POST = 4;
-constexpr scalar DEFAULT_NEWTON_TOL     = std::is_same_v<float, scalar> ? 5e-6f : 1e-10;
-constexpr scalar DEFAULT_GMRES_TOL      = std::is_same_v<float, scalar> ? 5e-6f : 1e-10;
+constexpr scalar DEFAULT_NEWTON_TOL     = std::is_same<float, scalar>::value ? 5e-6f : 1e-10;
+constexpr scalar DEFAULT_GMRES_TOL      = std::is_same<float, scalar>::value ? 5e-6f : 1e-10;
 constexpr int    DEFAULT_MAX_TIME_STEPS = 1;
 constexpr scalar DEFAULT_DT_INF         = 1.0;
 constexpr scalar DEFAULT_NOISE_AMPLITUDE = 1.0;
@@ -295,7 +295,7 @@ int main( int argc, char const *argv[] )
     auto *old_cout_buf = std::cout.rdbuf( &tee_buf );
 
     // Solver configuration
-    const std::string scalar_label = std::is_same_v<float, scalar> ? "float" : "double";
+    const std::string scalar_label = std::is_same<float, scalar>::value ? "float" : "double";
 
     log_t log;
 

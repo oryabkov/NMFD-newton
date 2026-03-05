@@ -175,7 +175,7 @@ public:
             #endif
 
             // Determine type (f or d)
-            std::string type = std::is_same_v<float, Scalar> ? "f" : "d";
+            std::string type = std::is_same<float, Scalar>::value ? "f" : "d";
 
             // Append to times.dat
             auto res_by_it_copy = linear_monitor->convergence_history();

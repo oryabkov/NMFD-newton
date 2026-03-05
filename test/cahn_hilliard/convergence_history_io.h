@@ -50,7 +50,7 @@ void save_times_dat(
 #endif
 
     // Determine type (f or d)
-    std::string type = std::is_same_v<float, Scalar> ? "f" : "d";
+    std::string type = std::is_same<float, Scalar>::value ? "f" : "d";
 
     // times.dat goes in the output directory for this run
     std::string exec_time_file_name = output_dir + "/times.dat";
