@@ -19,20 +19,6 @@ namespace operations
 namespace kernels
 {
 
-
-template <class Scalar, class VectorType>
-struct check_is_valid_number
-{
-    const Scalar *x;
-    Scalar       *z;
-
-    template <class Idx>
-    __DEVICE_TAG__ void operator()( const Idx idx )
-    {
-        z[idx] = std::isfinite( x[idx] );
-    }
-};
-
 template <class Scalar, class VectorType>
 struct scalar_prod
 {

@@ -22,29 +22,30 @@ public:
     using memory_type   = typename Backend::memory_type;
 
 public:
-    using check_is_valid_number_kernel = kernels::check_is_valid_number<scalar_type, vector_type>;
-    using scalar_prod_kernel           = kernels::scalar_prod<scalar_type, vector_type>;
-    using add_mul_scalar_kernel        = kernels::add_mul_scalar<scalar_type>;
-    using assign_scalar_kernel         = kernels::assign_scalar<scalar_type>;
-    using norm_inf_kernel              = kernels::norm_inf<scalar_type, vector_type>;
-    using sum_kernel                   = kernels::sum<scalar_type, vector_type>;
-    using asum_kernel                  = kernels::asum<scalar_type, vector_type>;
-    using assign_kernel                = kernels::assign<scalar_type>;
-    using assign_lin_comb_1_kernel     = kernels::assign_lin_comb_1<scalar_type>;
-    using assign_lin_comb_2_kernel     = kernels::assign_lin_comb_2<scalar_type>;
-    using add_lin_comb_1_kernel        = kernels::add_lin_comb_1<scalar_type>;
-    using add_lin_comb_2_kernel        = kernels::add_lin_comb_2<scalar_type>;
-    using add_lin_comb_3_kernel        = kernels::add_lin_comb_3<scalar_type>;
-    using make_abs_copy_kernel         = kernels::make_abs_copy<scalar_type>;
-    using make_abs_kernel              = kernels::make_abs<scalar_type>;
-    using max_pointwise_kernel         = kernels::max_pointwise<scalar_type>;
-    using min_pointwise_kernel         = kernels::min_pointwise<scalar_type>;
-    using mul_pointwise_kernel         = kernels::mul_pointwise<scalar_type>;
-    using div_pointwise_kernel         = kernels::div_pointwise<scalar_type>;
+    using scalar_prod_kernel       = kernels::scalar_prod<scalar_type, vector_type>;
+    using add_mul_scalar_kernel    = kernels::add_mul_scalar<scalar_type>;
+    using assign_scalar_kernel     = kernels::assign_scalar<scalar_type>;
+    using norm_inf_kernel          = kernels::norm_inf<scalar_type, vector_type>;
+    using sum_kernel               = kernels::sum<scalar_type, vector_type>;
+    using asum_kernel              = kernels::asum<scalar_type, vector_type>;
+    using assign_kernel            = kernels::assign<scalar_type>;
+    using assign_lin_comb_1_kernel = kernels::assign_lin_comb_1<scalar_type>;
+    using assign_lin_comb_2_kernel = kernels::assign_lin_comb_2<scalar_type>;
+    using add_lin_comb_1_kernel    = kernels::add_lin_comb_1<scalar_type>;
+    using add_lin_comb_2_kernel    = kernels::add_lin_comb_2<scalar_type>;
+    using add_lin_comb_3_kernel    = kernels::add_lin_comb_3<scalar_type>;
+    using make_abs_copy_kernel     = kernels::make_abs_copy<scalar_type>;
+    using make_abs_kernel          = kernels::make_abs<scalar_type>;
+    using max_pointwise_kernel     = kernels::max_pointwise<scalar_type>;
+    using min_pointwise_kernel     = kernels::min_pointwise<scalar_type>;
+    using mul_pointwise_kernel     = kernels::mul_pointwise<scalar_type>;
+    using div_pointwise_kernel     = kernels::div_pointwise<scalar_type>;
 
 public:
     dense_vector_space() = default;
-    explicit dense_vector_space( const VectorTraits &vt ) : vt_( vt )
+
+    template <typename... Args>
+    dense_vector_space( Args &&...args ) : vt_( std::forward<Args>( args )... )
     {
         vt_.alloc( vt_.loc_size(), helper_ );
     }
@@ -95,10 +96,6 @@ public:
     {
     }
 
-    bool check_is_valid_number( const vector_type &x ) const
-    {
-        return std::isfinite( norm2_sq( x ) );
-    }
     [[nodiscard]] scalar_type scalar_prod( const vector_type &x, const vector_type &y ) const
     {
         for_each_inst_(
@@ -253,12 +250,8 @@ public:
     }
     // calc: z := mul_x*x + mul_y*y + mul_z*z
     void add_lin_comb(
-        scalar_type        mul_x,
-        const vector_type &x,
-        scalar_type        mul_y,
-        const vector_type &y,
-        scalar_type        mul_z,
-        vector_type       &z
+        scalar_type mul_x, const vector_type &x, scalar_type mul_y, const vector_type &y, scalar_type mul_z,
+        vector_type &z
     ) const
     {
         for_each_inst_(

@@ -28,8 +28,7 @@ int main( int argc, char const *args[] )
     size_t failed_counter = 0;
 
     // Initialize vector space and test vectors
-    vector_traits                         traits( Dim );
-    std::shared_ptr<dense_vector_space_t> vec_space = std::make_shared<dense_vector_space_t>( traits );
+    std::shared_ptr<dense_vector_space_t> vec_space = std::make_shared<dense_vector_space_t>( Dim );
     vector_type                           x         = { 1, 2, 3 };
     vector_type                           y         = { 4, 5, 6 };
 
@@ -69,20 +68,6 @@ int main( int argc, char const *args[] )
                 "✗ `get_size(x)` method test failed. Expected " + std::to_string( Dim ) + " but returned " +
                 std::to_string( vec_size )
             );
-            failed_counter++;
-        }
-    }
-
-    // Test number validity checking
-    {
-        if ( vec_space->check_is_valid_number( x ) )
-        {
-            log.info( "✓ `check_is_valid_number(x)` method test passed" );
-            passed_counter++;
-        }
-        else
-        {
-            log.error( "✗ `check_is_valid_number(x)` method test failed" );
             failed_counter++;
         }
     }
@@ -399,10 +384,7 @@ int main( int argc, char const *args[] )
         vector_type tmp_y = { 4, 5, 6 };
         vector_type tmp_z = { 0, 0, 0 };
         vec_space->assign_lin_comb(
-            2,
-            tmp_x,
-            3,
-            tmp_y,
+            2, tmp_x, 3, tmp_y,
             tmp_z
         ); // z = 2*{1,2,3} + 3*{4,5,6} = {2,4,6} + {12,15,18} = {14,19,24}
         const auto tmp_z_view = tmp_z.create_view( true );
@@ -482,11 +464,7 @@ int main( int argc, char const *args[] )
         vector_type tmp_y = { 4, 5, 6 };
         vector_type tmp_z = { 7, 8, 9 };
         vec_space->add_lin_comb(
-            2,
-            tmp_x,
-            3,
-            tmp_y,
-            4,
+            2, tmp_x, 3, tmp_y, 4,
             tmp_z
         ); // z = 2*{1,2,3} + 3*{4,5,6} + 4*{7,8,9} = {2,4,6} + {12,15,18}
             // + {28,32,36} = {42,51,60}
@@ -566,8 +544,7 @@ int main( int argc, char const *args[] )
         vector_type tmp_x = { 1, -2, 3 };
         vector_type tmp_y = { 4, 5, -6 };
         vec_space->max_pointwise(
-            2,
-            tmp_x,
+            2, tmp_x,
             tmp_y
         ); // y = max(2, {1,-2,3}, {4,5,-6}) = max(2, max({1,-2,3},
             // {4,5,-6})) = max(2, {4,5,3}) = {4,5,3}
@@ -616,8 +593,7 @@ int main( int argc, char const *args[] )
         vector_type tmp_x = { 1, -2, 3 };
         vector_type tmp_y = { 4, 5, -6 };
         vec_space->min_pointwise(
-            2,
-            tmp_x,
+            2, tmp_x,
             tmp_y
         ); // y = min(2, {1,-2,3}, {4,5,-6}) = min(2, min({1,-2,3},
             // {4,5,-6})) = min(2, {1,-2,-6}) = {1,-2,-6}
@@ -696,10 +672,7 @@ int main( int argc, char const *args[] )
         vector_type tmp_y = { 4, 5, 6 };
         vector_type tmp_z = { 0, 0, 0 };
         vec_space->mul_pointwise(
-            2,
-            tmp_x,
-            3,
-            tmp_y,
+            2, tmp_x, 3, tmp_y,
             tmp_z
         ); // z = (2*{1,2,3}) * (3*{4,5,6}) = {2,4,6}
             // * {12,15,18} = {24,60,108}
@@ -727,10 +700,7 @@ int main( int argc, char const *args[] )
         vector_type tmp_y = { 4, 5, 6 };
         vector_type tmp_z = { 0, 0, 0 };
         vec_space->div_pointwise(
-            2,
-            tmp_x,
-            3,
-            tmp_y,
+            2, tmp_x, 3, tmp_y,
             tmp_z
         ); // z = (2*{1,2,3}) / (3*{4,5,6}) = {2,4,6}
             // / {12,15,18} = {2/12, 4/15, 6/18}
@@ -758,8 +728,7 @@ int main( int argc, char const *args[] )
         vector_type tmp_x = { 1, 2, 3 };
         vector_type tmp_y = { 4, 5, 6 };
         vec_space->div_pointwise(
-            tmp_x,
-            3,
+            tmp_x, 3,
             tmp_y
         ); // x = {1,2,3} / (3 * {4,5,6}) = {1,2,3} /
             // {12,15,18} = {1/12, 2/15, 3/18}
