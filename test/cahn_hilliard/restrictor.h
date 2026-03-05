@@ -4,13 +4,13 @@
 #include <memory>
 
 #include "kernels/restrictor.h"
+#include "include/boundary.h" // for boundary conditions
 
 namespace tests
 {
 
 template <
-    class VectorSpace,
-    class Log,
+    class VectorSpace, class Log,
     /**********************************************/
     class Backend = typename VectorSpace::backend_type>
 class restrictor
@@ -28,13 +28,16 @@ public:
     using vector_space_ptr = std::shared_ptr<VectorSpace>;
     using idx_nd_type      = typename VectorSpace::idx_nd_type;
 
+    using boundary_cond_type = boundary_cond<dim, tensor_dim>;
+
     using for_each_nd_type = typename Backend::template for_each_nd_type<dim>;
 
 public: // Especially for SYCL
-    using restrictor_kernel = kernels::restrictor_kernel<idx_nd_type, ordinal_type, vector_type, tensor_dim>;
+    using restrictor_kernel =
+        kernels::restrictor_kernel<idx_nd_type, ordinal_type, vector_type, tensor_dim, boundary_cond_type>;
 
 public:
-    restrictor( idx_nd_type range ) : range_( range ) // in dom space
+    restrictor( idx_nd_type range, boundary_cond_type b_cond ) : range_( range ), b_cond_( b_cond ) // in dom space
     {
         for ( int i = 0; i < idx_nd_type::dim; ++i )
         {
@@ -64,11 +67,12 @@ public:
     {
         auto             half_r = range_ / Ord{ 2u };
         for_each_nd_type for_each_nd_inst;
-        for_each_nd_inst( restrictor_kernel{ from, to }, half_r );
+        for_each_nd_inst( restrictor_kernel{ from, to, b_cond_ }, half_r );
     };
 
 private:
-    idx_nd_type range_; // in dom space
+    idx_nd_type        range_; // in dom space
+    boundary_cond_type b_cond_;
 };
 
 } // namespace tests
