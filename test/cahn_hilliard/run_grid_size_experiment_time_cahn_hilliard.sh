@@ -23,14 +23,14 @@
 ARCH="${1:-cuda}"
 MAX_ITERATIONS="${2:-100000}"
 GPU_DEVICE="${3:-0}"
-DT_INF="${4:-100}"
+DT_INF="${4:-1000}"
 MAX_TIME_STEPS="${5:-100}"
 TIME_TOL="${6:-}"
 
 # Default grid sizes if not provided
 if [ $# -lt 7 ]; then
-    GRID_SIZES=(2 4 8 16 32 64 128 256)
-    # GRID_SIZES=(64)
+    # GRID_SIZES=(4 8 16 32 64 128 256)
+    GRID_SIZES=(16)
 else
     # Shift to skip arch, max_iterations, gpu_device, dt_inf, max_time_steps, and time_tol arguments
     shift

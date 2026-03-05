@@ -21,10 +21,13 @@
 # Each run creates its own times.dat, nonlinear_history.dat, and convergence_history_N.dat files
 
 # Tolerance settings (adjust these as needed)
-TOLERANCE_FLOAT=1e-6
-TOLERANCE_DOUBLE=1e-10
-NEWTON_TOL_FLOAT=7e-1
-NEWTON_TOL_DOUBLE=2e-9
+TOLERANCE_FLOAT=2e-4
+# TOLERANCE_DOUBLE=1e-10
+TOLERANCE_DOUBLE=1e-3
+
+NEWTON_TOL_FLOAT=9e-1
+# NEWTON_TOL_DOUBLE=2e-9
+NEWTON_TOL_DOUBLE=2e-6
 
 # Parse CLI arguments with defaults
 ARCH="${1:-cuda}"
@@ -77,8 +80,7 @@ for float_type in f d; do
     if ./"$binary" "$SOLVER" "$PRECONDITIONER" "$GRID_SIZE" "$prefix" \
         --tolerance "$tolerance" \
         --newton-tol "$newton_tol" \
-        --max-iterations "$MAX_ITERATIONS" \
-        --verbose ; then
+        --max-iterations "$MAX_ITERATIONS" ; then
         echo "SUCCESS: solver=${SOLVER}, prec=${PRECONDITIONER}, arch=${ARCH}, type=${type_label}, size=${GRID_SIZE}"
     else
         echo "ERROR: Execution failed for solver=${SOLVER}, prec=${PRECONDITIONER}, arch=${ARCH}, type=${type_label}, size=${GRID_SIZE}"

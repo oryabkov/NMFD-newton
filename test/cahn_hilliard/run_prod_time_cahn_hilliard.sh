@@ -24,12 +24,17 @@
 # Each run creates its own step_N folders with times.dat, nonlinear_history.dat, and convergence_history_N.dat files
 
 # Tolerance settings (adjust these as needed)
-TOLERANCE_FLOAT=1e-6
-TOLERANCE_DOUBLE=1e-10
-NEWTON_TOL_FLOAT=7e-1
-NEWTON_TOL_DOUBLE=2e-9
-TIME_TOL_FLOAT=7e-1
-TIME_TOL_DOUBLE=2e-9
+TOLERANCE_FLOAT=2e-4
+# TOLERANCE_DOUBLE=1e-10
+TOLERANCE_DOUBLE=1e-3
+
+NEWTON_TOL_FLOAT=9e-1
+# NEWTON_TOL_DOUBLE=2e-9
+NEWTON_TOL_DOUBLE=2e-6
+
+TIME_TOL_FLOAT=9e-1
+# TIME_TOL_DOUBLE=2e-9
+TIME_TOL_DOUBLE=2e-6
 
 # Parse CLI arguments with defaults
 ARCH="${1:-cuda}"
