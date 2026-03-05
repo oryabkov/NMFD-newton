@@ -53,7 +53,6 @@ public:
     virtual void add_lin_comb(const scalar_type mul_x, const multivector_type& mx, Ord m, Ord k_, const scalar_type mul_y, vector_type& y) const = 0;
 
     [[nodiscard]] virtual bool is_valid_number(const vector_type &x) const = 0;
-    [[nodiscard]] virtual vector_type at(multivector_type& x, Ord m, Ord k_) const = 0;
     //reduction operations:
     [[nodiscard]] virtual scalar_type scalar_prod(const vector_type &x, const vector_type &y)const = 0;
     [[nodiscard]] virtual scalar_type scalar_prod_l2(const vector_type &x, const vector_type &y)const = 0;

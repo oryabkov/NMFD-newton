@@ -92,14 +92,6 @@ public:
     void  stop_use_vector(vector_type& x) const override {}
 
 public: // Implementing Vector_Operations interface
-    [[nodiscard]] vector_type at(multivector_type& x, ordinal_type m, ordinal_type k_) const override
-    {
-        if ( k_ < 0 || k_>=m  )
-            throw std::out_of_range("rect_vector_space: multivector.at");
-        // assert preferable ?
-        return x.at(k_);
-    }
-
     [[nodiscard]] bool is_valid_number(const vector_type &x) const override
     {
         return std::isfinite(sum(x));

@@ -63,9 +63,9 @@ public:
         const params&        prm  = {},
         preconditioner_ptr   prec = nullptr
     )
-        : parent_t{vec_ops, log, prm, prm.monitor, std::move(prec)},
+        : parent_t{std::move(vec_ops), log, prm, prm.monitor, std::move(prec)},
           prms(prm),
-          tmp_wrap_(*vec_ops)
+          tmp_wrap_(*vec_ops_)
     {}
 
     jacobi(
