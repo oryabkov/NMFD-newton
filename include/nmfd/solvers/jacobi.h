@@ -1,5 +1,5 @@
-#ifndef __JACOBI_H__
-#define __JACOBI_H__
+#ifndef __NMFD_SOLVERS_JACOBI_H__
+#define __NMFD_SOLVERS_JACOBI_H__
 
 #include "../detail/vector_wrap.h"
 #include "iter_solver_base.h"

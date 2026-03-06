@@ -9,6 +9,6 @@ AMGCL_INCLUDE = ../../../../../AmgCL/amgcl/
 
 CUDA_ARCH = sm_89
 
-FLOAT_TYPE = float
+FLOAT_TYPE = double
 
 USE_APPLE_OMP = False

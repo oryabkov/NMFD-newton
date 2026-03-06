@@ -3,7 +3,6 @@
 #include "jacobi_op.h"
 #include "jacobi_pre.h"
 #include "coarsening.h"
-#include "identity_op.h"
 #include "include/boundary.h"
 #include "kernels/phobic_energy.h"
 #include "prolongator.h"
@@ -19,6 +18,7 @@
 #include <memory>
 #include <nmfd/operations/rect_vector_space.h>
 #include <nmfd/preconditioners/mg.h>
+#include <nmfd/preconditioners/dummy.h>
 #include <nmfd/solvers/default_monitor.h>
 #include <nmfd/solvers/gmres.h>
 #include <nmfd/solvers/jacobi.h>
@@ -30,15 +30,7 @@
 #include <string>
 #include <type_traits>
 
-struct backend
-{
-    using memory_type = scfd::backend::memory;
-    template <class Ordinal = int>
-    using for_each_type = scfd::backend::template for_each<Ordinal>;
-    template <int Dim, class Ordinal = int>
-    using for_each_nd_type = scfd::backend::template for_each_nd<Dim, Ordinal>;
-    using reduce_type      = scfd::backend::reduce;
-};
+using backend = scfd::backend::current;
 
 /**************************************/
 
@@ -74,7 +66,7 @@ using time_derivative_t = tests::time_derivative<vec_ops_t, tensor_t>;
 using prolongator_t = tests::prolongator<vec_ops_t, log_t>;
 using restrictor_t  = tests::restrictor<vec_ops_t, log_t>;
 using lin_op_t      = tests::jacobi_op<vec_ops_t, log_t, phobic_energy_t, time_derivative_t>;
-using ident_op_t    = tests::identity_op<lin_op_t, vec_ops_t, log_t>;
+using ident_op_t    = nmfd::preconditioners::dummy<vec_ops_t, lin_op_t>;
 using smoother_t    = tests::jacobi_pre<vec_ops_t, log_t, phobic_energy_t, time_derivative_t>;
 using coarsening_t  = tests::coarsening<lin_op_t, log_t>;
 
