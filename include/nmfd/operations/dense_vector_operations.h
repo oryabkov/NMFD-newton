@@ -40,6 +40,7 @@ public:
     using min_pointwise_kernel     = kernels::min_pointwise<scalar_type>;
     using mul_pointwise_kernel     = kernels::mul_pointwise<scalar_type>;
     using div_pointwise_kernel     = kernels::div_pointwise<scalar_type>;
+    using assign_random_kernel     = kernels::assign_random<scalar_type>;
 
 public:
     dense_vector_operations() = default;
@@ -328,6 +329,15 @@ size_t argmax_element(vector_type& x)const
   auto ret = max_argmax_element(x);
   return ret.second;
 }*/
+
+    void assign_random( vector_type &x, const scalar_type from = 0, const scalar_type to = 1 ) const
+    {
+        unsigned int seed = static_cast<unsigned int>( std::rand() );
+        for_each_inst_(
+            assign_random_kernel{ from, to - from, vt_.get_raw_ptr( x ), seed },
+            get_loc_size( x )
+        );
+    }
 
     void
     assign_slices( const vector_type &x, const std::vector<std::pair<size_t, size_t>> slices, vector_type &y ) const

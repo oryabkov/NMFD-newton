@@ -16,3 +16,6 @@ test_dense_vector_space: test_dense_vector_space.cpp
 
 test_dense_vector_space_static: test_dense_vector_space_static.cpp
 	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) test_dense_vector_space_static.cpp -o test_dense_vector_space_static.bin
+
+test_dense_operations: test_dense_operations.cpp
+	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) test_dense_operations.cpp -o test_dense_operations.bin

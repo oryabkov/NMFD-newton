@@ -75,6 +75,20 @@ int main( int argc, char const *args[] )
     // ====================================================================
     log.info( "=== Testing Norms and Scalar Products ===" );
 
+    // Test number validity checking
+    {
+        if ( vec_space->check_is_valid_number( x ) )
+        {
+            log.info( "✓ `check_is_valid_number(x)` method test passed" );
+            passed_counter++;
+        }
+        else
+        {
+            log.error( "✗ `check_is_valid_number(x)` method test failed" );
+            failed_counter++;
+        }
+    }
+
     // Test scalar product (dot product)
     {
         T scalar_prod = vec_space->scalar_prod( x, y );

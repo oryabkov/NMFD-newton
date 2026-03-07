@@ -274,6 +274,25 @@ struct div_pointwise
 };
 
 
+template <class Scalar>
+struct assign_random
+{
+    Scalar       from;
+    Scalar       range;
+    Scalar      *x;
+    unsigned int seed;
+
+    template <class Idx>
+    __DEVICE_TAG__ void operator()( const Idx idx )
+    {
+        unsigned int h = seed ^ static_cast<unsigned int>( idx * 2654435761u );
+        h              = ( ( h >> 16 ) ^ h ) * 0x45d9f3bu;
+        h              = ( ( h >> 16 ) ^ h ) * 0x45d9f3bu;
+        h              = ( h >> 16 ) ^ h;
+        x[idx]         = from + range * static_cast<Scalar>( h ) / static_cast<Scalar>( 0xFFFFFFFFu );
+    }
+};
+
 } // namespace kernels
 } // namespace operations
 } // namespace nmfd

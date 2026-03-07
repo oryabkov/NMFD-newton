@@ -1,6 +1,153 @@
 #ifndef __NMFD_DENSE_OPERATIONS_BASE_H__
 #define __NMFD_DENSE_OPERATIONS_BASE_H__
 
+#include "scfd/arrays/arrays_config.h"
+#include <memory>
+#include <scfd/arrays/array_nd.h>
+#include <nmfd/operations/dense_vector_operations.h>
+
+namespace nmfd
+{
+namespace operations
+{
+
+template <class Type, class VectorTraits, class Backend, class Ordinal = std::ptrdiff_t>
+class dense_vector_space;
+
+template <class Type, class VectorTraits, class Backend, class Ordinal = std::ptrdiff_t>
+class dense_operations : public dense_vector_operations<Type, VectorTraits, Backend>
+{
+
+public:
+    using scalar_type       = typename VectorTraits::scalar_type;
+    using vector_type       = typename VectorTraits::vector_type;
+    using memory_type       = typename Backend::memory_type;
+    using matrix_type       = scfd::arrays::array_nd<scalar_type, 2, memory_type>;
+    using multivector_type  = typename std::vector<vector_type>;
+    using vector_space_type = dense_vector_space<Type, VectorTraits, Backend, Ordinal>;
+
+    dense_operations() = default;
+
+    template <typename... Args>
+    dense_operations( Args &&...args )
+        : dense_vector_operations<Type, VectorTraits, Backend>( std::forward<Args>( args )... )
+    {
+    }
+
+    // matrix_vector_operations
+
+    //calc: y := alpha*mat*x + beta*y
+    void add_matrix_vector_prod(
+        const scalar_type alpha, const matrix_type &mat, const vector_type &x, const scalar_type beta, vector_type &y
+    ) const
+    {
+        const auto mat_view = mat.create_view( true );
+        const auto x_view   = x.create_view( true );
+        auto       y_view   = y.create_view( true );
+
+        auto sz   = mat.size_nd();
+        auto rows = sz[0];
+        auto cols = sz[1];
+
+        for ( size_t i = 0; i < rows; ++i )
+        {
+            scalar_type sum = scalar_type{ 0 };
+            for ( size_t j = 0; j < cols; ++j )
+            {
+                sum += mat_view( i, j ) * x_view( j );
+            }
+            y_view( i ) = alpha * sum + beta * y_view( i );
+        }
+        y_view.release( true );
+    }
+    //calc: z := alpha*mat*x + beta*y
+    void assign_matrix_vector_prod(
+        const scalar_type alpha, const matrix_type &mat, const vector_type &x, const scalar_type beta,
+        const vector_type &y, vector_type &z
+    ) const
+    {
+        this->assign( y, z );
+        add_matrix_vector_prod( alpha, mat, x, beta, z );
+    }
+
+    [[nodiscard]] std::shared_ptr<vector_space_type> get_matrix_im_space( const matrix_type &mat ) const;
+    [[nodiscard]] std::shared_ptr<vector_space_type> get_matrix_dom_space( const matrix_type &mat ) const;
+
+
+    // matrix_operations
+
+    [[nodiscard]] std::shared_ptr<matrix_type> matrix_transpose( const matrix_type &mat ) const
+    {
+        SCFD_TODO( "Implement matrix_transpose" );
+        return nullptr;
+    }
+
+
+    [[nodiscard]] std::shared_ptr<matrix_type>
+    matrix_matrix_prod( const matrix_type &mat_a, const matrix_type &mat_b ) const
+    {
+        SCFD_TODO( "Implement matrix_matrix_prod" );
+        return nullptr;
+    }
+    [[nodiscard]] std::shared_ptr<matrix_type> matrix_matrix_sum(
+        const scalar_type alpha, const matrix_type &mat_a, const scalar_type beta, const matrix_type &mat_b
+    ) const
+    {
+        SCFD_TODO( "Implement matrix_matrix_sum" );
+        return nullptr;
+    }
+    [[nodiscard]] scalar_type matrix_norm_fro( const matrix_type &mat ) const
+    {
+        SCFD_TODO( "Implement matrix_norm_fro" );
+        return scalar_type{ 0 };
+    }
+    [[nodiscard]] std::shared_ptr<matrix_type> matrix_diag( const matrix_type &mat, bool invert = false ) const
+    {
+        SCFD_TODO( "Implement matrix_diag" );
+        return nullptr;
+    }
+
+    /// Returns diagonal of the matrix as vector (vector must already be allocated and have corresponding partitioning)
+    void matrix_diag( const matrix_type &mat, vector_type &x, bool invert = false ) const
+    {
+        SCFD_TODO( "Implement matrix_diag (to vector)" );
+    }
+    /// Creates a matrix with diagonal structure and values on its diagonal from vector x
+    [[nodiscard]] std::shared_ptr<matrix_type> diag_matrix_from_vector( const vector_type &x ) const
+    {
+        SCFD_TODO( "Implement diag_matrix_from_vector" );
+        return nullptr;
+    }
+    /// Creates a matrix with diagonal structure and scalar value on its diagonal val
+    /// Parallel structure defined by vector x
+    /// TODO make something better then explicit vector!!
+    [[nodiscard]] std::shared_ptr<matrix_type> scalar_matrix( const vector_type &x, scalar_type val ) const
+    {
+        SCFD_TODO( "Implement scalar_matrix" );
+        return nullptr;
+    }
+
+
+    void write_matrix_to_mm_file( const std::string &file_name, const matrix_type &mat ) const
+    {
+        SCFD_TODO( "Implement write_matrix_to_mm_file" );
+    }
+
+    void write_matrix_to_mm_file( const std::string &file_name, std::shared_ptr<matrix_type> mat ) const
+    {
+        SCFD_TODO( "Implement write_matrix_to_mm_file" );
+    }
+};
+
+}
+
+}
+
+
+// TODO: rework dense_operations_base.
+
+/*
+
 #include <cmath>
 #include <utility>
 #include <iostream>
@@ -97,11 +244,6 @@ public:
         check_init();
         std::initializer_list<int>{ ( (void)init_col_vector( std::forward<Args>( args ) ), 0 )... };
     }
-    // template<class...Args>     //c++17
-    // void init_col_vectors(Args&&...args) const
-    // {
-    //     (init_col_vector(std::forward<Args>(args)),...);
-    // }
 
     void init_matrix( matrix_type &mat ) const
     {
@@ -279,7 +421,7 @@ public:
     {
         for ( Card j = 0; j < rows_; j++ )
         {
-            T val    = dis( gen ); // map [-1,1] -> [from,to]
+            T val    = dis( gen );
             val      = ( to - from ) * ( 0.5 * ( val + 1 ) ) + from;
             vec( j ) = val;
         }
@@ -288,7 +430,7 @@ public:
     {
         for ( Card j = 0; j < cols_; j++ )
         {
-            T val    = dis( gen ); // map [-1,1] -> [from,to]
+            T val    = dis( gen );
             val      = ( to - from ) * ( 0.5 * ( val + 1 ) ) + from;
             vec( j ) = val;
         }
@@ -299,7 +441,7 @@ public:
         {
             for ( Card k = 0; k < cols_; k++ )
             {
-                T val       = dis( gen ); // map [-1,1] -> [from,to]
+                T val       = dis( gen );
                 val         = ( to - from ) * ( 0.5 * ( val + 1 ) ) + from;
                 mat( j, k ) = val;
             }
@@ -350,7 +492,7 @@ public:
     void apply_plane_rotation( scalar_type &dx, scalar_type &dy, const scalar_type &cs, const scalar_type &sn ) const
     {
         T temp = cs * dx + sn * dy;
-        dy     = -sn * dx + cs * dy; // sn->conj(sn)
+        dy     = -sn * dx + cs * dy;
         dx     = temp;
     }
     void generate_plane_rotation( const scalar_type &dx, const scalar_type &dy, scalar_type &cs, scalar_type &sn ) const
@@ -360,16 +502,6 @@ public:
             cs = static_cast<T>( 1 );
             sn = static_cast<T>( 0 );
         }
-        // else
-        // {
-        //     //TODO: norm type problem again!
-        //     T scale = std::abs(dx) + std::abs(dy);
-        //     T norm = scale * std::sqrt(std::abs(dx / scale) * std::abs(dx / scale) +
-        //                                       std::abs(dy / scale) * std::abs(dy / scale));
-        //     T alpha = dx / std::abs(dx);
-        //     cs = std::abs(dx) / norm;
-        //     sn = alpha * conj_(dy) / norm;
-        // }
         else if ( std::abs( dy ) > std::abs( dx ) )
         {
             T tmp = dx / dy;
@@ -392,7 +524,7 @@ public:
 
         generate_plane_rotation( H( col, col ), H( col + 1, col ), cs_( col ), sn_( col ) );
         apply_plane_rotation( H( col, col ), H( col + 1, col ), cs_( col ), sn_( col ) );
-        H( col + 1, col ) = static_cast<T>( 0 ); // remove numerical noise below diagonal
+        H( col + 1, col ) = static_cast<T>( 0 );
         apply_plane_rotation( s( col ), s( col + 1 ), cs_( col ), sn_( col ) );
     }
 
@@ -442,5 +574,6 @@ public:
 } // namespace operations
 } // namespace nmfd
 
+*/
 
 #endif
