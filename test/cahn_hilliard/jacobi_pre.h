@@ -74,8 +74,8 @@ public:
     }
 
     jacobi_pre( vector_space_ptr vspace, grid_step_type step, boundary_cond_type b_cond)
-        : vspace_( vspace ), range_( vspace_->get_range() ), step_( step ), b_cond_( b_cond ),
-          vector_wrap_( std::make_unique<vector_wrap_t>( *vspace ) ), phobic_en_(), time_derivative_( std::make_shared<TimeDerivative>(vspace) )
+        : vspace_( std::move(vspace) ), range_( vspace_->get_size() ), step_( step ), b_cond_( b_cond ),
+          vector_wrap_( std::make_unique<vector_wrap_t>( *vspace_ ) ), phobic_en_(), time_derivative_( std::make_shared<TimeDerivative>(vspace_) )
     {
         vspace_->assign_scalar( 0.0, *vector_wrap_ );
     }
@@ -83,8 +83,8 @@ public:
     jacobi_pre(
         vector_space_ptr vspace, grid_step_type step, boundary_cond_type b_cond, time_derivative_ptr time_derivative
     )
-        : vspace_( vspace ), range_( vspace_->get_range() ), step_( step ), b_cond_( b_cond ),
-          vector_wrap_( std::make_unique<vector_wrap_t>( *vspace ) ), phobic_en_(), time_derivative_( time_derivative )
+        : vspace_( std::move(vspace) ), range_( vspace_->get_size() ), step_( step ), b_cond_( b_cond ),
+          vector_wrap_( std::make_unique<vector_wrap_t>( *vspace_ ) ), phobic_en_(), time_derivative_( std::move(time_derivative) )
     {
         vspace_->assign_scalar( 0.0, *vector_wrap_ );
     }
@@ -111,9 +111,9 @@ public:
     }
 
 public:
-    vector_space_ptr get_space() const
+    const vector_space_ptr &get_space() const noexcept
     {
-        return std::make_shared<vector_space_type>( range_ );
+        return vspace_;
     }
 
     idx_nd_type get_size() const noexcept
@@ -147,11 +147,11 @@ public:
         gamma_ = gamma;
     }
 
-    vector_space_ptr get_dom_space() const
+    const vector_space_ptr &get_dom_space() const noexcept
     {
         return get_space();
     }
-    vector_space_ptr get_im_space() const
+    const vector_space_ptr &get_im_space() const noexcept
     {
         return get_space();
     }
@@ -166,6 +166,7 @@ public:
             range_
         );
     };
+
     void apply( const vector_type &x, vector_type &y ) const
     {
         vspace_->assign( x, y );

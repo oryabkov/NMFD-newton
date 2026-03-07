@@ -60,9 +60,16 @@ public: // Especially for SYCL
         Rhs>;
 
 public:
+    cahn_hilliard_op(vector_space_ptr vspace, grid_step_type step, boundary_cond_type b_cond, jacobi_operator_ptr jacobi_op, time_derivative_ptr time_derivative)
+        : vspace_( std::move( vspace ) ), range_( vspace_->get_size() ), step_( step ), b_cond_( b_cond ),jacobi_op_( std::move( jacobi_op ) ),
+          phobic_en_(), rhs_(), time_derivative_( std::move( time_derivative ) )
+    {
+    }
+
     cahn_hilliard_op( idx_nd_type range, grid_step_type step, boundary_cond_type b_cond, jacobi_operator_ptr jacobi_op )
-        : vspace_( std::make_shared<vector_space_type>( range ) ), range_( range ), step_( step ), b_cond_( b_cond ),
-          jacobi_op_( jacobi_op ), phobic_en_(), rhs_(), time_derivative_( std::make_shared<TimeDerivative>( range ) )
+        : cahn_hilliard_op(
+              std::make_shared<vector_space_type>( range ), step, b_cond, std::move( jacobi_op ), std::make_shared<TimeDerivative>( range )
+          )
     {
     }
 
@@ -80,8 +87,9 @@ public:
         jacobi_operator_ptr jacobi_op,
         time_derivative_ptr time_derivative
     )
-        : vspace_( std::make_shared<vector_space_type>( range ) ), range_( range ), step_( step ), b_cond_( b_cond ),
-          jacobi_op_( jacobi_op ), phobic_en_(), rhs_(), time_derivative_( time_derivative )
+        : cahn_hilliard_op(
+              std::make_shared<vector_space_type>( range ), step, b_cond, std::move( jacobi_op ), std::move( time_derivative )
+          )
     {
     }
 
@@ -96,9 +104,9 @@ public:
     {
     }
 
-    vector_space_ptr get_space() const
+    const vector_space_ptr &get_space() const noexcept
     {
-        return std::make_shared<vector_space_type>( range_ );
+        return vspace_;
     }
 
     idx_nd_type get_size() const noexcept
@@ -114,13 +122,13 @@ public:
         return b_cond_;
     }
 
-    vector_space_ptr get_dom_space() const
+    const vector_space_ptr &get_dom_space() const noexcept
     {
-        return get_space();
+        return vspace_;
     }
-    vector_space_ptr get_im_space() const
+    const vector_space_ptr &get_im_space() const noexcept
     {
-        return get_space();
+        return vspace_;
     }
 
     void apply( const vector_type &in, vector_type &out ) const
@@ -149,7 +157,7 @@ public:
         jacobi_op_->set_vector( p );
     }
 
-    const jacobi_operator_ptr &get_jacobi_operator() const
+    const jacobi_operator_ptr &get_jacobi_operator() const noexcept
     {
         return jacobi_op_;
     }

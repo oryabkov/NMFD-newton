@@ -53,13 +53,14 @@ public:
         return range_;
     }
 
-    std::shared_ptr<vector_space_type> get_dom_space() const
+    vector_space_ptr get_dom_space() const
     {
-        return std::make_shared<vector_space_type>( range_ / Ord{ 2u } );
+        return vector_space_ptr( range_ / Ord{ 2u } );
     }
-    std::shared_ptr<vector_space_type> get_im_space() const
+
+    vector_space_ptr get_im_space() const
     {
-        return std::make_shared<vector_space_type>( range_ );
+        return vector_space_ptr( range_ );
     }
 
     // domain -> (restrict) -> image

@@ -30,17 +30,17 @@ public:
     using idx_nd_type       = typename VectorSpace::idx_nd_type;
 
 public:
-    time_derivative( idx_nd_type range )
-        : vspace_( std::make_shared<vector_space_type>( range ) ), previous_state_wrap_( *vspace_ )
+    time_derivative( vector_space_ptr vspace )
+        : vspace_( std::move( vspace ) ), previous_state_wrap_( *vspace_ )
     {
         vspace_->assign_scalar( 0.0, *previous_state_wrap_ );
     }
 
-    time_derivative( const vector_space_type &vspace ) : time_derivative( vspace.get_size() )
+    time_derivative( idx_nd_type range ) : time_derivative( std::make_shared<vector_space_type>( range ) )
     {
     }
 
-    vector_space_ptr get_space() const
+    const vector_space_ptr &get_space() const noexcept
     {
         return vspace_;
     }

@@ -52,11 +52,19 @@ public: // Especially for SYCL
         PhobicEnergy>;
 
 public:
-    jacobi_op( idx_nd_type range, grid_step_type step, boundary_cond_type b_cond )
-        : vspace_( std::make_shared<vector_space_type>( range ) ), range_( range ), step_( step ), b_cond_( b_cond ),
-          vector_wrap_( *vspace_ ), phobic_en_(), time_derivative_( std::make_shared<TimeDerivative>(range) )
+    jacobi_op( vector_space_ptr vspace, grid_step_type step, boundary_cond_type b_cond, time_derivative_ptr time_derivative )
+        : vspace_( std::move( vspace ) ), range_( vspace_->get_size() ), step_( step ), b_cond_( b_cond ),
+          vector_wrap_( *vspace_ ), phobic_en_(), time_derivative_( std::move( time_derivative ) )
     {
         vspace_->assign_scalar( 0.0, *vector_wrap_ );
+    }
+
+    // Convenience ctor: create space (and time-derivative) from size, then delegate.
+    jacobi_op( idx_nd_type range, grid_step_type step, boundary_cond_type b_cond )
+        : jacobi_op(
+              std::make_shared<vector_space_type>( range ), step, b_cond, std::make_shared<TimeDerivative>( range )
+          )
+    {
     }
 
     jacobi_op( const vector_space_type &vspace, grid_step_type step, boundary_cond_type b_cond, vector_type vector_)
@@ -65,10 +73,10 @@ public:
     }
 
     jacobi_op( idx_nd_type range, grid_step_type step, boundary_cond_type b_cond, time_derivative_ptr time_derivative )
-        : vspace_( std::make_shared<vector_space_type>( range ) ), range_( range ), step_( step ), b_cond_( b_cond ),
-          vector_wrap_( *vspace_ ), phobic_en_(), time_derivative_( time_derivative )
+        : jacobi_op(
+              std::make_shared<vector_space_type>( range ), step, b_cond, std::move( time_derivative )
+          )
     {
-        vspace_->assign_scalar( 0.0, *vector_wrap_ );
     }
 
     jacobi_op( const vector_space_type &vspace, grid_step_type step, boundary_cond_type b_cond, time_derivative_ptr time_derivative)
@@ -76,7 +84,7 @@ public:
     {
     }
 
-    vector_space_ptr get_space() const
+    const vector_space_ptr &get_space() const noexcept
     {
         return vspace_;
     }
@@ -111,11 +119,11 @@ public:
         gamma_ = gamma;
     }
 
-    vector_space_ptr get_dom_space() const
+    const vector_space_ptr &get_dom_space() const noexcept
     {
         return get_space();
     }
-    vector_space_ptr get_im_space() const
+    const vector_space_ptr &get_im_space() const noexcept
     {
         return get_space();
     }
@@ -129,9 +137,9 @@ public:
         vspace_->assign( vector, *vector_wrap_ );
     }
 
-    time_derivative_ptr get_time_derivative() const
+    const time_derivative_ptr &get_time_derivative() const noexcept
     {
-        return  time_derivative_;
+        return time_derivative_;
     }
 
     void apply( const vector_type &in, vector_type &out ) const
