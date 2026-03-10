@@ -10,14 +10,17 @@ namespace kernels
 template <class IdxND, class Ord, class VectorType, int TensorDim, class BoundaryCond>
 struct restrictor_kernel
 {
+    using Rect   = typename scfd::static_vec::rect<Ord, IdxND::dim>;
+
     VectorType   dom, img;
     BoundaryCond cond;
+    Rect dom_r;
 
 #if 0
 
     __DEVICE_TAG__ void operator()( const IdxND idx ) const // traversing image space
     {
-        using Rect   = typename scfd::static_vec::rect<Ord, IdxND::dim>;
+        // using Rect   = typename scfd::static_vec::rect<Ord, IdxND::dim>;
         using Scalar = typename VectorType::value_type;
 
         const Ord num_cells = Ord{ 1 } << IdxND::dim;
@@ -57,7 +60,7 @@ struct restrictor_kernel
     __DEVICE_TAG__ void operator()( const IdxND idx ) const // traversing image space
     {
         using Scalar = typename VectorType::value_type;
-        using Rect   = typename scfd::static_vec::rect<Ord, IdxND::dim>;
+        // using Rect   = typename scfd::static_vec::rect<Ord, IdxND::dim>;
         using Tensor = typename scfd::static_vec::vec<Scalar, TensorDim>;
 
 
@@ -67,7 +70,7 @@ struct restrictor_kernel
         Rect r{ begin0, end0 };
         r = r.enlarged( stencil_1d_half_sz - 1 );
         //TODO use dom_r as external parameter (important for mgpu)
-        Rect dom_r = dom.rect_nd();
+        // Rect dom_r = dom.rect_nd();
         for ( int i = 0; i < TensorDim; i++ )
         {
             Scalar sum{ 0 }, mul_sum{ 0 };

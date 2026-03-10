@@ -52,10 +52,39 @@ struct boundary_cond
     }
     template <class Vector, class IdxND, class Tensor>
     __DEVICE_TAG__ void get_ghost_tensor_linearized(
-        const Vector &vector, const Vector &v, const IdxND &dom_sz, const IdxND &ghost_idx, Tensor &res
+        const Vector &lin_vector, const Vector &vector, const IdxND &dom_sz, const IdxND &ghost_idx, Tensor &res
     ) const
     {
-        get_ghost_tensor( v, dom_sz, ghost_idx, res );
+        get_ghost_tensor( vector, dom_sz, ghost_idx, res );
+    }
+
+    template <class Vector, class IdxND, class Tensor>
+    __DEVICE_TAG__ void get_ghost_coef_linearized(
+        const Vector &lin_vector, const IdxND &dom_sz, const IdxND &ghost_idx, Tensor &diag
+    ) const
+    {
+        diag = Tensor::make_ones();
+#pragma unroll
+        for ( int j = 0; j < Dim; ++j )
+        {
+            if ( ghost_idx[j] < 0 )
+            {
+#pragma unroll
+                for ( int jj = 0; jj < TensorDim; ++jj )
+                {
+                    diag[jj] *= left[j][jj];
+                }
+            }
+
+            if ( ghost_idx[j] >= dom_sz[j] )
+            {
+#pragma unroll
+                for ( int jj = 0; jj < TensorDim; ++jj )
+                {
+                    diag[jj] *= right[j][jj];
+                }
+            }
+        }
     }
 };
 

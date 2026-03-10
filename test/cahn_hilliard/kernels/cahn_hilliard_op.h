@@ -45,6 +45,8 @@ struct cahn_hilliard_op_kernel
         // Apply time derivative
         state[0] -= (curr[1] - prev[1]) * dt_inf;
 
+        TensorType ghost{ Scalar(0), Scalar(0) };;
+
         // First equation: D * laplace(psi)
         #pragma unroll
         for ( int j = 0; j < IdxND::dim; j++ ) // iterate over x, y, z,... dimension
@@ -65,7 +67,8 @@ struct cahn_hilliard_op_kernel
                 }
                 else
                 {
-                    prev_val = cond.left[j][0] * curr[0];
+                    cond.get_ghost_tensor_linearized( in, in, range, idx - ej, ghost );
+                    prev_val = ghost[0];
                 }
             }
             else
@@ -84,7 +87,8 @@ struct cahn_hilliard_op_kernel
                 }
                 else
                 {
-                    next_val = cond.right[j][0] * curr[0];
+                    cond.get_ghost_tensor_linearized( in, in, range, idx + ej, ghost );
+                    next_val = ghost[0];
                 }
             }
             else
@@ -116,7 +120,8 @@ struct cahn_hilliard_op_kernel
                 }
                 else
                 {
-                    prev_val = cond.left[j][1] * curr[1];
+                    cond.get_ghost_tensor_linearized( in, in, range, idx - ej, ghost );
+                    prev_val = ghost[1];
                 }
             }
             else
@@ -135,7 +140,8 @@ struct cahn_hilliard_op_kernel
                 }
                 else
                 {
-                    next_val = cond.right[j][1] * curr[1];
+                    cond.get_ghost_tensor_linearized( in, in, range, idx + ej, ghost );
+                    next_val = ghost[1];
                 }
             }
             else

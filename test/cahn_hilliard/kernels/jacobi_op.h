@@ -29,6 +29,7 @@ struct jacobi_op_kernel
     __DEVICE_TAG__ void operator()( const IdxND idx ) const
     {
         TensorType state{ Scalar(0), Scalar(0) };
+        TensorType ghost{ Scalar(0), Scalar(0) };
 
         auto curr = in.get_vec( idx );
 
@@ -52,7 +53,9 @@ struct jacobi_op_kernel
                 }
                 else
                 {
-                    prev_val = cond.left[j][0] * curr[0];
+                    // prev_val = cond.left[j][0] * curr[0];
+                    cond.get_ghost_tensor_linearized( in, in, range, idx - ej, ghost );
+                    prev_val = ghost[0];
                 }
             }
             else
@@ -71,7 +74,9 @@ struct jacobi_op_kernel
                 }
                 else
                 {
-                    next_val = cond.right[j][0] * curr[0];
+                    // next_val = cond.right[j][0] * curr[0];
+                    cond.get_ghost_tensor_linearized( in, in, range, idx + ej, ghost );
+                    next_val = ghost[0];
                 }
             }
             else
@@ -105,7 +110,9 @@ struct jacobi_op_kernel
                 }
                 else
                 {
-                    prev_val = cond.left[j][1] * curr[1];
+                    // prev_val = cond.left[j][1] * curr[1];
+                    cond.get_ghost_tensor_linearized( in, in, range, idx - ej, ghost );
+                    prev_val = ghost[1];
                 }
             }
             else
@@ -124,7 +131,9 @@ struct jacobi_op_kernel
                 }
                 else
                 {
-                    next_val = cond.right[j][1] * curr[1];
+                    // next_val = cond.right[j][1] * curr[1];
+                    cond.get_ghost_tensor_linearized( in, in, range, idx + ej, ghost );
+                    prev_val = ghost[1];
                 }
             }
             else

@@ -63,12 +63,17 @@ public:
         return vector_space_ptr( range_ );
     }
 
+    void set_linearization_point( vector_type &vector )
+    {
+
+    }
+
     // domain -> (restrict) -> image
     void apply( vector_type &from, vector_type &to ) const
     {
         auto             half_r = range_ / Ord{ 2u };
         for_each_nd_type for_each_nd_inst;
-        for_each_nd_inst( restrictor_kernel{ from, to, b_cond_ }, half_r );
+        for_each_nd_inst( restrictor_kernel{ from, to, b_cond_, from.rect_nd() }, half_r );
     };
 
 private:

@@ -9,8 +9,11 @@ namespace kernels
 template <class IdxND, class Ord, class VectorType, int TensorDim, class BoundaryCond>
 struct prolongator_kernel
 {
-    VectorType   dom, img;
+    using Rect = typename scfd::static_vec::rect<Ord, IdxND::dim>;
+
+    VectorType   dom, img; // dom can be [-1, 0, 1, ..., N-1, N]
     BoundaryCond cond;
+    Rect dom_r; // Real rect [0, 1, ..., N-1]
 
 #if 0
 
@@ -41,7 +44,7 @@ struct prolongator_kernel
 
     __DEVICE_TAG__ void operator()( const IdxND idx ) const
     {
-        using Rect   = typename scfd::static_vec::rect<Ord, IdxND::dim>;
+        // using Rect   = typename scfd::static_vec::rect<Ord, IdxND::dim>;
         using Scalar = typename VectorType::value_type;
         using Tensor = typename scfd::static_vec::vec<Scalar, TensorDim>;
 
@@ -50,7 +53,7 @@ struct prolongator_kernel
 
         Rect r{ begin0, end0 };
         //TODO use dom_r as external parameter (important for mgpu)
-        Rect dom_r = dom.rect_nd();
+        // Rect dom_r = dom.rect_nd();
         for ( int i = 0; i < TensorDim; i++ )
         {
             Scalar sum{ 0 }, mul_sum{ 0 };

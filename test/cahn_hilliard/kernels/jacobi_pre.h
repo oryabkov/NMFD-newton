@@ -39,35 +39,21 @@ struct jacobi_pre_kernel
         {
             const auto N  = range[j];
             const auto hj = step[j];
+            const auto ej = IdxND::make_unit( j );
 
             TensorType diag_j{ Scalar(-2), Scalar(-2) };
+            TensorType diag_ghost{ Scalar(0), Scalar(0) };
 
             if ( idx[j] == 0 )
             {
-                // For periodic (0), don't modify diagonal (stays -2)
-                // For dirichlet (-1) or neumann (+1), add boundary condition value
-                if ( cond.left[j][0] != 0 )
-                {
-                    diag_j[0] += cond.left[j][0];
-                }
-                if ( cond.left[j][1] != 0 )
-                {
-                    diag_j[1] += cond.left[j][1];
-                }
+                cond.get_ghost_coef_linearized( vector, range, idx - ej, diag_ghost );
+                diag_j += diag_ghost;
             }
 
             if ( idx[j] == N - 1 )
             {
-                // For periodic (0), don't modify diagonal (stays -2)
-                // For dirichlet (-1) or neumann (+1), add boundary condition value
-                if ( cond.right[j][0] != 0 )
-                {
-                    diag_j[0] += cond.right[j][0];
-                }
-                if ( cond.right[j][1] != 0 )
-                {
-                    diag_j[1] += cond.right[j][1];
-                }
+                cond.get_ghost_coef_linearized( vector, range, idx + ej, diag_ghost );
+                diag_j += diag_ghost;
             }
 
             mat( 0, 0 ) += D * diag_j[0] / Scalar(hj * hj);

@@ -69,7 +69,7 @@ public:
     void apply( vector_type &from, vector_type &to ) const
     {
         for_each_nd_type for_each_nd_inst;
-        for_each_nd_inst( prolongator_kernel{ from, to, b_cond_ }, range_ );
+        for_each_nd_inst( prolongator_kernel{ from, to, b_cond_, from.rect_nd() }, range_ );
     };
 
 private:
