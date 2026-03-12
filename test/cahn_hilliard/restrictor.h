@@ -5,6 +5,7 @@
 
 #include "kernels/restrictor.h"
 #include "include/boundary.h" // for boundary conditions
+#include <nmfd/detail/vector_wrap.h>
 
 namespace tests
 {
@@ -37,7 +38,10 @@ public: // Especially for SYCL
         kernels::restrictor_kernel<idx_nd_type, ordinal_type, vector_type, tensor_dim, boundary_cond_type>;
 
 public:
-    restrictor( idx_nd_type range, boundary_cond_type b_cond ) : range_( range ), b_cond_( b_cond ) // in dom space
+    restrictor( idx_nd_type range, boundary_cond_type b_cond )
+        : range_( range ), b_cond_( b_cond ), // in dom space
+          vspace_( std::make_shared<vector_space_type>( range ) ),
+          lin_vector_wrap_( *vspace_ )
     {
         for ( int i = 0; i < idx_nd_type::dim; ++i )
         {
@@ -46,6 +50,7 @@ public:
                     "nmfd::restrictor: encountered odd value in vector_space range_! not supported case"
                 );
         }
+        vspace_->assign_scalar( 0.0, *lin_vector_wrap_ );
     }
 
     idx_nd_type get_size() const noexcept
@@ -63,9 +68,14 @@ public:
         return vector_space_ptr( range_ );
     }
 
-    void set_linearization_point( vector_type &vector )
+    void set_linearization_point( const vector_type &p )
     {
+        vspace_->assign( p, *lin_vector_wrap_ );
+    }
 
+    vector_type get_lin_vector() const
+    {
+        return *lin_vector_wrap_;
     }
 
     // domain -> (restrict) -> image
@@ -73,12 +83,18 @@ public:
     {
         auto             half_r = range_ / Ord{ 2u };
         for_each_nd_type for_each_nd_inst;
-        for_each_nd_inst( restrictor_kernel{ from, to, b_cond_, from.rect_nd() }, half_r );
+        for_each_nd_inst( restrictor_kernel{ from, to, *lin_vector_wrap_, b_cond_, from.rect_nd() }, half_r );
     };
 
 private:
     idx_nd_type        range_; // in dom space
     boundary_cond_type b_cond_;
+
+    vector_space_ptr vspace_;
+    using vector_wrap_t = nmfd::detail::vector_wrap<VectorSpace, true, true>;
+    vector_wrap_t    lin_vector_wrap_;
+
+
 };
 
 } // namespace tests

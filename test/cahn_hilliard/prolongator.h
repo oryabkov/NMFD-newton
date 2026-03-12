@@ -4,6 +4,8 @@
 #include <memory>
 
 #include "kernels/prolongator.h"
+#include "include/boundary.h" // for boundary_cond
+#include <nmfd/detail/vector_wrap.h>
 
 namespace tests
 {
@@ -39,7 +41,10 @@ public: // Especially for SYCL
 
 
 public:
-    prolongator( idx_nd_type range, boundary_cond_type b_cond ) : range_( range ), b_cond_( b_cond ) // in im space
+    prolongator( idx_nd_type range, boundary_cond_type b_cond )
+        : range_( range ), b_cond_( b_cond ),
+          vspace_( std::make_shared<vector_space_type>( range / Ord{ 2u } ) ),
+          lin_vector_wrap_( *vspace_ )
     {
         for ( int i = 0; i < idx_nd_type::dim; ++i )
         {
@@ -48,6 +53,7 @@ public:
                     "nmfd::prolongator: encountered odd value in vector_space range_! not supported case"
                 );
         }
+        vspace_->assign_scalar( 0.0, *lin_vector_wrap_ );
     }
 
     idx_nd_type get_size() const noexcept
@@ -65,16 +71,30 @@ public:
         return vector_space_ptr( range_ );
     }
 
+    void set_linearization_point( const vector_type &p )
+    {
+        vspace_->assign( p, *lin_vector_wrap_ );
+    }
+
+    vector_type get_lin_vector() const
+    {
+        return *lin_vector_wrap_;
+    }
+
     // domain -> (prolongate) -> image
     void apply( vector_type &from, vector_type &to ) const
     {
         for_each_nd_type for_each_nd_inst;
-        for_each_nd_inst( prolongator_kernel{ from, to, b_cond_, from.rect_nd() }, range_ );
+        for_each_nd_inst( prolongator_kernel{ from, to, *lin_vector_wrap_, b_cond_, from.rect_nd() }, range_ );
     };
 
 private:
     idx_nd_type        range_; // in im space
     boundary_cond_type b_cond_;
+
+    vector_space_ptr vspace_;
+    using vector_wrap_t = nmfd::detail::vector_wrap<VectorSpace, true, true>;
+    vector_wrap_t    lin_vector_wrap_;
 };
 
 } // namespace tests

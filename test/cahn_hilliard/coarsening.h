@@ -40,14 +40,17 @@ public:
     std::tuple<std::shared_ptr<restrictor_type>, std::shared_ptr<prolongator_type>> next_level( const operator_type &op
     )
     {
-        return std::make_tuple(
-            std::make_shared<restrictor_type>( op.get_size(), op.get_b_cond() ),
-            std::make_shared<prolongator_type>( op.get_size(), op.get_b_cond() )
-        );
+        auto res = std::make_shared<restrictor_type>( op.get_size(), op.get_b_cond() );
+        auto pro = std::make_shared<prolongator_type>( op.get_size(), op.get_b_cond() );
+
+        auto fine_lin = op.get_lin_vector();
+        res->set_linearization_point( fine_lin );
+
+        return std::make_tuple( res, pro );
     }
 
     std::shared_ptr<operator_type>
-    coarse_operator( const operator_type &op, const restrictor_type &restrictor, const prolongator_type &prolongator )
+    coarse_operator( const operator_type &op, const restrictor_type &restrictor, prolongator_type &prolongator )
     {
         using Ord    = ordinal_type;
         using Scalar = scalar_type;
@@ -64,10 +67,12 @@ public:
         coarse_op->set_gamma( op.get_gamma() );
 
         // Restrict the linearization point from fine to coarse level
-        vector_type fine_vector = op.get_vector();
+        vector_type fine_vector = op.get_lin_vector();
         vector_type coarse_vector( coarse_size );
         restrictor.apply( fine_vector, coarse_vector );
-        coarse_op->set_vector( coarse_vector );
+        coarse_op->set_linearization_point( coarse_vector );
+
+        prolongator.set_linearization_point( coarse_vector );
 
         return coarse_op;
     }

@@ -13,6 +13,7 @@ struct restrictor_kernel
     using Rect   = typename scfd::static_vec::rect<Ord, IdxND::dim>;
 
     VectorType   dom, img;
+    VectorType   lin_dom;
     BoundaryCond cond;
     Rect dom_r;
 
@@ -87,8 +88,7 @@ struct restrictor_kernel
                 if ( !dom_r.is_own( j ) )
                 {
                     Tensor ghost;
-                    //TODO 1st argument should be linearization point - pass it as external param - important for nonlinear bc
-                    cond.get_ghost_tensor_linearized( dom, dom, dom_r.i2, j, ghost );
+                    cond.get_ghost_tensor_linearized( lin_dom, dom, dom_r.i2, j, ghost );
                     sum += ghost[i] * mul;
                 }
                 else

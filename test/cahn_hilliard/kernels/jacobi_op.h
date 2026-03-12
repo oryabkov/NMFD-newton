@@ -16,7 +16,7 @@ template <
     class PhobicEnergy>
 struct jacobi_op_kernel
 {
-    VectorType   in, out, vector;
+    VectorType   in, out, lin_vector;
     IdxND        range;
     GridStep     step;
     BoundaryCond cond;
@@ -89,7 +89,7 @@ struct jacobi_op_kernel
         state[0] -= curr[1] * dt_inf;
 
         // Second equation Jacobian: d_psi + gamma * laplace(d_phi) - f'(phi) * d_phi
-        Scalar phi = vector.get_vec( idx )[1];
+        Scalar phi = lin_vector.get_vec( idx )[1];
         state[1]   = curr[0] - phobic_en.get_derivative( phi ) * curr[1];
         #pragma unroll
         for ( int j = 0; j < IdxND::dim; j++ )

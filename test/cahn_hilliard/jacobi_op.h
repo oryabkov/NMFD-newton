@@ -54,9 +54,9 @@ public: // Especially for SYCL
 public:
     jacobi_op( vector_space_ptr vspace, grid_step_type step, boundary_cond_type b_cond, time_derivative_ptr time_derivative )
         : vspace_( std::move( vspace ) ), range_( vspace_->get_size() ), step_( step ), b_cond_( b_cond ),
-          vector_wrap_( *vspace_ ), phobic_en_(), time_derivative_( std::move( time_derivative ) )
+          lin_vector_wrap_( *vspace_ ), phobic_en_(), time_derivative_( std::move( time_derivative ) )
     {
-        vspace_->assign_scalar( 0.0, *vector_wrap_ );
+        vspace_->assign_scalar( 0.0, *lin_vector_wrap_ );
     }
 
     // Convenience ctor: create space (and time-derivative) from size, then delegate.
@@ -128,13 +128,14 @@ public:
         return get_space();
     }
 
-    vector_type get_vector() const
+    void set_linearization_point( const vector_type &p )
     {
-        return *vector_wrap_;
+        vspace_->assign( p, *lin_vector_wrap_ );
     }
-    void set_vector( const vector_type &vector )
+
+    vector_type get_lin_vector() const
     {
-        vspace_->assign( vector, *vector_wrap_ );
+        return *lin_vector_wrap_;
     }
 
     const time_derivative_ptr &get_time_derivative() const noexcept
@@ -146,7 +147,7 @@ public:
     {
         for_each_nd_type for_each_nd_inst;
         for_each_nd_inst(
-            jacobi_op_kernel{ in, out, *vector_wrap_, range_, step_, b_cond_, phobic_en_, time_derivative_->get_dt_inf(), D_, gamma_ }, range_
+            jacobi_op_kernel{ in, out, *lin_vector_wrap_, range_, step_, b_cond_, phobic_en_, time_derivative_->get_dt_inf(), D_, gamma_ }, range_
         );
     };
 
@@ -157,7 +158,7 @@ private:
     boundary_cond_type b_cond_;
 
     using vector_wrap_t = nmfd::detail::vector_wrap<VectorSpace, true, true>;
-    vector_wrap_t       vector_wrap_;
+    vector_wrap_t       lin_vector_wrap_;
     PhobicEnergy        phobic_en_;
     time_derivative_ptr time_derivative_;
 

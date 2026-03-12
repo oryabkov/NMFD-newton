@@ -18,7 +18,7 @@ template <
     class PhobicEnergy>
 struct jacobi_pre_kernel
 {
-    VectorType   v, vector;
+    VectorType   vector, lin_vector;
     IdxND        range;
     GridStep     step;
     BoundaryCond cond;
@@ -32,7 +32,7 @@ struct jacobi_pre_kernel
     {
         MatType mat{ Scalar(0), Scalar(0), Scalar(0), Scalar(0) };
 
-        auto vec = v.get_vec( idx );
+        auto vec = vector.get_vec( idx );
 
 #pragma unroll
         for ( int j = 0; j < IdxND::dim; j++ )
@@ -46,13 +46,13 @@ struct jacobi_pre_kernel
 
             if ( idx[j] == 0 )
             {
-                cond.get_ghost_coef_linearized( vector, range, idx - ej, diag_ghost );
+                cond.get_ghost_coef_linearized( lin_vector, range, idx - ej, diag_ghost );
                 diag_j += diag_ghost;
             }
 
             if ( idx[j] == N - 1 )
             {
-                cond.get_ghost_coef_linearized( vector, range, idx + ej, diag_ghost );
+                cond.get_ghost_coef_linearized( lin_vector, range, idx + ej, diag_ghost );
                 diag_j += diag_ghost;
             }
 
@@ -60,12 +60,12 @@ struct jacobi_pre_kernel
             mat( 1, 1 ) += gamma * diag_j[1] / Scalar(hj * hj);
         }
         mat( 0, 1 ) = -dt_inf;
-        Scalar phi = vector.get_vec( idx )[1];
+        Scalar phi = lin_vector.get_vec( idx )[1];
         mat( 1, 1 ) -= phobic_en.get_derivative( phi );
         mat( 1, 0 ) = Scalar(1);
 
         auto result = inv( mat ) * vec;
-        v.set_vec( result, idx );
+        vector.set_vec( result, idx );
     }
 };
 

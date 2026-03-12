@@ -154,7 +154,7 @@ public:
 
     void set_linearization_point( const vector_type &p )
     {
-        jacobi_op_->set_vector( p );
+        jacobi_op_->set_linearization_point( p );
     }
 
     const jacobi_operator_ptr &get_jacobi_operator() const noexcept
