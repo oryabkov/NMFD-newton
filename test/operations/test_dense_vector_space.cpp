@@ -1,4 +1,5 @@
-#include <array>
+#include "scfd_array_traits.h"
+
 #include <cmath>
 #include <memory>
 #include <nmfd/operations/dense_vector_space.h>
@@ -6,9 +7,7 @@
 #include <scfd/arrays/array.h>
 #include <scfd/utils/log.h>
 
-#include "scfd_array_traits.h"
-
-#include <scfd/backend/serial_cpu.h>
+#include <scfd/backend/backend.h>
 
 const double eps = 1e-10;
 
@@ -17,10 +16,11 @@ int main( int argc, char const *args[] )
     using log_t                = scfd::utils::log_std;
     using T                    = double;
     static const int Dim       = 3;
-    using memory_type          = scfd::backend::serial_cpu::memory_type;
+    using backend_type  = scfd::backend::current;
+    using memory_type          = backend_type::memory_type;
     using vector_type          = scfd::arrays::array<T, memory_type>;
     using vector_traits        = scfd_array_traits<T, memory_type>;
-    using dense_vector_space_t = nmfd::operations::dense_vector_space<T, vector_traits, scfd::backend::serial_cpu>;
+    using dense_vector_space_t = nmfd::operations::dense_vector_space<T, vector_traits, backend_type>;
 
     log_t log;
     log.info( "Testing dense vector space implementation" );

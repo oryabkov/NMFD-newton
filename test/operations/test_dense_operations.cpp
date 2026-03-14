@@ -1,3 +1,5 @@
+#include "scfd_array_traits.h"
+
 #include <cmath>
 #include <memory>
 #include <nmfd/operations/dense_operations_base.h>
@@ -5,9 +7,7 @@
 #include <scfd/arrays/array_nd.h>
 #include <scfd/utils/log.h>
 
-#include "scfd_array_traits.h"
-
-#include <scfd/backend/serial_cpu.h>
+#include <scfd/backend/backend.h>
 
 const double eps = 1e-10;
 
@@ -15,34 +15,113 @@ int main( int argc, char const *args[] )
 {
     using log_t         = scfd::utils::log_std;
     using T             = double;
-    using memory_type   = scfd::backend::serial_cpu::memory_type;
+    using backend_type  = scfd::backend::current;
+    using memory_type   = backend_type::memory_type;
     using vector_type   = scfd::arrays::array<T, memory_type>;
     using vector_traits = scfd_array_traits<T, memory_type>;
-    using dense_ops_t   = nmfd::operations::dense_operations<T, vector_traits, scfd::backend::serial_cpu>;
+    using dense_ops_t   = nmfd::operations::dense_operations<T, vector_traits, backend_type>;
     using matrix_type   = typename dense_ops_t::matrix_type;
 
     log_t log;
-    log.info( "Testing dense_operations (matrix-vector)" );
+    log.info( "Testing dense_operations" );
     size_t passed_counter = 0;
     size_t failed_counter = 0;
 
-    const int rows    = 3;
-    const int cols    = 3;
-    const int vec_dim = cols;
-
-    auto ops = std::make_shared<dense_ops_t>( vec_dim );
+    auto ops = std::make_shared<dense_ops_t>();
 
     // ====================================================================
-    // Test 1: y := 1.0 * mat * x + 0.0 * y  (simple mat*x)
+    // GROUP 1: Reduction operations on vectors of different sizes
     // ====================================================================
-    log.info( "=== Test 1: y = mat * x ===" );
+    log.info( "=== Reduction: scalar_prod on size 3 ===" );
     {
-        //     mat = | 1  2  3 |    x = | 1 |    mat*x = | 1*1+2*2+3*3 |   | 14 |
-        //           | 4  5  6 |        | 2 |            | 4*1+5*2+6*3 | = | 32 |
-        //           | 7  8  9 |        | 3 |            | 7*1+8*2+9*3 |   | 50 |
+        vector_type x  = { 1, 2, 3 };
+        vector_type y  = { 4, 5, 6 };
+        T           sp = ops->scalar_prod( x, y );
+        if ( std::abs( sp - 32 ) < eps )
+        {
+            log.info( "PASS: scalar_prod({1,2,3}, {4,5,6}) = 32" );
+            passed_counter++;
+        }
+        else
+        {
+            log.error( "FAIL: scalar_prod expected 32, got " + std::to_string( sp ) );
+            failed_counter++;
+        }
+    }
 
+    log.info( "=== Reduction: norm on size 5 (helper must grow) ===" );
+    {
+        vector_type x        = { 1, 2, 3, 4, 5 };
+        T           n        = ops->norm( x );
+        T           expected = std::sqrt( 1 + 4 + 9 + 16 + 25 );
+        if ( std::abs( n - expected ) < eps )
+        {
+            log.info( "PASS: norm({1,2,3,4,5}) = " + std::to_string( expected ) );
+            passed_counter++;
+        }
+        else
+        {
+            log.error( "FAIL: norm expected " + std::to_string( expected ) + ", got " + std::to_string( n ) );
+            failed_counter++;
+        }
+    }
+
+    log.info( "=== Reduction: sum on size 2 (helper should not shrink) ===" );
+    {
+        vector_type x = { 10, 20 };
+        T           s = ops->sum( x );
+        if ( std::abs( s - 30 ) < eps )
+        {
+            log.info( "PASS: sum({10, 20}) = 30" );
+            passed_counter++;
+        }
+        else
+        {
+            log.error( "FAIL: sum expected 30, got " + std::to_string( s ) );
+            failed_counter++;
+        }
+    }
+
+    log.info( "=== Reduction: asum on size 4 ===" );
+    {
+        vector_type x = { 1, -2, 3, -4 };
+        T           a = ops->asum( x );
+        if ( std::abs( a - 10 ) < eps )
+        {
+            log.info( "PASS: asum({1,-2,3,-4}) = 10" );
+            passed_counter++;
+        }
+        else
+        {
+            log.error( "FAIL: asum expected 10, got " + std::to_string( a ) );
+            failed_counter++;
+        }
+    }
+
+    log.info( "=== Reduction: norm on size 7 (helper grows again) ===" );
+    {
+        vector_type x        = { 1, 1, 1, 1, 1, 1, 1 };
+        T           n        = ops->norm( x );
+        T           expected = std::sqrt( 7.0 );
+        if ( std::abs( n - expected ) < eps )
+        {
+            log.info( "PASS: norm(ones(7)) = " + std::to_string( expected ) );
+            passed_counter++;
+        }
+        else
+        {
+            log.error( "FAIL: norm expected " + std::to_string( expected ) + ", got " + std::to_string( n ) );
+            failed_counter++;
+        }
+    }
+
+    // ====================================================================
+    // GROUP 2: Matrix-vector operations
+    // ====================================================================
+    log.info( "=== Test: y = mat * x (3x3) ===" );
+    {
         matrix_type mat;
-        mat.init( rows, cols );
+        mat.init( 3, 3 );
         {
             auto mv    = mat.create_view( false );
             mv( 0, 0 ) = 1;
@@ -79,17 +158,8 @@ int main( int argc, char const *args[] )
         mat.free();
     }
 
-    // ====================================================================
-    // Test 2: y := alpha * mat * x + beta * y
-    // ====================================================================
-    log.info( "=== Test 2: y = alpha*mat*x + beta*y ===" );
+    log.info( "=== Test: y = alpha*mat*x + beta*y (2x2) ===" );
     {
-        //     mat = | 1  0 |    x = | 3 |    alpha=2, beta=3
-        //           | 0  1 |        | 4 |
-        //     mat*x = | 3 |    alpha*mat*x = | 6 |    y_init = | 1 |
-        //             | 4 |                  | 8 |              | 2 |
-        //     result = 6 + 3*1 = 9,  8 + 3*2 = 14
-
         matrix_type mat;
         mat.init( 2, 2 );
         {
@@ -115,23 +185,15 @@ int main( int argc, char const *args[] )
         else
         {
             log.error(
-                "FAIL: y = alpha*mat*x + beta*y. Expected {9, 14} but got {" + std::to_string( yv( 0 ) ) + ", " +
-                std::to_string( yv( 1 ) ) + "}"
+                "FAIL: Expected {9, 14} but got {" + std::to_string( yv( 0 ) ) + ", " + std::to_string( yv( 1 ) ) + "}"
             );
             failed_counter++;
         }
         mat.free();
     }
 
-    // ====================================================================
-    // Test 3: non-square matrix  (2x3) * (3x1) -> (2x1)
-    // ====================================================================
-    log.info( "=== Test 3: non-square matrix ===" );
+    log.info( "=== Test: non-square matrix (2x3) ===" );
     {
-        //     mat = | 1  2  3 |    x = | 1 |    mat*x = | 1+4+9  | = | 14 |
-        //           | 4  5  6 |        | 2 |            | 4+10+18|   | 32 |
-        //                              | 3 |
-
         matrix_type mat;
         mat.init( 2, 3 );
         {
@@ -159,25 +221,15 @@ int main( int argc, char const *args[] )
         else
         {
             log.error(
-                "FAIL: non-square (2x3) matrix. Expected {14, 32} but got {" + std::to_string( yv( 0 ) ) + ", " +
-                std::to_string( yv( 1 ) ) + "}"
+                "FAIL: Expected {14, 32} but got {" + std::to_string( yv( 0 ) ) + ", " + std::to_string( yv( 1 ) ) + "}"
             );
             failed_counter++;
         }
         mat.free();
     }
 
-    // ====================================================================
-    // Test 4: assign_matrix_vector_prod  z := alpha*mat*x + beta*y
-    // ====================================================================
-    log.info( "=== Test 4: assign_matrix_vector_prod ===" );
+    log.info( "=== Test: assign_matrix_vector_prod ===" );
     {
-        //     mat = | 2  0 |    x = | 3 |    alpha=1, beta=1
-        //           | 0  2 |        | 4 |
-        //     mat*x = | 6 |    y = | 10 |
-        //             | 8 |        | 20 |
-        //     z = 1 * mat*x + 1 * y = {6+10, 8+20} = {16, 28}
-
         matrix_type mat;
         mat.init( 2, 2 );
         {
@@ -204,8 +256,7 @@ int main( int argc, char const *args[] )
         else
         {
             log.error(
-                "FAIL: assign_matrix_vector_prod. Expected {16, 28} but got {" + std::to_string( zv( 0 ) ) + ", " +
-                std::to_string( zv( 1 ) ) + "}"
+                "FAIL: Expected {16, 28} but got {" + std::to_string( zv( 0 ) ) + ", " + std::to_string( zv( 1 ) ) + "}"
             );
             failed_counter++;
         }

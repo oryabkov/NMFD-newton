@@ -56,6 +56,15 @@ public:
         return vt_;
     }
 
+    void verify_max_loc_size( size_t loc_size ) const
+    {
+        if (  vt_.get_loc_size( helper_ ) < loc_size )
+        {
+            vt_.dealloc( helper_ );
+            vt_.alloc( loc_size, helper_ );
+        }
+    }
+
     [[nodiscard]] size_t size() const
     {
         return vt_.size();
@@ -78,6 +87,7 @@ public:
 
     [[nodiscard]] scalar_type scalar_prod( const vector_type &x, const vector_type &y ) const
     {
+        verify_max_loc_size( get_loc_size( x ) );
         for_each_inst_(
             scalar_prod_kernel{ vt_.get_raw_ptr( x ), vt_.get_raw_ptr( y ), vt_.get_raw_ptr( helper_ ) },
             get_loc_size( x )
@@ -142,11 +152,13 @@ public:
 
     [[nodiscard]] scalar_type sum( const vector_type &x ) const
     {
+        verify_max_loc_size( get_loc_size( x ) );
         for_each_inst_( sum_kernel{ vt_.get_raw_ptr( x ), vt_.get_raw_ptr( helper_ ) }, get_loc_size( x ) );
         return reduce_inst_( get_loc_size( x ), vt_.get_raw_ptr( helper_ ), scalar_type{ 0 } );
     }
     [[nodiscard]] scalar_type asum( const vector_type &x ) const
     {
+        verify_max_loc_size( get_loc_size( x ) );
         for_each_inst_( asum_kernel{ vt_.get_raw_ptr( x ), vt_.get_raw_ptr( helper_ ) }, get_loc_size( x ) );
         return reduce_inst_( get_loc_size( x ), vt_.get_raw_ptr( helper_ ), scalar_type{ 0 } );
     }

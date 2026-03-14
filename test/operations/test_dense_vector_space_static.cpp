@@ -18,7 +18,8 @@ int main( int argc, char const *args[] )
     static const int Dim       = 3;
     using vector_type          = std::array<T, Dim>;
     using vector_traits        = static_vector_traits<T, Dim>;
-    using dense_vector_space_t = nmfd::operations::dense_vector_space<T, vector_traits, scfd::backend::serial_cpu>;
+    using backend_type         = scfd::backend::serial_cpu;
+    using dense_vector_space_t = nmfd::operations::dense_vector_space<T, vector_traits, backend_type>;
 
     log_t log;
     log.info( "Testing dense vector space implementation" );
