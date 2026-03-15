@@ -1,11 +1,10 @@
 #include <cmath>
 #include <memory>
+#include <nmfd/operations/detail/static_vector_traits.h>
 #include <nmfd/operations/dense_vector_space.h>
 #include <nmfd/operations/static_vector_space.h>
 #include <scfd/arrays/array.h>
 #include <scfd/utils/log.h>
-
-#include "static_vector_traits.h"
 
 #include <scfd/backend/serial_cpu.h>
 
@@ -17,7 +16,7 @@ int main( int argc, char const *args[] )
     using T                    = double;
     static const int Dim       = 3;
     using vector_type          = std::array<T, Dim>;
-    using vector_traits        = static_vector_traits<T, Dim>;
+    using vector_traits        = nmfd::operations::detail::static_vector_traits<T, Dim>;
     using backend_type         = scfd::backend::serial_cpu;
     using dense_vector_space_t = nmfd::operations::dense_vector_space<vector_traits, backend_type>;
 

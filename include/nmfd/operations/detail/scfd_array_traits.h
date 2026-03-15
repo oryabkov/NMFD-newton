@@ -1,8 +1,15 @@
-#ifndef __TEST_SCFD_ARRAY_TRAITS_H__
-#define __TEST_SCFD_ARRAY_TRAITS_H__
+#ifndef __NMFD_OPERATIONS_DETAIL_SCFD_ARRAY_TRAITS_H__
+#define __NMFD_OPERATIONS_DETAIL_SCFD_ARRAY_TRAITS_H__
 
 #include <cstddef>
 #include <scfd/arrays/array.h>
+
+namespace nmfd
+{
+namespace operations
+{
+namespace detail
+{
 
 template <class T, class Memory>
 class scfd_array_traits
@@ -18,17 +25,17 @@ public:
     {
     }
 
-    void alloc( size_t loc_sz, vector_type &v )
+    void alloc( size_t loc_sz, vector_type &v ) const
     {
         v.init( loc_sz );
     }
 
-    void dealloc( vector_type &v )
+    void dealloc( vector_type &v ) const
     {
         v.free();
     }
 
-    scalar_type *get_raw_ptr( vector_type &v )
+    scalar_type *get_raw_ptr( vector_type &v ) const
     {
         return v.raw_ptr();
     }
@@ -53,5 +60,9 @@ public:
 private:
     size_t size_{ 0 };
 };
+
+} // namespace detail
+} // namespace operations
+} // namespace nmfd
 
 #endif

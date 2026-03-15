@@ -1,10 +1,11 @@
 #ifndef __NMFD_DENSE_VECTOR_OPERATIONS_H__
 #define __NMFD_DENSE_VECTOR_OPERATIONS_H__
 
+#include <vector>
+
 #include <scfd/utils/todo.h>
 
 #include <nmfd/operations/kernels/dense_vector_space.h>
-#include <vector>
 
 namespace nmfd
 {
@@ -51,33 +52,9 @@ public:
         vt_.alloc( vt_.loc_size(), helper_ );
     }
 
-    const VectorTraits &get_vector_traits() const
-    {
-        return vt_;
-    }
-
-    void verify_max_loc_size( size_t loc_size ) const
-    {
-        if ( vt_.get_loc_size( helper_ ) < loc_size )
-        {
-            vt_.dealloc( helper_ );
-            vt_.alloc( loc_size, helper_ );
-        }
-    }
-
-    [[nodiscard]] size_t size() const
-    {
-        return vt_.size();
-    }
-
     [[nodiscard]] Ordinal get_loc_size( const vector_type &x ) const
     {
         return vt_.get_loc_size( x );
-    }
-
-    template <class... Args>
-    void stop_use_vectors( Args &&...args ) const
-    {
     }
 
     bool check_is_valid_number( const vector_type &x ) const
@@ -359,6 +336,16 @@ size_t argmax_element(vector_type& x)const
     ) const
     {
         SCFD_TODO( "Implement assign_skip_lices" );
+    }
+
+private:
+    void verify_max_loc_size( size_t loc_size ) const
+    {
+        if ( vt_.get_loc_size( helper_ ) < loc_size )
+        {
+            vt_.dealloc( helper_ );
+            vt_.alloc( loc_size, helper_ );
+        }
     }
 
 protected:

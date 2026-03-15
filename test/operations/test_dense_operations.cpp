@@ -1,26 +1,20 @@
-#include "scfd_array_traits.h"
-
-#include <cmath>
-#include <memory>
-#include <nmfd/operations/dense_operations_base.h>
-#include <scfd/arrays/array.h>
-#include <scfd/arrays/array_nd.h>
 #include <scfd/utils/log.h>
 
 #include <scfd/backend/backend.h>
+
+#include <nmfd/operations/dense_operations_base.h>
 
 const double eps = 1e-10;
 
 int main( int argc, char const *args[] )
 {
-    using log_t         = scfd::utils::log_std;
-    using T             = double;
-    using backend_type  = scfd::backend::current;
-    using memory_type   = backend_type::memory_type;
-    using vector_type   = scfd::arrays::array<T, memory_type>;
-    using vector_traits = scfd_array_traits<T, memory_type>;
-    using dense_ops_t   = nmfd::operations::dense_operations<vector_traits, backend_type>;
-    using matrix_type   = typename dense_ops_t::matrix_type;
+    using log_t        = scfd::utils::log_std;
+    using T            = double;
+    using backend_type = scfd::backend::current;
+    using memory_type  = backend_type::memory_type;
+    using dense_ops_t  = nmfd::operations::dense_operations<T, backend_type>;
+    using vector_type  = typename dense_ops_t::vector_type;
+    using matrix_type  = typename dense_ops_t::matrix_type;
 
     log_t log;
     log.info( "Testing dense_operations" );

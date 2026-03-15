@@ -1,8 +1,15 @@
-#ifndef __TEST_STATIC_VECTOR_TRAITS_H__
-#define __TEST_STATIC_VECTOR_TRAITS_H__
+#ifndef __NMFD_OPERATIONS_DETAIL_STATIC_VECTOR_TRAITS_H__
+#define __NMFD_OPERATIONS_DETAIL_STATIC_VECTOR_TRAITS_H__
 
 #include <array>
 #include <cstddef>
+
+namespace nmfd
+{
+namespace operations
+{
+namespace detail
+{
 
 template <class T, size_t Dim>
 class static_vector_traits
@@ -12,18 +19,15 @@ public:
     using vector_type = std::array<T, Dim>;
 
 public:
-    void alloc( size_t loc_sz, vector_type &v )
+    void alloc( size_t loc_sz, vector_type &v ) const
     {
-        // do nothing
     }
 
-    void dealloc( vector_type &v )
+    void dealloc( vector_type &v ) const
     {
-        // do nothing
     }
 
-    // returns raw pointer to vector first elem
-    scalar_type *get_raw_ptr( vector_type &v )
+    scalar_type *get_raw_ptr( vector_type &v ) const
     {
         return v.data();
     }
@@ -47,5 +51,9 @@ public:
 private:
     size_t size_{ Dim };
 };
+
+} // namespace detail
+} // namespace operations
+} // namespace nmfd
 
 #endif

@@ -1,7 +1,6 @@
-#include "scfd_array_traits.h"
-
 #include <cmath>
 #include <memory>
+#include <nmfd/operations/detail/scfd_array_traits.h>
 #include <nmfd/operations/dense_vector_space.h>
 #include <nmfd/operations/static_vector_space.h>
 #include <scfd/arrays/array.h>
@@ -16,10 +15,10 @@ int main( int argc, char const *args[] )
     using log_t                = scfd::utils::log_std;
     using T                    = double;
     static const int Dim       = 3;
-    using backend_type  = scfd::backend::current;
+    using backend_type         = scfd::backend::current;
     using memory_type          = backend_type::memory_type;
     using vector_type          = scfd::arrays::array<T, memory_type>;
-    using vector_traits        = scfd_array_traits<T, memory_type>;
+    using vector_traits        = nmfd::operations::detail::scfd_array_traits<T, memory_type>;
     using dense_vector_space_t = nmfd::operations::dense_vector_space<vector_traits, backend_type>;
 
     log_t log;

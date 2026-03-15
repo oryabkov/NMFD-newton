@@ -17,6 +17,7 @@ class dense_vector_space : public dense_vector_operations<VectorTraits, Backend,
 {
 public:
     using vector_type = typename VectorTraits::vector_type;
+    using parent_t    = dense_vector_operations<VectorTraits, Backend, Ordinal>;
 
 public:
     dense_vector_space() = default;
@@ -29,7 +30,7 @@ public:
 
     void init_vector( vector_type &vec ) const
     {
-        const VectorTraits &vt = this->get_vector_traits();
+        const VectorTraits &vt = parent_t::vt_;
         vt.alloc( vt.loc_size(), vec );
     }
     template <class... Args>
@@ -40,13 +41,12 @@ public:
 
     void free_vector( vector_type &vec ) const
     {
-        const VectorTraits &vt = this->get_vector_traits();
-        vt.dealloc( vec );
+        parent_t::vt_.dealloc( vec );
     }
     template <class... Args>
     void free_vectors( Args &&...args ) const
     {
-        std::initializer_list<int>{ ( (void)free_row_vector( std::forward<Args>( args ) ), 0 )... };
+        std::initializer_list<int>{ ( (void)free_vector( std::forward<Args>( args ) ), 0 )... };
     }
 
     void start_use_vector( vector_type &x ) const
@@ -63,6 +63,11 @@ public:
     template <class... Args>
     void stop_use_vectors( Args &&...args ) const
     {
+    }
+
+    [[nodiscard]] size_t size() const
+    {
+        return parent_t::vt_.size();
     }
 };
 

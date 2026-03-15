@@ -1,12 +1,12 @@
 #ifndef __NMFD_DENSE_OPERATIONS_BASE_H__
 #define __NMFD_DENSE_OPERATIONS_BASE_H__
 
-#include <cmath>
 #include <memory>
-#include <string>
+
 #include <scfd/arrays/array_nd.h>
-#include <scfd/static_vec/vec.h>
-#include <nmfd/operations/dense_vector_operations.h>
+
+#include <nmfd/operations/detail/scfd_array_traits.h>
+#include <nmfd/operations/dense_vector_space.h>
 #include <nmfd/operations/kernels/dense_operations.h>
 
 namespace nmfd
@@ -14,25 +14,26 @@ namespace nmfd
 namespace operations
 {
 
-template <class VectorTraits, class Backend, class Ordinal = std::ptrdiff_t>
-class dense_vector_space;
-
-template <class VectorTraits, class Backend, class Ordinal = std::ptrdiff_t>
-class dense_operations : public dense_vector_operations<VectorTraits, Backend>
+template <class Type, class Backend, class Ordinal = std::ptrdiff_t>
+class dense_operations
+    : public dense_vector_operations<detail::scfd_array_traits<Type, typename Backend::memory_type>, Backend, Ordinal>
 {
     static constexpr int Dim = 2;
 
+    using traits_type = detail::scfd_array_traits<Type, typename Backend::memory_type>;
+    using parent_t    = dense_vector_operations<traits_type, Backend, Ordinal>;
+
 public:
     using arr_ord           = scfd::arrays::ordinal_type;
-    using scalar_type       = typename VectorTraits::scalar_type;
-    using vector_type       = typename VectorTraits::vector_type;
+    using scalar_type       = Type;
+    using vector_type       = typename traits_type::vector_type;
     using memory_type       = typename Backend::memory_type;
     using for_each_nd_type  = typename Backend::template for_each_nd_type<Dim, arr_ord>;
     using reduce_type       = typename Backend::reduce_type;
     using idx_nd_type       = scfd::static_vec::vec<arr_ord, Dim>;
     using matrix_type       = scfd::arrays::array_nd<scalar_type, Dim, memory_type>;
     using multivector_type  = typename std::vector<vector_type>;
-    using vector_space_type = dense_vector_space<VectorTraits, Backend, Ordinal>;
+    using vector_space_type = dense_vector_space<traits_type, Backend, Ordinal>;
 
     using matrix_transpose_2d_kernel     = kernels::matrix_transpose_2d<matrix_type>;
     using matrix_sum_2d_kernel           = kernels::matrix_sum_2d<scalar_type, matrix_type>;
@@ -42,13 +43,11 @@ public:
     using matrix_scalar_diag_2d_kernel   = kernels::matrix_scalar_diag_2d<scalar_type, matrix_type>;
     using matrix_diag_extract_kernel     = kernels::matrix_diag_extract<scalar_type, matrix_type>;
 
-    using parent_t = dense_vector_operations<VectorTraits, Backend>;
-
 public:
     dense_operations() = default;
 
     template <typename... Args>
-    dense_operations( Args &&...args ) : dense_vector_operations<VectorTraits, Backend>( std::forward<Args>( args )... )
+    dense_operations( Args &&...args ) : parent_t( std::forward<Args>( args )... )
     {
     }
 
