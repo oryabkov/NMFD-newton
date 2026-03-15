@@ -1,12 +1,10 @@
-#include <cmath>
 #include <memory>
+
+#include <scfd/utils/log.h>
+#include <scfd/backend/serial_cpu.h>
+
 #include <nmfd/operations/detail/static_vector_traits.h>
 #include <nmfd/operations/dense_vector_space.h>
-#include <nmfd/operations/static_vector_space.h>
-#include <scfd/arrays/array.h>
-#include <scfd/utils/log.h>
-
-#include <scfd/backend/serial_cpu.h>
 
 const double eps = 1e-10;
 
