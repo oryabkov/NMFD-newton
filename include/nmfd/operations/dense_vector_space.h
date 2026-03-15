@@ -12,8 +12,8 @@ namespace operations
 {
 
 
-template <class Type, class VectorTraits, class Backend, class Ordinal = std::ptrdiff_t>
-class dense_vector_space : public dense_vector_operations<Type, VectorTraits, Backend, Ordinal>
+template <class VectorTraits, class Backend, class Ordinal = std::ptrdiff_t>
+class dense_vector_space : public dense_vector_operations<VectorTraits, Backend, Ordinal>
 {
 public:
     using vector_type = typename VectorTraits::vector_type;
@@ -23,7 +23,7 @@ public:
 
     template <typename... Args>
     dense_vector_space( Args &&...args )
-        : dense_vector_operations<Type, VectorTraits, Backend, Ordinal>( std::forward<Args>( args )... )
+        : dense_vector_operations<VectorTraits, Backend, Ordinal>( std::forward<Args>( args )... )
     {
     }
 

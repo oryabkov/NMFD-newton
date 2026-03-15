@@ -19,7 +19,7 @@ int main( int argc, char const *args[] )
     using memory_type   = backend_type::memory_type;
     using vector_type   = scfd::arrays::array<T, memory_type>;
     using vector_traits = scfd_array_traits<T, memory_type>;
-    using dense_ops_t   = nmfd::operations::dense_operations<T, vector_traits, backend_type>;
+    using dense_ops_t   = nmfd::operations::dense_operations<vector_traits, backend_type>;
     using matrix_type   = typename dense_ops_t::matrix_type;
 
     log_t log;
@@ -261,6 +261,331 @@ int main( int argc, char const *args[] )
             failed_counter++;
         }
         mat.free();
+    }
+
+    // ====================================================================
+    // GROUP 3: Matrix-matrix operations
+    // ====================================================================
+
+    log.info( "=== Test: matrix_matrix_prod (2x3) * (3x2) ===" );
+    {
+        matrix_type A = { { 1, 2, 3 }, { 4, 5, 6 } };
+        matrix_type B = { { 1, 4 }, { 2, 5 }, { 3, 6 } };
+
+        auto C  = ops->matrix_matrix_prod( A, B );
+        auto cv = C->create_view( true );
+        auto sz = C->size_nd();
+
+        if ( sz[0] == 2 && sz[1] == 2 && std::abs( cv( 0, 0 ) - 14 ) < eps && std::abs( cv( 0, 1 ) - 32 ) < eps &&
+             std::abs( cv( 1, 0 ) - 32 ) < eps && std::abs( cv( 1, 1 ) - 77 ) < eps )
+        {
+            log.info( "PASS: matrix_matrix_prod (2x3)*(3x2)" );
+            passed_counter++;
+        }
+        else
+        {
+            log.error(
+                "FAIL: matrix_matrix_prod. Expected {{14,32},{32,77}} but got {{" + std::to_string( cv( 0, 0 ) ) + "," +
+                std::to_string( cv( 0, 1 ) ) + "},{" + std::to_string( cv( 1, 0 ) ) + "," +
+                std::to_string( cv( 1, 1 ) ) + "}}"
+            );
+            failed_counter++;
+        }
+        A.free();
+        B.free();
+        C->free();
+    }
+
+    log.info( "=== Test: matrix_matrix_prod square (2x2) * (2x2) ===" );
+    {
+        matrix_type A = { { 1, 2 }, { 3, 4 } };
+        matrix_type B = { { 5, 6 }, { 7, 8 } };
+
+        auto C  = ops->matrix_matrix_prod( A, B );
+        auto cv = C->create_view( true );
+
+        if ( std::abs( cv( 0, 0 ) - 19 ) < eps && std::abs( cv( 0, 1 ) - 22 ) < eps &&
+             std::abs( cv( 1, 0 ) - 43 ) < eps && std::abs( cv( 1, 1 ) - 50 ) < eps )
+        {
+            log.info( "PASS: matrix_matrix_prod (2x2)*(2x2)" );
+            passed_counter++;
+        }
+        else
+        {
+            log.error(
+                "FAIL: Expected {{19,22},{43,50}} but got {{" + std::to_string( cv( 0, 0 ) ) + "," +
+                std::to_string( cv( 0, 1 ) ) + "},{" + std::to_string( cv( 1, 0 ) ) + "," +
+                std::to_string( cv( 1, 1 ) ) + "}}"
+            );
+            failed_counter++;
+        }
+        A.free();
+        B.free();
+        C->free();
+    }
+
+    log.info( "=== Test: matrix_matrix_sum ===" );
+    {
+        matrix_type A = { { 1, 2 }, { 3, 4 } };
+        matrix_type B = { { 10, 20 }, { 30, 40 } };
+
+        auto C  = ops->matrix_matrix_sum( 2.0, A, 3.0, B );
+        auto cv = C->create_view( true );
+
+        if ( std::abs( cv( 0, 0 ) - 32 ) < eps && std::abs( cv( 0, 1 ) - 64 ) < eps &&
+             std::abs( cv( 1, 0 ) - 96 ) < eps && std::abs( cv( 1, 1 ) - 128 ) < eps )
+        {
+            log.info( "PASS: matrix_matrix_sum 2*A + 3*B" );
+            passed_counter++;
+        }
+        else
+        {
+            log.error(
+                "FAIL: Expected {{32,64},{96,128}} but got {{" + std::to_string( cv( 0, 0 ) ) + "," +
+                std::to_string( cv( 0, 1 ) ) + "},{" + std::to_string( cv( 1, 0 ) ) + "," +
+                std::to_string( cv( 1, 1 ) ) + "}}"
+            );
+            failed_counter++;
+        }
+        A.free();
+        B.free();
+        C->free();
+    }
+
+    log.info( "=== Test: matrix_transpose ===" );
+    {
+        matrix_type A = { { 1, 2, 3 }, { 4, 5, 6 } };
+
+        auto AT = ops->matrix_transpose( A );
+        auto tv = AT->create_view( true );
+        auto sz = AT->size_nd();
+
+        if ( sz[0] == 3 && sz[1] == 2 && std::abs( tv( 0, 0 ) - 1 ) < eps && std::abs( tv( 0, 1 ) - 4 ) < eps &&
+             std::abs( tv( 1, 0 ) - 2 ) < eps && std::abs( tv( 1, 1 ) - 5 ) < eps && std::abs( tv( 2, 0 ) - 3 ) < eps &&
+             std::abs( tv( 2, 1 ) - 6 ) < eps )
+        {
+            log.info( "PASS: matrix_transpose (2x3) -> (3x2)" );
+            passed_counter++;
+        }
+        else
+        {
+            log.error( "FAIL: matrix_transpose" );
+            failed_counter++;
+        }
+        A.free();
+        AT->free();
+    }
+
+    log.info( "=== Test: matrix_norm_fro ===" );
+    {
+        matrix_type A = { { 1, 2 }, { 3, 4 } };
+
+        T nf       = ops->matrix_norm_fro( A );
+        T expected = std::sqrt( 30.0 );
+
+        if ( std::abs( nf - expected ) < eps )
+        {
+            log.info( "PASS: matrix_norm_fro = " + std::to_string( expected ) );
+            passed_counter++;
+        }
+        else
+        {
+            log.error(
+                "FAIL: matrix_norm_fro expected " + std::to_string( expected ) + ", got " + std::to_string( nf )
+            );
+            failed_counter++;
+        }
+        A.free();
+    }
+
+    log.info( "=== Test: diag_matrix_from_vector ===" );
+    {
+        vector_type x = { 2, 5, 7 };
+
+        auto D  = ops->diag_matrix_from_vector( x );
+        auto dv = D->create_view( true );
+        auto sz = D->size_nd();
+
+        if ( sz[0] == 3 && sz[1] == 3 && std::abs( dv( 0, 0 ) - 2 ) < eps && std::abs( dv( 1, 1 ) - 5 ) < eps &&
+             std::abs( dv( 2, 2 ) - 7 ) < eps && std::abs( dv( 0, 1 ) ) < eps && std::abs( dv( 0, 2 ) ) < eps &&
+             std::abs( dv( 1, 0 ) ) < eps && std::abs( dv( 1, 2 ) ) < eps && std::abs( dv( 2, 0 ) ) < eps &&
+             std::abs( dv( 2, 1 ) ) < eps )
+        {
+            log.info( "PASS: diag_matrix_from_vector" );
+            passed_counter++;
+        }
+        else
+        {
+            log.error( "FAIL: diag_matrix_from_vector" );
+            failed_counter++;
+        }
+        D->free();
+    }
+
+    log.info( "=== Test: matrix_diag (to vector) ===" );
+    {
+        matrix_type A = { { 10, 1, 2 }, { 3, 20, 4 }, { 5, 6, 30 } };
+
+        vector_type d = { 0, 0, 0 };
+        ops->matrix_diag( A, d );
+        auto dv = d.create_view( true );
+
+        if ( std::abs( dv( 0 ) - 10 ) < eps && std::abs( dv( 1 ) - 20 ) < eps && std::abs( dv( 2 ) - 30 ) < eps )
+        {
+            log.info( "PASS: matrix_diag to vector" );
+            passed_counter++;
+        }
+        else
+        {
+            log.error(
+                "FAIL: matrix_diag to vector. Expected {10,20,30} but got {" + std::to_string( dv( 0 ) ) + "," +
+                std::to_string( dv( 1 ) ) + "," + std::to_string( dv( 2 ) ) + "}"
+            );
+            failed_counter++;
+        }
+        A.free();
+    }
+
+    log.info( "=== Test: matrix_diag (to vector, inverted) ===" );
+    {
+        matrix_type A = { { 2, 99 }, { 99, 5 } };
+
+        vector_type d = { 0, 0 };
+        ops->matrix_diag( A, d, true );
+        auto dv = d.create_view( true );
+
+        if ( std::abs( dv( 0 ) - 0.5 ) < eps && std::abs( dv( 1 ) - 0.2 ) < eps )
+        {
+            log.info( "PASS: matrix_diag to vector (inverted)" );
+            passed_counter++;
+        }
+        else
+        {
+            log.error(
+                "FAIL: Expected {0.5, 0.2} but got {" + std::to_string( dv( 0 ) ) + "," + std::to_string( dv( 1 ) ) +
+                "}"
+            );
+            failed_counter++;
+        }
+        A.free();
+    }
+
+    log.info( "=== Test: matrix_diag (to diagonal matrix) ===" );
+    {
+        matrix_type A = { { 10, 1, 2 }, { 3, 20, 4 }, { 5, 6, 30 } };
+
+        auto D  = ops->matrix_diag( A );
+        auto dv = D->create_view( true );
+        auto sz = D->size_nd();
+
+        if ( sz[0] == 3 && sz[1] == 3 && std::abs( dv( 0, 0 ) - 10 ) < eps && std::abs( dv( 1, 1 ) - 20 ) < eps &&
+             std::abs( dv( 2, 2 ) - 30 ) < eps && std::abs( dv( 0, 1 ) ) < eps && std::abs( dv( 0, 2 ) ) < eps &&
+             std::abs( dv( 1, 0 ) ) < eps && std::abs( dv( 1, 2 ) ) < eps && std::abs( dv( 2, 0 ) ) < eps &&
+             std::abs( dv( 2, 1 ) ) < eps )
+        {
+            log.info( "PASS: matrix_diag to diagonal matrix" );
+            passed_counter++;
+        }
+        else
+        {
+            log.error( "FAIL: matrix_diag to diagonal matrix" );
+            failed_counter++;
+        }
+        A.free();
+        D->free();
+    }
+
+    log.info( "=== Test: scalar_matrix ===" );
+    {
+        vector_type x  = { 0, 0, 0 };
+        auto        I  = ops->scalar_matrix( x, 3.0 );
+        auto        iv = I->create_view( true );
+        auto        sz = I->size_nd();
+
+        if ( sz[0] == 3 && sz[1] == 3 && std::abs( iv( 0, 0 ) - 3 ) < eps && std::abs( iv( 1, 1 ) - 3 ) < eps &&
+             std::abs( iv( 2, 2 ) - 3 ) < eps && std::abs( iv( 0, 1 ) ) < eps && std::abs( iv( 0, 2 ) ) < eps &&
+             std::abs( iv( 1, 0 ) ) < eps && std::abs( iv( 1, 2 ) ) < eps && std::abs( iv( 2, 0 ) ) < eps &&
+             std::abs( iv( 2, 1 ) ) < eps )
+        {
+            log.info( "PASS: scalar_matrix 3*I" );
+            passed_counter++;
+        }
+        else
+        {
+            log.error( "FAIL: scalar_matrix" );
+            failed_counter++;
+        }
+        I->free();
+    }
+
+    log.info( "=== Test: matrix_matrix_prod identity ===" );
+    {
+        matrix_type A = { { 1, 2 }, { 3, 4 } };
+        matrix_type I = { { 1, 0 }, { 0, 1 } };
+
+        auto C  = ops->matrix_matrix_prod( A, I );
+        auto cv = C->create_view( true );
+
+        if ( std::abs( cv( 0, 0 ) - 1 ) < eps && std::abs( cv( 0, 1 ) - 2 ) < eps && std::abs( cv( 1, 0 ) - 3 ) < eps &&
+             std::abs( cv( 1, 1 ) - 4 ) < eps )
+        {
+            log.info( "PASS: A * I = A" );
+            passed_counter++;
+        }
+        else
+        {
+            log.error( "FAIL: A * I != A" );
+            failed_counter++;
+        }
+        A.free();
+        I.free();
+        C->free();
+    }
+
+    log.info( "=== Test: (A^T)^T = A ===" );
+    {
+        matrix_type A = { { 1, 2, 3 }, { 4, 5, 6 } };
+
+        auto AT  = ops->matrix_transpose( A );
+        auto ATT = ops->matrix_transpose( *AT );
+        auto sz  = ATT->size_nd();
+        auto v   = ATT->create_view( true );
+
+        if ( sz[0] == 2 && sz[1] == 3 && std::abs( v( 0, 0 ) - 1 ) < eps && std::abs( v( 0, 1 ) - 2 ) < eps &&
+             std::abs( v( 0, 2 ) - 3 ) < eps && std::abs( v( 1, 0 ) - 4 ) < eps && std::abs( v( 1, 1 ) - 5 ) < eps &&
+             std::abs( v( 1, 2 ) - 6 ) < eps )
+        {
+            log.info( "PASS: (A^T)^T = A" );
+            passed_counter++;
+        }
+        else
+        {
+            log.error( "FAIL: (A^T)^T != A" );
+            failed_counter++;
+        }
+        A.free();
+        AT->free();
+        ATT->free();
+    }
+
+    log.info( "=== Test: norm_fro of identity ===" );
+    {
+        matrix_type I = { { 1, 0, 0 }, { 0, 1, 0 }, { 0, 0, 1 } };
+
+        T nf       = ops->matrix_norm_fro( I );
+        T expected = std::sqrt( 3.0 );
+
+        if ( std::abs( nf - expected ) < eps )
+        {
+            log.info( "PASS: ||I_3||_F = sqrt(3)" );
+            passed_counter++;
+        }
+        else
+        {
+            log.error( "FAIL: expected " + std::to_string( expected ) + ", got " + std::to_string( nf ) );
+            failed_counter++;
+        }
+        I.free();
     }
 
     // ====================================================================

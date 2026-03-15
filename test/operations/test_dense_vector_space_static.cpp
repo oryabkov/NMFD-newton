@@ -19,7 +19,7 @@ int main( int argc, char const *args[] )
     using vector_type          = std::array<T, Dim>;
     using vector_traits        = static_vector_traits<T, Dim>;
     using backend_type         = scfd::backend::serial_cpu;
-    using dense_vector_space_t = nmfd::operations::dense_vector_space<T, vector_traits, backend_type>;
+    using dense_vector_space_t = nmfd::operations::dense_vector_space<vector_traits, backend_type>;
 
     log_t log;
     log.info( "Testing dense vector space implementation" );

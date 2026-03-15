@@ -11,7 +11,7 @@ namespace nmfd
 namespace operations
 {
 
-template <class Type, class VectorTraits, class Backend, class Ordinal = std::ptrdiff_t>
+template <class VectorTraits, class Backend, class Ordinal = std::ptrdiff_t>
 class dense_vector_operations
 {
 public:
@@ -58,7 +58,7 @@ public:
 
     void verify_max_loc_size( size_t loc_size ) const
     {
-        if (  vt_.get_loc_size( helper_ ) < loc_size )
+        if ( vt_.get_loc_size( helper_ ) < loc_size )
         {
             vt_.dealloc( helper_ );
             vt_.alloc( loc_size, helper_ );
@@ -345,10 +345,7 @@ size_t argmax_element(vector_type& x)const
     void assign_random( vector_type &x, const scalar_type from = 0, const scalar_type to = 1 ) const
     {
         unsigned int seed = static_cast<unsigned int>( std::rand() );
-        for_each_inst_(
-            assign_random_kernel{ from, to - from, vt_.get_raw_ptr( x ), seed },
-            get_loc_size( x )
-        );
+        for_each_inst_( assign_random_kernel{ from, to - from, vt_.get_raw_ptr( x ), seed }, get_loc_size( x ) );
     }
 
     void

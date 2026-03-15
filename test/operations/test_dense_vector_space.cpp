@@ -20,7 +20,7 @@ int main( int argc, char const *args[] )
     using memory_type          = backend_type::memory_type;
     using vector_type          = scfd::arrays::array<T, memory_type>;
     using vector_traits        = scfd_array_traits<T, memory_type>;
-    using dense_vector_space_t = nmfd::operations::dense_vector_space<T, vector_traits, backend_type>;
+    using dense_vector_space_t = nmfd::operations::dense_vector_space<vector_traits, backend_type>;
 
     log_t log;
     log.info( "Testing dense vector space implementation" );

@@ -1,36 +1,54 @@
 #ifndef __NMFD_DENSE_OPERATIONS_BASE_H__
 #define __NMFD_DENSE_OPERATIONS_BASE_H__
 
-#include "scfd/arrays/arrays_config.h"
+#include <cmath>
 #include <memory>
+#include <string>
 #include <scfd/arrays/array_nd.h>
+#include <scfd/static_vec/vec.h>
 #include <nmfd/operations/dense_vector_operations.h>
+#include <nmfd/operations/kernels/dense_operations.h>
 
 namespace nmfd
 {
 namespace operations
 {
 
-template <class Type, class VectorTraits, class Backend, class Ordinal = std::ptrdiff_t>
+template <class VectorTraits, class Backend, class Ordinal = std::ptrdiff_t>
 class dense_vector_space;
 
-template <class Type, class VectorTraits, class Backend, class Ordinal = std::ptrdiff_t>
-class dense_operations : public dense_vector_operations<Type, VectorTraits, Backend>
+template <class VectorTraits, class Backend, class Ordinal = std::ptrdiff_t>
+class dense_operations : public dense_vector_operations<VectorTraits, Backend>
 {
+    static constexpr int Dim = 2;
 
 public:
+    using arr_ord           = scfd::arrays::ordinal_type;
     using scalar_type       = typename VectorTraits::scalar_type;
     using vector_type       = typename VectorTraits::vector_type;
     using memory_type       = typename Backend::memory_type;
-    using matrix_type       = scfd::arrays::array_nd<scalar_type, 2, memory_type>;
+    using for_each_nd_type  = typename Backend::template for_each_nd_type<Dim, arr_ord>;
+    using reduce_type       = typename Backend::reduce_type;
+    using idx_nd_type       = scfd::static_vec::vec<arr_ord, Dim>;
+    using matrix_type       = scfd::arrays::array_nd<scalar_type, Dim, memory_type>;
     using multivector_type  = typename std::vector<vector_type>;
-    using vector_space_type = dense_vector_space<Type, VectorTraits, Backend, Ordinal>;
+    using vector_space_type = dense_vector_space<VectorTraits, Backend, Ordinal>;
 
+    using matrix_transpose_2d_kernel     = kernels::matrix_transpose_2d<matrix_type>;
+    using matrix_sum_2d_kernel           = kernels::matrix_sum_2d<scalar_type, matrix_type>;
+    using matrix_sq_2d_kernel            = kernels::matrix_sq_2d<matrix_type>;
+    using matrix_extract_diag_2d_kernel  = kernels::matrix_extract_diag_2d<scalar_type, matrix_type>;
+    using matrix_diag_from_vec_2d_kernel = kernels::matrix_diag_from_vec_2d<scalar_type, matrix_type>;
+    using matrix_scalar_diag_2d_kernel   = kernels::matrix_scalar_diag_2d<scalar_type, matrix_type>;
+    using matrix_diag_extract_kernel     = kernels::matrix_diag_extract<scalar_type, matrix_type>;
+
+    using parent_t = dense_vector_operations<VectorTraits, Backend>;
+
+public:
     dense_operations() = default;
 
     template <typename... Args>
-    dense_operations( Args &&...args )
-        : dense_vector_operations<Type, VectorTraits, Backend>( std::forward<Args>( args )... )
+    dense_operations( Args &&...args ) : dense_vector_operations<VectorTraits, Backend>( std::forward<Args>( args )... )
     {
     }
 
@@ -66,65 +84,148 @@ public:
         const vector_type &y, vector_type &z
     ) const
     {
-        this->assign( y, z );
+        parent_t::assign( y, z );
         add_matrix_vector_prod( alpha, mat, x, beta, z );
     }
 
-    [[nodiscard]] std::shared_ptr<vector_space_type> get_matrix_im_space( const matrix_type &mat ) const;
-    [[nodiscard]] std::shared_ptr<vector_space_type> get_matrix_dom_space( const matrix_type &mat ) const;
+    [[nodiscard]] std::shared_ptr<vector_space_type> get_matrix_im_space( const matrix_type &mat ) const
+    {
+        auto rows = mat.size_nd()[0];
+        return std::make_shared<vector_space_type>( static_cast<size_t>( rows ) );
+    }
+
+    [[nodiscard]] std::shared_ptr<vector_space_type> get_matrix_dom_space( const matrix_type &mat ) const
+    {
+        auto cols = mat.size_nd()[1];
+        return std::make_shared<vector_space_type>( static_cast<size_t>( cols ) );
+    }
 
 
     // matrix_operations
 
+    /// C = A^T
     [[nodiscard]] std::shared_ptr<matrix_type> matrix_transpose( const matrix_type &mat ) const
     {
-        SCFD_TODO( "Implement matrix_transpose" );
-        return nullptr;
+        auto sz   = mat.size_nd();
+        auto rows = sz[0];
+        auto cols = sz[1];
+
+        auto result = std::make_shared<matrix_type>();
+        result->init( cols, rows );
+
+        for_each_nd_inst_( matrix_transpose_2d_kernel{ mat, *result }, mat.size_nd() );
+        return result;
     }
 
-
+    /// C = A * B
     [[nodiscard]] std::shared_ptr<matrix_type>
     matrix_matrix_prod( const matrix_type &mat_a, const matrix_type &mat_b ) const
     {
-        SCFD_TODO( "Implement matrix_matrix_prod" );
-        return nullptr;
+        auto sz_a = mat_a.size_nd();
+        auto sz_b = mat_b.size_nd();
+        auto m    = sz_a[0];
+        auto k    = sz_a[1];
+        auto n    = sz_b[1];
+
+        auto result = std::make_shared<matrix_type>();
+        result->init( m, n );
+
+        const auto a_view = mat_a.create_view( true );
+        const auto b_view = mat_b.create_view( true );
+        auto       c_view = result->create_view( false );
+
+        for ( size_t i = 0; i < m; ++i )
+        {
+            for ( size_t j = 0; j < n; ++j )
+            {
+                scalar_type sum = scalar_type{ 0 };
+                for ( size_t p = 0; p < k; ++p )
+                    sum += a_view( i, p ) * b_view( p, j );
+                c_view( i, j ) = sum;
+            }
+        }
+
+        c_view.release( true );
+        return result;
     }
+
+    /// C = alpha * A + beta * B
     [[nodiscard]] std::shared_ptr<matrix_type> matrix_matrix_sum(
         const scalar_type alpha, const matrix_type &mat_a, const scalar_type beta, const matrix_type &mat_b
     ) const
     {
-        SCFD_TODO( "Implement matrix_matrix_sum" );
-        return nullptr;
+        auto sz   = mat_a.size_nd();
+        auto rows = sz[0];
+        auto cols = sz[1];
+
+        auto result = std::make_shared<matrix_type>();
+        result->init( rows, cols );
+
+        for_each_nd_inst_( matrix_sum_2d_kernel{ alpha, mat_a, beta, mat_b, *result }, mat_a.size_nd() );
+        return result;
     }
+
+    /// ||A||_F = sqrt( sum_{i,j} A(i,j)^2 )
     [[nodiscard]] scalar_type matrix_norm_fro( const matrix_type &mat ) const
     {
-        SCFD_TODO( "Implement matrix_norm_fro" );
-        return scalar_type{ 0 };
+        auto sz    = mat.size_nd();
+        auto total = sz[0] * sz[1];
+
+        verify_helper_matrix_size( sz[0], sz[1] );
+
+        for_each_nd_inst_( matrix_sq_2d_kernel{ mat, mat_helper_ }, mat.size_nd() );
+        return std::sqrt( parent_t::reduce_inst_( total, mat_helper_.raw_ptr(), scalar_type{ 0 } ) );
     }
+
+    /// Returns diagonal matrix: D(i,i) = mat(i,i), optionally inverted
     [[nodiscard]] std::shared_ptr<matrix_type> matrix_diag( const matrix_type &mat, bool invert = false ) const
     {
-        SCFD_TODO( "Implement matrix_diag" );
-        return nullptr;
+        auto sz   = mat.size_nd();
+        auto rows = sz[0];
+        auto cols = sz[1];
+
+        auto result = std::make_shared<matrix_type>();
+        result->init( rows, cols );
+
+        for_each_nd_inst_( matrix_extract_diag_2d_kernel{ mat, *result, invert }, mat.size_nd() );
+        return result;
     }
 
     /// Returns diagonal of the matrix as vector (vector must already be allocated and have corresponding partitioning)
     void matrix_diag( const matrix_type &mat, vector_type &x, bool invert = false ) const
     {
-        SCFD_TODO( "Implement matrix_diag (to vector)" );
+        auto sz      = mat.size_nd();
+        auto cols    = sz[1];
+        auto min_dim = sz[0] < cols ? sz[0] : cols;
+
+        parent_t::for_each_inst_( matrix_diag_extract_kernel{ mat, parent_t::vt_.get_raw_ptr( x ), invert }, min_dim );
     }
     /// Creates a matrix with diagonal structure and values on its diagonal from vector x
     [[nodiscard]] std::shared_ptr<matrix_type> diag_matrix_from_vector( const vector_type &x ) const
     {
-        SCFD_TODO( "Implement diag_matrix_from_vector" );
-        return nullptr;
+        auto n = static_cast<arr_ord>( parent_t::get_loc_size( x ) );
+
+        auto result = std::make_shared<matrix_type>();
+        result->init( n, n );
+
+        for_each_nd_inst_(
+            matrix_diag_from_vec_2d_kernel{ parent_t::vt_.get_raw_ptr( x ), *result }, result->size_nd()
+        );
+        return result;
     }
+
     /// Creates a matrix with diagonal structure and scalar value on its diagonal val
     /// Parallel structure defined by vector x
     /// TODO make something better then explicit vector!!
     [[nodiscard]] std::shared_ptr<matrix_type> scalar_matrix( const vector_type &x, scalar_type val ) const
     {
-        SCFD_TODO( "Implement scalar_matrix" );
-        return nullptr;
+        auto n = static_cast<arr_ord>( parent_t::get_loc_size( x ) );
+
+        auto result = std::make_shared<matrix_type>();
+        result->init( n, n );
+
+        for_each_nd_inst_( matrix_scalar_diag_2d_kernel{ val, *result }, result->size_nd() );
+        return result;
     }
 
 
@@ -137,6 +238,23 @@ public:
     {
         SCFD_TODO( "Implement write_matrix_to_mm_file" );
     }
+
+private:
+    void verify_helper_matrix_size( arr_ord rows, arr_ord cols ) const
+    {
+        if ( !mat_helper_.is_free() && mat_helper_.size() > rows * cols )
+        {
+            return;
+        }
+        if ( !mat_helper_.is_free() )
+        {
+            mat_helper_.free();
+        }
+        mat_helper_.init( rows, cols );
+    }
+
+    mutable matrix_type      mat_helper_;
+    mutable for_each_nd_type for_each_nd_inst_;
 };
 
 }
