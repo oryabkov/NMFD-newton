@@ -4,8 +4,9 @@
 #include <memory>
 
 #include "kernels/prolongator.h"
-#include "include/boundary.h" // for boundary_cond
+#include "include/boundary.h"
 #include <nmfd/detail/vector_wrap.h>
+#include <scfd/static_vec/vec.h>
 
 namespace tests
 {
@@ -21,28 +22,26 @@ public:
     static const int tensor_dim = VectorSpace::tensor_dim;
     using scalar_type           = typename VectorSpace::scalar_type;
     using vector_type           = typename VectorSpace::vector_type;
-    using vector_space_type     = VectorSpace; // defines Vector Space working in
+    using vector_space_type     = VectorSpace;
     using ordinal_type          = typename VectorSpace::ordinal_type;
+    using grid_step_type        = scfd::static_vec::vec<scalar_type, dim>;
 
     using Ord = ordinal_type;
 
     using vector_space_ptr = std::shared_ptr<VectorSpace>;
     using idx_nd_type      = typename VectorSpace::idx_nd_type;
 
-    using boundary_cond_type = boundary_cond<dim, tensor_dim>;
+    using boundary_cond_type = boundary_cond<VectorSpace>;
 
     using for_each_nd_type = typename Backend::template for_each_nd_type<dim>;
 
 public: // Especially for SYCL
     using prolongator_kernel =
-        kernels::prolongator_kernel<idx_nd_type, ordinal_type, vector_type, tensor_dim, boundary_cond_type>;
-    // using prolongator_kernel =
-    //     kernels::prolongator_kernel<idx_nd_type, ordinal_type, vector_type, tensor_dim, scalar_type>;
-
+        kernels::prolongator_kernel<idx_nd_type, ordinal_type, vector_type, tensor_dim, boundary_cond_type, grid_step_type>;
 
 public:
-    prolongator( idx_nd_type range, boundary_cond_type b_cond )
-        : range_( range ), b_cond_( b_cond ),
+    prolongator( idx_nd_type range, grid_step_type step, boundary_cond_type b_cond )
+        : range_( range ), step_( step ), b_cond_( b_cond ),
           vspace_( std::make_shared<vector_space_type>( range / Ord{ 2u } ) ),
           lin_vector_wrap_( *vspace_ )
     {
@@ -59,6 +58,11 @@ public:
     idx_nd_type get_size() const noexcept
     {
         return range_;
+    }
+
+    grid_step_type get_h() const noexcept
+    {
+        return step_;
     }
 
     vector_space_ptr get_dom_space() const
@@ -81,15 +85,21 @@ public:
         return *lin_vector_wrap_;
     }
 
-    // domain -> (prolongate) -> image
+    void set_b_cond( const boundary_cond_type &b_cond )
+    {
+        b_cond_ = b_cond;
+    }
+
+    // domain (coarse) -> (prolongate) -> image (fine)
     void apply( vector_type &from, vector_type &to ) const
     {
         for_each_nd_type for_each_nd_inst;
-        for_each_nd_inst( prolongator_kernel{ from, to, *lin_vector_wrap_, b_cond_, from.rect_nd() }, range_ );
+        for_each_nd_inst( prolongator_kernel{ from, to, *lin_vector_wrap_, b_cond_, step_, from.rect_nd() }, range_ );
     };
 
 private:
     idx_nd_type        range_; // in im space
+    grid_step_type     step_;
     boundary_cond_type b_cond_;
 
     vector_space_ptr vspace_;

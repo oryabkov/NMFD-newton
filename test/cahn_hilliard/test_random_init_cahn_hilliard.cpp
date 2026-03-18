@@ -290,6 +290,8 @@ int main( int argc, char const *argv[] )
     const std::string scalar_label = std::is_same<float, scalar>::value ? "float" : "double";
 
     log_t log;
+    // Set log verbosity: 0 suppresses INFO messages, 1 allows them
+    log.set_verbosity(1);
 
     // Write configuration header to log
     std::cout << "========================================" << std::endl;
@@ -334,10 +336,13 @@ int main( int argc, char const *argv[] )
 
     auto range = idx_nd_type::make_ones() * grid_size;
     auto step  = grid_step_type::make_ones() / scalar( grid_size );
-    auto cond  = boundary_cond<dim, tensor_dim>{
-        { { 0, 0 }, { 0, 0 }, { 0, 0 } }, // left: [x,y,z][psi,phi]
-        { { 0, 0 }, { 0, 0 }, { 0, 0 } }  // right: [x,y,z][psi,phi]
-    };
+
+    int left_bc[3][2]  = { { -1, -1 }, { -1, -1 }, { -1, -1 } }; // left:  [x,y,z][psi=Neumann, phi=nonlinear]
+    int right_bc[3][2] = { { -1, -1 }, { -1, -1 }, { -1, -1 } };  // right: [x,y,z][psi=Neumann, phi=nonlinear]
+
+    auto cond  = tests::boundary_cond<vec_ops_t>(
+        range, left_bc, right_bc
+    );
     // Boundary condition values:
     //   -1 = dirichlet (value = 0 at boundary)
     //   +1 = neumann (derivative = 0 at boundary)
@@ -350,6 +355,7 @@ int main( int argc, char const *argv[] )
     {
         vector_view_t solution_view( solution, false );
 
+        int d = range[0] / 8;
         for ( int i = 0; i < range[0]; i++ )
         {
             for ( int j = 0; j < range[1]; j++ )
@@ -360,6 +366,7 @@ int main( int argc, char const *argv[] )
                     scalar y = step[1] * ( 0.5 + j );
                     scalar z = step[2] * ( 0.5 + k );
 
+                    /*
                     // Generate Perlin noise value for psi (component 0)
                     scalar noise_val_psi = perlin_noise_3d<scalar>( x * noise_frequency, y * noise_frequency, z * noise_frequency, noise_seed );
                     noise_val_psi *= noise_amplitude;
@@ -369,6 +376,18 @@ int main( int argc, char const *argv[] )
                     scalar noise_val_phi = perlin_noise_3d<scalar>( x * noise_frequency, y * noise_frequency, z * noise_frequency, noise_seed + 1000 );
                     noise_val_phi *= noise_amplitude;
                     solution_view( i, j, k, 1 ) = noise_val_phi;
+                    */
+
+                    solution_view( i, j, k, 0 ) = 0.0;
+
+                    if ( i < d && i > range[0] - d && j < d && j > range[1] - d && k < d && k > range[2] - d )
+                    {
+                        solution_view( i, j, k, 1 ) = 1.0;
+                    }
+                    else
+                    {
+                        solution_view( i, j, k, 1 ) = -1.0;
+                    }
                 }
             }
         }

@@ -53,8 +53,7 @@ struct jacobi_op_kernel
                 }
                 else
                 {
-                    // prev_val = cond.left[j][0] * curr[0];
-                    cond.get_ghost_tensor_linearized( in, in, range, idx - ej, ghost );
+                    cond.get_ghost_tensor_linearized( lin_vector, in, range, idx - ej, step, ghost );
                     prev_val = ghost[0];
                 }
             }
@@ -74,8 +73,7 @@ struct jacobi_op_kernel
                 }
                 else
                 {
-                    // next_val = cond.right[j][0] * curr[0];
-                    cond.get_ghost_tensor_linearized( in, in, range, idx + ej, ghost );
+                    cond.get_ghost_tensor_linearized( lin_vector, in, range, idx + ej, step, ghost );
                     next_val = ghost[0];
                 }
             }
@@ -110,8 +108,7 @@ struct jacobi_op_kernel
                 }
                 else
                 {
-                    // prev_val = cond.left[j][1] * curr[1];
-                    cond.get_ghost_tensor_linearized( in, in, range, idx - ej, ghost );
+                    cond.get_ghost_tensor_linearized( lin_vector, in, range, idx - ej, step, ghost );
                     prev_val = ghost[1];
                 }
             }
@@ -131,9 +128,8 @@ struct jacobi_op_kernel
                 }
                 else
                 {
-                    // next_val = cond.right[j][1] * curr[1];
-                    cond.get_ghost_tensor_linearized( in, in, range, idx + ej, ghost );
-                    prev_val = ghost[1];
+                    cond.get_ghost_tensor_linearized( lin_vector, in, range, idx + ej, step, ghost );
+                    next_val = ghost[1];
                 }
             }
             else

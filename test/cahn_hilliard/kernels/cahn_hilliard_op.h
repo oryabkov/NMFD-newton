@@ -67,7 +67,7 @@ struct cahn_hilliard_op_kernel
                 }
                 else
                 {
-                    cond.get_ghost_tensor_linearized( in, in, range, idx - ej, ghost );
+                    cond.get_ghost_tensor( in, range, idx - ej, step, ghost );
                     prev_val = ghost[0];
                 }
             }
@@ -87,7 +87,7 @@ struct cahn_hilliard_op_kernel
                 }
                 else
                 {
-                    cond.get_ghost_tensor_linearized( in, in, range, idx + ej, ghost );
+                    cond.get_ghost_tensor( in, range, idx + ej, step, ghost );
                     next_val = ghost[0];
                 }
             }
@@ -120,7 +120,7 @@ struct cahn_hilliard_op_kernel
                 }
                 else
                 {
-                    cond.get_ghost_tensor_linearized( in, in, range, idx - ej, ghost );
+                    cond.get_ghost_tensor( in, range, idx - ej, step, ghost );
                     prev_val = ghost[1];
                 }
             }
@@ -140,7 +140,7 @@ struct cahn_hilliard_op_kernel
                 }
                 else
                 {
-                    cond.get_ghost_tensor_linearized( in, in, range, idx + ej, ghost );
+                    cond.get_ghost_tensor( in, range, idx + ej, step, ghost );
                     next_val = ghost[1];
                 }
             }

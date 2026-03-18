@@ -40,7 +40,7 @@ public:
     using for_each_nd_type = typename Backend::template for_each_nd_type<dim>;
 
     using grid_step_type     = scfd::static_vec::vec<scalar_type, dim>;
-    using boundary_cond_type = boundary_cond<dim, tensor_dim>;
+    using boundary_cond_type = boundary_cond<VectorSpace>;
     using mat_type           = scfd::static_mat::mat<scalar_type, tensor_dim, tensor_dim>;
 
     using time_derivative_ptr = std::shared_ptr<TimeDerivative>;
@@ -74,7 +74,7 @@ public:
     }
 
     jacobi_pre( vector_space_ptr vspace, grid_step_type step, boundary_cond_type b_cond)
-        : vspace_( std::move(vspace) ), range_( vspace_->get_size() ), step_( step ), b_cond_( b_cond ),
+        : vspace_( std::move(vspace) ), range_( vspace_->get_size() ), step_( step ), b_cond_( std::make_unique<boundary_cond_type>( b_cond ) ),
           lin_vector_wrap_( std::make_unique<vector_wrap_t>( *vspace_ ) ), phobic_en_(), time_derivative_( std::make_shared<TimeDerivative>(vspace_) )
     {
         vspace_->assign_scalar( 0.0, *lin_vector_wrap_ );
@@ -83,7 +83,7 @@ public:
     jacobi_pre(
         vector_space_ptr vspace, grid_step_type step, boundary_cond_type b_cond, time_derivative_ptr time_derivative
     )
-        : vspace_( std::move(vspace) ), range_( vspace_->get_size() ), step_( step ), b_cond_( b_cond ),
+        : vspace_( std::move(vspace) ), range_( vspace_->get_size() ), step_( step ), b_cond_( std::make_unique<boundary_cond_type>( b_cond ) ),
           lin_vector_wrap_( std::make_unique<vector_wrap_t>( *vspace_ ) ), phobic_en_(), time_derivative_( std::move(time_derivative) )
     {
         vspace_->assign_scalar( 0.0, *lin_vector_wrap_ );
@@ -99,7 +99,7 @@ public:
         vspace_ = op->get_space();
         range_  = op->get_size();
         step_   = op->get_h();
-        b_cond_ = op->get_b_cond();
+        b_cond_ = std::make_unique<boundary_cond_type>( op->get_b_cond() );
         D_      = op->get_D();
         gamma_  = op->get_gamma();
 
@@ -126,7 +126,7 @@ public:
     }
     boundary_cond_type get_b_cond() const noexcept
     {
-        return b_cond_;
+        return *b_cond_;
     }
 
     scalar_type get_D() const noexcept
@@ -161,7 +161,7 @@ public:
         for_each_nd_type for_each_nd_inst;
         for_each_nd_inst(
             preconditioner_kernel{
-                vector, **lin_vector_wrap_, range_, step_, b_cond_, phobic_en_, time_derivative_->get_dt_inf(), D_, gamma_
+                vector, **lin_vector_wrap_, range_, step_, *b_cond_, phobic_en_, time_derivative_->get_dt_inf(), D_, gamma_
             },
             range_
         );
@@ -177,7 +177,7 @@ private:
     vector_space_ptr   vspace_;
     idx_nd_type        range_;
     grid_step_type     step_;
-    boundary_cond_type b_cond_;
+    std::unique_ptr<boundary_cond_type> b_cond_;
 
     using vector_wrap_t = nmfd::detail::vector_wrap<VectorSpace, true, true>;
     std::unique_ptr<vector_wrap_t> lin_vector_wrap_;

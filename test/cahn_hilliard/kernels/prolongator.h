@@ -6,7 +6,7 @@
 namespace kernels
 {
 
-template <class IdxND, class Ord, class VectorType, int TensorDim, class BoundaryCond>
+template <class IdxND, class Ord, class VectorType, int TensorDim, class BoundaryCond, class GridStep>
 struct prolongator_kernel
 {
     using Rect = typename scfd::static_vec::rect<Ord, IdxND::dim>;
@@ -14,6 +14,7 @@ struct prolongator_kernel
     VectorType   dom, img; // dom can be [-1, 0, 1, ..., N-1, N]
     VectorType   lin_dom;
     BoundaryCond cond;
+    GridStep     step;
     Rect dom_r; // Real rect [0, 1, ..., N-1]
 
 #if 0
@@ -67,11 +68,41 @@ struct prolongator_kernel
 #    pragma unroll
                 for ( Ord k = 0; k < IdxND::dim; ++k )
                     mul *= coeffs_1d[rel_j[k]] * Scalar( 2 );
+
                 if ( !dom_r.is_own( j ) )
                 {
-                    Tensor ghost;
-                    cond.get_ghost_tensor_linearized( lin_dom, dom, dom_r.i2, j, ghost );
-                    sum += ghost[i] * mul;
+                    // Handle periodic BCs by wrapping index to opposite side
+                    IdxND periodic_idx = j;
+                    bool  is_periodic  = true;
+                    for ( Ord k = 0; k < IdxND::dim; ++k )
+                    {
+                        auto N = dom_r.i2[k];
+                        if ( periodic_idx[k] < 0 )
+                        {
+                            if ( cond.left[k][i] == 0 ) // periodic
+                                periodic_idx[k] += N;
+                            else
+                                { is_periodic = false; break; }
+                        }
+                        else if ( periodic_idx[k] >= N )
+                        {
+                            if ( cond.right[k][i] == 0 ) // periodic
+                                periodic_idx[k] -= N;
+                            else
+                                { is_periodic = false; break; }
+                        }
+                    }
+
+                    if ( is_periodic )
+                    {
+                        sum += dom( periodic_idx, i ) * mul;
+                    }
+                    else
+                    {
+                        Tensor ghost;
+                        cond.get_ghost_tensor_linearized( lin_dom, dom, dom_r.i2, j, step, ghost );
+                        sum += ghost[i] * mul;
+                    }
                 }
                 else
                 {

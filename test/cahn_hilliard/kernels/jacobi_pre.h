@@ -46,13 +46,13 @@ struct jacobi_pre_kernel
 
             if ( idx[j] == 0 )
             {
-                cond.get_ghost_coef_linearized( lin_vector, range, idx - ej, diag_ghost );
+                cond.get_ghost_coef_linearized( lin_vector, range, idx - ej, step, diag_ghost );
                 diag_j += diag_ghost;
             }
 
             if ( idx[j] == N - 1 )
             {
-                cond.get_ghost_coef_linearized( lin_vector, range, idx + ej, diag_ghost );
+                cond.get_ghost_coef_linearized( lin_vector, range, idx + ej, step, diag_ghost );
                 diag_j += diag_ghost;
             }
 

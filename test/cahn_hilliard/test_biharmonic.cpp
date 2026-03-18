@@ -303,7 +303,7 @@ int main( int argc, char const *argv[] )
 
     auto range = idx_nd_type::make_ones() * grid_size;
     auto step  = grid_step_type::make_ones() / scalar( grid_size );
-    auto cond  = boundary_cond<dim, tensor_dim>{
+    auto cond  = boundary_cond<vector_t, scalar, dim, tensor_dim>{
         { { -1, -1 }, { -1, -1 }, { -1, -1 } }, // left: [x,y,z][psi,phi]
         { { -1, -1 }, { -1, -1 }, { -1, -1 } }  // right: [x,y,z][psi,phi]
     };

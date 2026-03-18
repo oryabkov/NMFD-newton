@@ -22,6 +22,7 @@ public:
     using ordinal_type = typename vector_space_type::ordinal_type;
     using idx_nd_type  = typename vector_space_type::idx_nd_type;
     using scalar_type  = typename vector_space_type::scalar_type;
+    using grid_step_type = typename restrictor_type::grid_step_type;
 
 public:
     struct params
@@ -40,8 +41,11 @@ public:
     std::tuple<std::shared_ptr<restrictor_type>, std::shared_ptr<prolongator_type>> next_level( const operator_type &op
     )
     {
-        auto res = std::make_shared<restrictor_type>( op.get_size(), op.get_b_cond() );
-        auto pro = std::make_shared<prolongator_type>( op.get_size(), op.get_b_cond() );
+        auto fine_step   = op.get_h();
+        auto coarse_step = fine_step * scalar_type( 2 );
+
+        auto res = std::make_shared<restrictor_type>( op.get_size(), fine_step, op.get_b_cond() );
+        auto pro = std::make_shared<prolongator_type>( op.get_size(), coarse_step, op.get_b_cond() );
 
         auto fine_lin = op.get_lin_vector();
         res->set_linearization_point( fine_lin );
@@ -58,11 +62,11 @@ public:
         auto coarse_size = op.get_size() / Ord{ 2 };
         auto coarse_h    = op.get_h() * Scalar{ 2 };
 
-        // Create coarse operator with same time_derivative parameters, D and gamma
-        auto coarse_op =
-            std::make_shared<operator_type>( coarse_size, coarse_h, op.get_b_cond(), op.get_time_derivative() );
+        auto b_cond = op.get_b_cond();
 
-        // Copy D and gamma from fine to coarse operator
+        auto coarse_op =
+            std::make_shared<operator_type>( coarse_size, coarse_h, b_cond, op.get_time_derivative() );
+
         coarse_op->set_D( op.get_D() );
         coarse_op->set_gamma( op.get_gamma() );
 
@@ -72,6 +76,8 @@ public:
         restrictor.apply( fine_vector, coarse_vector );
         coarse_op->set_linearization_point( coarse_vector );
 
+        // Set the prolongator's b_cond and linearization point (both coarse-level)
+        prolongator.set_b_cond( b_cond );
         prolongator.set_linearization_point( coarse_vector );
 
         return coarse_op;
