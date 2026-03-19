@@ -36,6 +36,7 @@
 #include "solution_io.h"
 #include "timers.h"
 #include "perlin_noise.h"
+#include "scheduler.h"
 
 
 using backend = scfd::backend::current;
@@ -104,6 +105,31 @@ std::string get_timestamp_string()
     return oss.str();
 }
 
+static tensor_t compute_component_sums( const vector_t &v, const idx_nd_type &range )
+{
+    tensor_t sums;
+    for ( int c = 0; c < tensor_dim; ++c )
+        sums[c] = scalar( 0 );
+    // IMPORTANT: this view may allocate a host buffer for device memory.
+    // We must sync FROM the array before reading, and we must NOT sync back on release.
+    vector_view_t view( const_cast<vector_t &>( v ), /*sync_from_array*/ true );
+    for ( int i = 0; i < range[0]; ++i )
+    {
+        for ( int j = 0; j < range[1]; ++j )
+        {
+            for ( int k = 0; k < range[2]; ++k )
+            {
+                for ( int c = 0; c < tensor_dim; ++c )
+                {
+                    sums[c] += view( i, j, k, c );
+                }
+            }
+        }
+    }
+    view.release( /*sync_to_array*/ false );
+    return sums;
+}
+
 class tee_streambuf : public std::streambuf
 {
 public:
@@ -147,14 +173,11 @@ constexpr scalar DEFAULT_NEWTON_TOL     = std::is_same<float, scalar>::value ? 5
 constexpr scalar DEFAULT_TOLERANCE      = std::is_same<float, scalar>::value ? 5e-6f : 1e-10;
 constexpr scalar DEFAULT_D              = 1.0;
 constexpr scalar DEFAULT_GAMMA          = 1e-4;
-constexpr scalar DEFAULT_SIGMA          = 1.0;
 constexpr scalar DEFAULT_COS_THETA      = 0.5;
-constexpr scalar DEFAULT_ALPHA          = 1.0;
 constexpr scalar DEFAULT_DT_INF         = 1.0;
 constexpr int    DEFAULT_MAX_TIME_STEPS = 1;
+constexpr int    DEFAULT_MAX_RETRIES    = 10;
 constexpr scalar DEFAULT_TIME_TOL       = std::is_same<float, scalar>::value ? 5e-6f : 1e-10;
-constexpr scalar DEFAULT_NOISE_AMPLITUDE = 1.0;
-constexpr scalar DEFAULT_NOISE_FREQUENCY = 10.0;
 
 /**************************************/
 
@@ -177,15 +200,10 @@ int main( int argc, char const *argv[] )
     scalar tolerance      = DEFAULT_TOLERANCE;
     scalar D              = DEFAULT_D;
     scalar gamma          = DEFAULT_GAMMA;
-    scalar sigma          = DEFAULT_SIGMA;
     scalar cos_theta      = DEFAULT_COS_THETA;
-    scalar alpha          = DEFAULT_ALPHA;
     scalar dt_inf         = DEFAULT_DT_INF;
     int    max_time_steps = DEFAULT_MAX_TIME_STEPS;
     scalar time_tol       = DEFAULT_TIME_TOL;
-    unsigned int noise_seed    = 0;
-    scalar noise_amplitude     = DEFAULT_NOISE_AMPLITUDE;
-    scalar noise_frequency     = DEFAULT_NOISE_FREQUENCY;
 
     if ( argc < 4 )
     {
@@ -217,15 +235,10 @@ int main( int argc, char const *argv[] )
                   << std::defaultfloat << ")" << std::endl;
         std::cout << "    --D T                Diffusion coefficient (default: " << DEFAULT_D << ")" << std::endl;
         std::cout << "    --gamma T            Squared length of transition regions (default: " << DEFAULT_GAMMA << ")" << std::endl;
-        std::cout << "    --sigma T            Surface tension coefficient for boundary condition (default: " << DEFAULT_SIGMA << ")" << std::endl;
         std::cout << "    --cos-theta T        Cos(equilibrium contact angle) for boundary condition (default: " << DEFAULT_COS_THETA << ")" << std::endl;
-        std::cout << "    --alpha T            Geometric factor alpha in nonlinear boundary condition (default: " << DEFAULT_ALPHA << ")" << std::endl;
         std::cout << "    --dt-inf T           1/dt for implicit time stepping (default: " << DEFAULT_DT_INF << ")" << std::endl;
         std::cout << "    --max-time-steps N   Maximum number of time steps (default: " << DEFAULT_MAX_TIME_STEPS << ")" << std::endl;
         std::cout << "    --time-tol T         Time convergence tolerance (default: " << std::scientific << DEFAULT_TIME_TOL << std::defaultfloat << ")" << std::endl;
-        std::cout << "    --noise-seed N       Random seed for Perlin noise (default: 0)" << std::endl;
-        std::cout << "    --noise-amplitude T  Amplitude of Perlin noise (default: " << DEFAULT_NOISE_AMPLITUDE << ")" << std::endl;
-        std::cout << "    --noise-frequency T  Frequency scale factor for Perlin noise (default: " << DEFAULT_NOISE_FREQUENCY << ")" << std::endl;
         return 1;
     }
 
@@ -291,17 +304,9 @@ int main( int argc, char const *argv[] )
         {
             gamma = std::stod( argv[++i] );
         }
-        else if ( arg == "--sigma" && i + 1 < argc )
-        {
-            sigma = std::stod( argv[++i] );
-        }
         else if ( arg == "--cos-theta" && i + 1 < argc )
         {
             cos_theta = std::stod( argv[++i] );
-        }
-        else if ( arg == "--alpha" && i + 1 < argc )
-        {
-            alpha = std::stod( argv[++i] );
         }
         else if ( arg == "--dt-inf" && i + 1 < argc )
         {
@@ -314,18 +319,6 @@ int main( int argc, char const *argv[] )
         else if ( arg == "--time-tol" && i + 1 < argc )
         {
             time_tol = std::stod( argv[++i] );
-        }
-        else if ( arg == "--noise-seed" && i + 1 < argc )
-        {
-            noise_seed = static_cast<unsigned int>( std::stoul( argv[++i] ) );
-        }
-        else if ( arg == "--noise-amplitude" && i + 1 < argc )
-        {
-            noise_amplitude = std::stod( argv[++i] );
-        }
-        else if ( arg == "--noise-frequency" && i + 1 < argc )
-        {
-            noise_frequency = std::stod( argv[++i] );
         }
         else if ( arg.find( "--" ) == 0 )
         {
@@ -368,15 +361,18 @@ int main( int argc, char const *argv[] )
     std::cout << "  Scalar type:   " << scalar_label << std::endl;
     std::cout << "  DOFs:          " << static_cast<long long>( grid_size ) * grid_size * grid_size * tensor_dim
               << std::endl;
-    std::cout << "  Initial cond:  3D Perlin noise (amplitude " << noise_amplitude << ", frequency " << noise_frequency << ", seed " << noise_seed << ")" << std::endl;
     std::cout << "  D:             " << std::scientific << D << std::defaultfloat << std::endl;
     std::cout << "  gamma:         " << std::scientific << gamma << std::defaultfloat << std::endl;
-    std::cout << "  dt_inf:        " << std::scientific << dt_inf << std::defaultfloat << std::endl;
+    std::cout << "  cos(theta):    " << std::scientific << cos_theta << std::defaultfloat << std::endl;
+    std::cout << "  dt_inf (init): " << std::scientific << dt_inf << std::defaultfloat << std::endl;
     std::cout << "  max_time_steps:" << max_time_steps << std::endl;
     std::cout << "  time_tol:      " << std::scientific << time_tol << std::defaultfloat << std::endl;
     std::cout << std::endl;
     std::cout << "Newton Solver:" << std::endl;
     std::cout << "  Tolerance:     " << std::scientific << newton_tol << std::endl;
+    std::cout << "  Max iters:     " << 10 << std::endl;
+    std::cout << "  Adaptive dt:   yes (rollback + retry, dt_inf*=2 on fail, dt_inf/=2 after streak)" << std::endl;
+    std::cout << "  Retry cap:     " << ( DEFAULT_MAX_RETRIES + 1 ) << " attempts per step" << std::endl;
     std::cout << std::endl;
     std::cout << "Linear Solver:" << std::endl;
     std::cout << "  Type:          " << solver_type << std::endl;
@@ -398,6 +394,10 @@ int main( int argc, char const *argv[] )
         std::cout << "  Direct coarse: false" << std::endl;
     }
     std::cout << std::endl;
+    std::cout << "Boundary condition parameters:" << std::endl;
+    std::cout << "  cos(theta):    " << std::scientific << cos_theta << std::defaultfloat << std::endl;
+    std::cout << "  BC types:      (printed below after initialization)" << std::endl;
+    std::cout << std::endl;
     std::cout << "Output:" << std::endl;
     std::cout << "  Directory:     " << output_dir << std::endl;
     std::cout << "  Save coords:   " << ( save_coords ? "yes" : "no" ) << std::endl;
@@ -411,21 +411,37 @@ int main( int argc, char const *argv[] )
     // int left_bc[3][2]  = { { 0, 0 }, { 0, 0 }, { 0, 0 } }; // left:  [x,y,z][psi=Neumann, phi=nonlinear]
     // int right_bc[3][2] = { { 0, 0 }, { 0, 0 }, { 0, 0 } };  // right: [x,y,z][psi=Neumann, phi=nonlinear]
 
-    // int left_bc[3][2]  = { { -1, -1 }, { -1, -1 }, { -1, -1 } }; // left:  [x,y,z][psi=Neumann, phi=nonlinear]
-    // int right_bc[3][2] = { { -1, -1 }, { -1, -1 }, { -1, -1 } };  // right: [x,y,z][psi=Neumann, phi=nonlinear]
+    // int left_bc[3][2]  = { { +1, +1 }, { +1, +1 }, { +1, +1 } }; // left:  [x,y,z][psi=Neumann, phi=nonlinear]
+    // int right_bc[3][2] = { { +1, +1 }, { +1, +1 }, { +1, +1 } };  // right: [x,y,z][psi=Neumann, phi=nonlinear]
 
-
-    int left_bc[3][2]  = { { 0, 0 }, { 0, 0 }, { +1, +1 } }; // left:  [x,y,z][psi=Neumann, phi=nonlinear]
+    int left_bc[3][2]  = { { 0, 0 }, { 0, 0 }, { +1, 2 } }; // left:  [x,y,z][psi=Neumann, phi=nonlinear]
     int right_bc[3][2] = { { 0, 0 }, { 0, 0 }, { +1, +1 } };  // right: [x,y,z][psi=Neumann, phi=nonlinear]
 
     auto cond  = tests::boundary_cond<vec_ops_t>(
-        left_bc, right_bc, sigma, cos_theta, alpha
+        left_bc, right_bc, gamma, cos_theta
     );
     // Boundary condition values:
     //   -1 = dirichlet (value = 0 at boundary)
     //   +1 = neumann (derivative = 0 at boundary)
     //    0 = periodic (left boundary uses value from N-1, right boundary uses value from 0)
     //    2 = nonlinear contact-angle: alpha*nabla(C)*n = -sigma*cos(theta)*g'(C)
+
+    std::cout << "Boundary conditions table (cell = (left,right)):" << std::endl;
+    std::cout << std::setw( 10 ) << "" << std::setw( 14 ) << "x" << std::setw( 14 ) << "y" << std::setw( 14 ) << "z"
+              << std::endl;
+    for ( int c = 0; c < 2; ++c )
+    {
+        const char *row = ( c == 0 ) ? "psi" : "phi";
+        std::cout << std::setw( 10 ) << row;
+        for ( int a = 0; a < 3; ++a )
+        {
+            std::ostringstream cell;
+            cell << "(" << left_bc[a][c] << "," << right_bc[a][c] << ")";
+            std::cout << std::setw( 14 ) << cell.str();
+        }
+        std::cout << std::endl;
+    }
+    std::cout << std::endl;
 
 
     vector_t solution( range );
@@ -446,27 +462,11 @@ int main( int argc, char const *argv[] )
                     scalar y = step[1] * ( 0.5 + j );
                     scalar z = step[2] * ( 0.5 + k );
 
-                    /*
-                    // Generate Perlin noise value for psi (component 0)
-                    scalar noise_val_psi = perlin_noise_3d<scalar>( x * noise_frequency, y * noise_frequency, z * noise_frequency, noise_seed );
-                    noise_val_psi *= noise_amplitude;
-                    solution_view( i, j, k, 0 ) = noise_val_psi;
 
-                    // Generate Perlin noise value for phi (component 1) using different seed
-                    scalar noise_val_phi = perlin_noise_3d<scalar>( x * noise_frequency, y * noise_frequency, z * noise_frequency, noise_seed + 1000 );
-                    noise_val_phi *= noise_amplitude;
-                    solution_view( i, j, k, 1 ) = noise_val_phi;
-                    */
-
-                    // solution_view( i, j, k, 0 ) = std::exp( - ( std::pow((x - 0.5), 2) + std::pow((y - 0.5), 2) + std::pow((z - 0.5), 2) ) / ( d * d ) );
                     solution_view( i, j, k, 0 ) = 0.0;
 
-                    // solution_view( i, j, k, 1 ) = 2 * std::exp( - ( std::pow((x - 0.5), 4) + std::pow((y - 0.5), 4) + std::pow((z - 0.5), 4) ) / std::pow(d, 4) ) - 1;
-
-                    // if ( x > 0.5 - d && x < 0.5 + d && y > 0.5 - d && y < 0.5 + d && z > 0.5 - d && z < 0.5 + d )
                     if ( x > 0.5 - d && x < 0.5 + d && y > 0.5 - d && y < 0.5 + d && z < 2 * d)
                     {
-                        // solution_view( i, j, k, 1 ) = 2 * std::exp( - ( std::pow((x - 0.5), 4) + std::pow((y - 0.5), 4) + std::pow((z - 0.5), 4) ) / ( 2.0 * d * d ) ) - 1;
                         solution_view( i, j, k, 1 ) = 1.0;
                     }
                     else
@@ -483,6 +483,8 @@ int main( int argc, char const *argv[] )
     auto time_derivative = std::make_shared<time_derivative_t>( range );
     time_derivative->set_dt_inf( dt_inf );
     time_derivative->set_previous_state( solution );
+
+    tests::scheduler<scalar> dt_scheduler( dt_inf, /*success_threshold=*/5 );
 
     auto cahn_hilliard_jacobi_op = std::make_shared<jacobi_op_t>( range, step, cond, time_derivative );
     auto cahn_hilliard_op        = std::make_shared<cahn_hilliard_op_t>( range, step, cond, cahn_hilliard_jacobi_op, time_derivative );
@@ -528,6 +530,30 @@ int main( int argc, char const *argv[] )
                    << static_cast<double>( F_init_norm ) << std::endl;
     time_conv_file.flush();
 
+    // Record dt_inf that each accepted step converged with
+    std::ofstream dt_history_file( output_dir + "/dt_history.dat" );
+    dt_history_file << "step dt_inf\n";
+    dt_history_file.flush();
+
+    // Track total amount of each component after each step
+    std::ofstream component_sums_csv( output_dir + "/component_sums.dat" );
+    component_sums_csv << "step sum_psi sum_phi\n";
+    component_sums_csv.flush();
+
+    auto write_component_sums = [&]( int step_idx, const vector_t &x )
+    {
+        tensor_t sums = compute_component_sums( x, range );
+        std::cout << "Component sums @ step " << step_idx << ": "
+                  << std::scientific << std::setprecision(15)
+                  << static_cast<double>( sums[0] ) << ", " << static_cast<double>( sums[1] )
+                  << std::defaultfloat << std::endl;
+        component_sums_csv << step_idx << " "
+                           << std::scientific << std::setprecision(15)
+                           << static_cast<double>( sums[0] ) << " " << static_cast<double>( sums[1] )
+                           << std::defaultfloat << "\n";
+        component_sums_csv.flush();
+    };
+
     // Save initial approximation (index 0) if requested
     if ( save_coords )
     {
@@ -536,7 +562,6 @@ int main( int argc, char const *argv[] )
     }
 
     // Solve and measure time for each time step
-    std::vector<double> iteration_times;
     double              total_time_ms = 0.0;
 
     if ( solver_type == "jacobi" )
@@ -559,8 +584,15 @@ int main( int argc, char const *argv[] )
 
         auto newton_solver = std::make_shared<newton_solver_jacobi_t>( vspace, &log, newton_iteration );
         newton_solver->convergence_strategy()->set_tolerance( newton_tol );
+        newton_solver->convergence_strategy()->set_convergence_constants(
+            /*tolerance_*/ newton_tol,
+            /*maximum_iterations_*/ 10,
+            /*relax_tolerance_factor_*/ scalar( 1 ),
+            /*relax_tolerance_steps_*/ 0
+        );
 
-        for ( int ts = 0; ts < max_time_steps; ts++ )
+        int ts = 0;
+        while ( ts < max_time_steps )
         {
             std::cout << std::endl;
             std::cout << "Time iteration #" << ( ts + 1 ) << " has started" << std::endl;
@@ -570,28 +602,69 @@ int main( int argc, char const *argv[] )
             std::string step_dir = output_dir + "/step_" + std::to_string( ts + 1 );
             std::filesystem::create_directories( step_dir );
 
-            // Create convergence monitor for this time step
-            auto conv_monitor = std::make_shared<newton_conv_monitor_jacobi_t>(
-                vspace, cahn_hilliard_op, get_monitor, step_dir, solver_type, preconditioner_type, grid_size, &log );
-
-            // Write initial residual (iteration 0) before Newton iterations start
-            conv_monitor->write_initial_residual( solution );
-
-            // Solve and measure time
-            double step_time;
+            const vector_t backup_solution = solution;
+            bool           step_accepted   = false;
+            double         accepted_step_time = 0.0;
+            scalar         accepted_dt_inf = scalar( 0 );
+            int            attempt_idx     = 0;
+            for ( attempt_idx = 1; attempt_idx <= DEFAULT_MAX_RETRIES + 1; ++attempt_idx )
             {
-                Timer timer("Solve", false);
-                newton_solver->solve( cahn_hilliard_op.get(), conv_monitor.get(), nullptr, solution );
-                step_time = timer.stop_and_get_ms();
+                const scalar current_dt_inf = dt_scheduler.get_dt_inf();
+                time_derivative->set_dt_inf( current_dt_inf );
+
+                std::cout << "  dt_inf attempt " << attempt_idx << ": "
+                          << std::scientific << static_cast<double>( current_dt_inf ) << std::defaultfloat << std::endl;
+
+                std::string attempt_dir = step_dir + "/attempt_" + std::to_string( attempt_idx );
+                std::filesystem::create_directories( attempt_dir );
+
+                // Create convergence monitor for this attempt
+                auto conv_monitor = std::make_shared<newton_conv_monitor_jacobi_t>(
+                    vspace, cahn_hilliard_op, get_monitor, attempt_dir, solver_type, preconditioner_type, grid_size, &log );
+
+                // Write initial residual (iteration 0) before Newton iterations start
+                conv_monitor->write_initial_residual( solution );
+
+                Timer timer( "Solve", false );
+                const bool converged = newton_solver->solve( cahn_hilliard_op.get(), conv_monitor.get(), nullptr, solution );
+                const double attempt_time = timer.stop_and_get_ms();
+
+                dt_scheduler.step( converged );
+
+                if ( converged )
+                {
+                    accepted_step_time = attempt_time;
+                    accepted_dt_inf    = current_dt_inf;
+                    step_accepted      = true;
+                    break;
+                }
+
+                // rollback state for the next attempt
+                solution = backup_solution;
             }
-            iteration_times.push_back( step_time );
-            total_time_ms += step_time;
+
+            if ( !step_accepted )
+            {
+                std::cerr << "ERROR: Failed to take time step after " << ( DEFAULT_MAX_RETRIES + 1 )
+                          << " attempts. Aborting." << std::endl;
+                break;
+            }
+
+            total_time_ms += accepted_step_time;
+
+            // Record dt_inf that this step converged with
+            dt_history_file << ( ts + 1 ) << " " << std::scientific << std::setprecision(15)
+                            << static_cast<double>( accepted_dt_inf ) << std::defaultfloat << "\n";
+            dt_history_file.flush();
 
             // Compute stationary residual (to check time convergence)
             vector_t F_x( range );
             cahn_hilliard_op_stationary->apply( solution, F_x );
             scalar F_x_norm = vspace->norm_l2( F_x );
             log.info_f( "||F_stationary(solution)||_2 = %le", static_cast<double>( F_x_norm ) );
+
+            // Track total amount of each component after this step
+            write_component_sums( ts + 1, solution );
 
             // Write to time convergence history file
             time_conv_file << ( ts + 1 ) << " " << std::scientific << std::setprecision(15)
@@ -629,6 +702,8 @@ int main( int argc, char const *argv[] )
             {
                 std::cout << std::endl;
             }
+
+            ++ts;
         }
     }
     else // gmres
@@ -655,8 +730,15 @@ int main( int argc, char const *argv[] )
 
         auto newton_solver = std::make_shared<newton_solver_gmres_t>( vspace, &log, newton_iteration );
         newton_solver->convergence_strategy()->set_tolerance( newton_tol );
+        newton_solver->convergence_strategy()->set_convergence_constants(
+            /*tolerance_*/ newton_tol,
+            /*maximum_iterations_*/ 10,
+            /*relax_tolerance_factor_*/ scalar( 1 ),
+            /*relax_tolerance_steps_*/ 0
+        );
 
-        for ( int ts = 0; ts < max_time_steps; ts++ )
+        int ts = 0;
+        while ( ts < max_time_steps )
         {
             std::cout << std::endl;
             std::cout << "Time iteration #" << ( ts + 1 ) << " has started" << std::endl;
@@ -666,22 +748,60 @@ int main( int argc, char const *argv[] )
             std::string step_dir = output_dir + "/step_" + std::to_string( ts + 1 );
             std::filesystem::create_directories( step_dir );
 
-            // Create convergence monitor for this time step
-            auto conv_monitor = std::make_shared<newton_conv_monitor_gmres_t>(
-                vspace, cahn_hilliard_op, get_monitor, step_dir, solver_type, preconditioner_type, grid_size, &log );
-
-            // Write initial residual (iteration 0) before Newton iterations start
-            conv_monitor->write_initial_residual( solution );
-
-            // Solve and measure time
-            double step_time;
+            const vector_t backup_solution = solution;
+            bool           step_accepted   = false;
+            double         accepted_step_time = 0.0;
+            scalar         accepted_dt_inf = scalar( 0 );
+            int            attempt_idx     = 0;
+            for ( attempt_idx = 1; attempt_idx <= DEFAULT_MAX_RETRIES + 1; ++attempt_idx )
             {
-                Timer timer("Solve", false);
-                newton_solver->solve( cahn_hilliard_op.get(), conv_monitor.get(), nullptr, solution );
-                step_time = timer.stop_and_get_ms();
+                const scalar current_dt_inf = dt_scheduler.get_dt_inf();
+                time_derivative->set_dt_inf( current_dt_inf );
+
+                std::cout << "  dt_inf attempt " << attempt_idx << ": "
+                          << std::scientific << static_cast<double>( current_dt_inf ) << std::defaultfloat << std::endl;
+
+                std::string attempt_dir = step_dir + "/attempt_" + std::to_string( attempt_idx );
+                std::filesystem::create_directories( attempt_dir );
+
+                // Create convergence monitor for this attempt
+                auto conv_monitor = std::make_shared<newton_conv_monitor_gmres_t>(
+                    vspace, cahn_hilliard_op, get_monitor, attempt_dir, solver_type, preconditioner_type, grid_size, &log );
+
+                // Write initial residual (iteration 0) before Newton iterations start
+                conv_monitor->write_initial_residual( solution );
+
+                Timer timer( "Solve", false );
+                const bool converged = newton_solver->solve( cahn_hilliard_op.get(), conv_monitor.get(), nullptr, solution );
+                const double attempt_time = timer.stop_and_get_ms();
+
+                dt_scheduler.step( converged );
+
+                if ( converged )
+                {
+                    accepted_step_time = attempt_time;
+                    accepted_dt_inf    = current_dt_inf;
+                    step_accepted      = true;
+                    break;
+                }
+
+                // rollback state for the next attempt
+                solution = backup_solution;
             }
-            iteration_times.push_back( step_time );
-            total_time_ms += step_time;
+
+            if ( !step_accepted )
+            {
+                std::cerr << "ERROR: Failed to take time step after " << ( DEFAULT_MAX_RETRIES + 1 )
+                          << " attempts. Aborting." << std::endl;
+                break;
+            }
+
+            total_time_ms += accepted_step_time;
+
+            // Record dt_inf that this step converged with
+            dt_history_file << ( ts + 1 ) << " " << std::scientific << std::setprecision(15)
+                            << static_cast<double>( accepted_dt_inf ) << std::defaultfloat << "\n";
+            dt_history_file.flush();
 
             // Compute stationary residual (to check time convergence)
             vector_t F_x( range );
@@ -689,19 +809,13 @@ int main( int argc, char const *argv[] )
             scalar F_x_norm = vspace->norm_l2( F_x );
             log.info_f( "||F_stationary(solution)||_2 = %le", static_cast<double>( F_x_norm ) );
 
+            // Track total amount of each component after this step
+            write_component_sums( ts + 1, solution );
+
             // Write to time convergence history file
             time_conv_file << ( ts + 1 ) << " " << std::scientific << std::setprecision(15)
                           << static_cast<double>( F_x_norm ) << std::endl;
             time_conv_file.flush();
-
-            // Check for early termination based on F(x) norm
-            if ( F_x_norm < time_tol )
-            {
-                log.info_f( "Early termination: ||F_stationary(solution)||_2 = %le < %le (tolerance)",
-                           static_cast<double>( F_x_norm ), static_cast<double>( time_tol ) );
-                time_derivative->set_previous_state( solution );
-                break;
-            }
 
             // Compute norm of difference between solution and previous state
             vector_t previous_state = time_derivative->get_previous_state();
@@ -725,11 +839,23 @@ int main( int argc, char const *argv[] )
             {
                 std::cout << std::endl;
             }
+
+            ++ts;
+
+            // Check for early termination based on F(x) norm
+            if ( diff_prev_norm < time_tol )
+            {
+                log.info_f( "Early termination: ||solution - previous_state||_2 = %le < %le (tolerance)",
+                           static_cast<double>( diff_prev_norm ), static_cast<double>( time_tol ) );
+                time_derivative->set_previous_state( solution );
+                break;
+            }
         }
     }
 
     // Close time convergence history file
     time_conv_file.close();
+    component_sums_csv.close();
 
     // Final results
     scalar final_solution_norm = vspace->norm_l2( solution );

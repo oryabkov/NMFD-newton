@@ -10,15 +10,12 @@ namespace tests
 
 
 template <class VectorSpace>
-// template <class VectorSpace, class scalar_type, int dim, int tensor_dim>
 class boundary_cond
 {
 public:
     static const int dim        = VectorSpace::dim;
     static const int tensor_dim = VectorSpace::tensor_dim;
 
-    using vector_space_type  = VectorSpace;
-    using vector_space_ptr = std::shared_ptr<vector_space_type>;
     using scalar_type  = typename VectorSpace::scalar_type;
     using vector_type  = typename VectorSpace::vector_type;
     using tensor_type  = scfd::static_vec::vec<scalar_type, tensor_dim>;
@@ -39,7 +36,7 @@ public:
 
 public:
     boundary_cond( conditions left[dim][tensor_dim], conditions right[dim][tensor_dim] )
-        : sigma_( 0 ), cos_theta_( 0 ), alpha_( 0 )
+        : gamma_( 0 ), cos_theta_( 0 )
     {
         for ( int j = 0; j < dim; ++j )
         {
@@ -51,18 +48,21 @@ public:
         }
     }
 
-    boundary_cond( conditions left[dim][tensor_dim], conditions right[dim][tensor_dim], scalar_type sigma, scalar_type cos_theta, scalar_type alpha)
+    boundary_cond( conditions left[dim][tensor_dim], conditions right[dim][tensor_dim], scalar_type gamma, scalar_type cos_theta)
         : boundary_cond(left, right)
     {
-        sigma_ = sigma;
+        gamma_ = gamma;
         cos_theta_ = cos_theta;
-        alpha_ = alpha;
     }
 
-    // A = (3/16) * h_j / alpha * sigma * cos_theta * delta_val
     __DEVICE_TAG__ scalar_type compute_A( scalar_type h_j, scalar_type delta_val ) const
     {
-        return scalar_type( 3 ) / scalar_type( 16 ) * h_j / alpha_ * sigma_ * cos_theta_ * delta_val;
+        return delta_val * h_j * cos_theta_ / st::sqrt(2 * gamma_);
+    }
+
+    __DEVICE_TAG__ scalar_type compute_D( scalar_type C0, scalar_type A ) const
+    {
+        return 1 + A * C0 + A * A;
     }
 
 
@@ -73,13 +73,17 @@ public:
             return C0;
         }
 
-        scalar_type D = scalar_type( 8 ) * A * C0 + scalar_type( 16 ) * A * A + scalar_type( 1 );
+        // const scalar_type C0_clamped = st::max( scalar_type( -1 ), st::min( C0, scalar_type( 1 ) ) );
+
+        scalar_type D = compute_D( C0, A );
         if ( D <= scalar_type( 0 ) )
         {
-            static_assert( true, "D <= 0 in nonlinear_ghost" );
+            #if !defined(PLATFORM_CUDA)
+                std::cout << "D <= 0 in nonlinear_ghost" << " C0: " << C0 << " A: " << A << " D: " << D << std::endl;
+            #endif
         }
 
-        return ( -( scalar_type( 2 ) * A * C0 + scalar_type( 1 ) ) + st::sqrt( D ) ) / ( scalar_type( 2 ) * A );
+        return ( -( scalar_type( 2 ) + A * C0 ) + 2 * st::sqrt( D ) ) / A;
     }
 
 
@@ -90,13 +94,17 @@ public:
             return scalar_type( 1 );
         }
 
-        scalar_type D = scalar_type( 8 ) * A * C0_lin + scalar_type( 16 ) * A * A + scalar_type( 1 );
+        // const scalar_type C0_lin_clamped = st::max( scalar_type( -1 ), st::min( C0_lin, scalar_type( 1 ) ) );
+
+        scalar_type D = compute_D( C0_lin, A );
         if ( D <= scalar_type( 0 ) )
         {
-            static_assert( true, "D <= 0 in nonlinear_ghost_coef" );
+            #if !defined(PLATFORM_CUDA)
+                std::cout << "D <= 0 in nonlinear_ghost_coef_linearized" << " C0: " << C0_lin << " A: " << A << " D: " << D << std::endl;
+            #endif
         }
 
-        return scalar_type( 2 ) / st::sqrt( D ) - scalar_type( 1 );
+        return scalar_type( 1 ) / st::sqrt( D ) - scalar_type( 1 );
     }
 
 
@@ -287,9 +295,8 @@ public:
 
 private:
     // Parameters for nonlinear boundary condition
-    scalar_type     sigma_;
+    scalar_type     gamma_;
     scalar_type     cos_theta_;
-    scalar_type     alpha_;
 };
 
 } // namespace tests
