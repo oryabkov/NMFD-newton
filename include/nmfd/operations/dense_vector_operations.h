@@ -338,7 +338,7 @@ size_t argmax_element(vector_type& x)const
         SCFD_TODO( "Implement assign_skip_lices" );
     }
 
-private:
+protected:
     void verify_max_loc_size( size_t loc_size ) const
     {
         if ( vt_.get_loc_size( helper_ ) < loc_size )
@@ -348,7 +348,6 @@ private:
         }
     }
 
-protected:
     mutable VectorTraits vt_;
     mutable vector_type  helper_;
     for_each_type        for_each_inst_;

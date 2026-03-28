@@ -370,7 +370,29 @@ int main( int argc, char const *args[] )
         AT->free();
     }
 
-    log.info( "=== Test: matrix_norm_fro ===" );
+    log.info( "=== Test: matrix_norm_fro 3x3 ===" );
+    {
+        matrix_type A = { { 5, 6, 7 }, { 8, 9, 10 }, { 11, 12, 13 } };
+
+        T nf       = ops->matrix_norm_fro( A );
+        T expected = std::sqrt( 789 );
+
+        if ( std::abs( nf - expected ) < eps )
+        {
+            log.info( "PASS: matrix_norm_fro = " + std::to_string( expected ) );
+            passed_counter++;
+        }
+        else
+        {
+            log.error(
+                "FAIL: matrix_norm_fro expected " + std::to_string( expected ) + ", got " + std::to_string( nf )
+            );
+            failed_counter++;
+        }
+        A.free();
+    }
+
+    log.info( "=== Test: matrix_norm_fro 2x2 ===" );
     {
         matrix_type A = { { 1, 2 }, { 3, 4 } };
 

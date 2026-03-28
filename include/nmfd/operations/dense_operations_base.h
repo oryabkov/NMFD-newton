@@ -167,13 +167,17 @@ public:
     /// ||A||_F = sqrt( sum_{i,j} A(i,j)^2 )
     [[nodiscard]] scalar_type matrix_norm_fro( const matrix_type &mat ) const
     {
-        auto sz    = mat.size_nd();
-        auto total = sz[0] * sz[1];
+        const auto sz    = mat.size_nd();
+        const auto total = static_cast<size_t>( sz[0] * sz[1] );
 
-        verify_helper_matrix_size( sz[0], sz[1] );
+        parent_t::verify_max_loc_size( total );
 
-        for_each_nd_inst_( matrix_sq_2d_kernel{ mat, mat_helper_ }, mat.size_nd() );
-        return std::sqrt( parent_t::reduce_inst_( total, mat_helper_.raw_ptr(), scalar_type{ 0 } ) );
+        matrix_type sq_dst;
+        sq_dst.init_by_raw_data( parent_t::vt_.get_raw_ptr( parent_t::helper_ ), sz );
+
+        for_each_nd_inst_( matrix_sq_2d_kernel{ mat, sq_dst }, mat.size_nd() );
+        const auto *raw_ptr = parent_t::vt_.get_raw_ptr( parent_t::helper_ );
+        return std::sqrt( parent_t::reduce_inst_( total, raw_ptr, scalar_type{ 0 } ) );
     }
 
     /// Returns diagonal matrix: D(i,i) = mat(i,i), optionally inverted
@@ -239,20 +243,6 @@ public:
     }
 
 private:
-    void verify_helper_matrix_size( arr_ord rows, arr_ord cols ) const
-    {
-        if ( !mat_helper_.is_free() && mat_helper_.size() > rows * cols )
-        {
-            return;
-        }
-        if ( !mat_helper_.is_free() )
-        {
-            mat_helper_.free();
-        }
-        mat_helper_.init( rows, cols );
-    }
-
-    mutable matrix_type      mat_helper_;
     mutable for_each_nd_type for_each_nd_inst_;
 };
 
