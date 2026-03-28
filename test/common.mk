@@ -65,7 +65,11 @@ ifneq ($(strip $(CUDA_ARCH)),)
 CUDA_ARCH_FLAG = -arch=$(CUDA_ARCH)
 endif
 CUDAFLAGS = $(TARGET_NVCC) -std=c++17 $(CUDA_ARCH_FLAG)
-CUDACOMPILER = $(CUDA_ROOT_PATH)nvcc
+ifneq ($(strip $(CUDA_ROOT_PATH)),)
+CUDACOMPILER = $(CUDA_ROOT_PATH)/bin/nvcc
+else
+CUDACOMPILER = nvcc
+endif
 
 
 #MPICOMPILER = $(MPI_ROOT_PATH)/bin/mpic++

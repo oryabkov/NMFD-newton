@@ -8,6 +8,12 @@
 
 const double eps = 1e-10;
 
+#ifndef USE_DOUBLE_PRECISION
+using scalar = float;
+#else
+using scalar = double;
+#endif
+
 int main( int argc, char const *args[] )
 {
     using log_t       = scfd::utils::log_std;

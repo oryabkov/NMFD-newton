@@ -6,6 +6,12 @@
 
 const double eps = 1e-10;
 
+#ifndef USE_DOUBLE_PRECISION
+using scalar = float;
+#else
+using scalar = double;
+#endif
+
 int main( int argc, char const *args[] )
 {
     using log_t        = scfd::utils::log_std;
@@ -114,21 +120,11 @@ int main( int argc, char const *args[] )
     // ====================================================================
     log.info( "=== Test: y = mat * x (3x3) ===" );
     {
-        matrix_type mat;
-        mat.init( 3, 3 );
-        {
-            auto mv    = mat.create_view( false );
-            mv( 0, 0 ) = 1;
-            mv( 0, 1 ) = 2;
-            mv( 0, 2 ) = 3;
-            mv( 1, 0 ) = 4;
-            mv( 1, 1 ) = 5;
-            mv( 1, 2 ) = 6;
-            mv( 2, 0 ) = 7;
-            mv( 2, 1 ) = 8;
-            mv( 2, 2 ) = 9;
-            mv.release( true );
-        }
+        matrix_type mat = {
+            { 1, 2, 3 }, //
+            { 4, 5, 6 }, //
+            { 7, 8, 9 }
+        };
 
         vector_type x = { 1, 2, 3 };
         vector_type y = { 0, 0, 0 };
@@ -154,16 +150,10 @@ int main( int argc, char const *args[] )
 
     log.info( "=== Test: y = alpha*mat*x + beta*y (2x2) ===" );
     {
-        matrix_type mat;
-        mat.init( 2, 2 );
-        {
-            auto mv    = mat.create_view( false );
-            mv( 0, 0 ) = 1;
-            mv( 0, 1 ) = 0;
-            mv( 1, 0 ) = 0;
-            mv( 1, 1 ) = 1;
-            mv.release( true );
-        }
+        matrix_type mat = {
+            { 1, 0 }, //
+            { 0, 1 }
+        };
 
         vector_type x = { 3, 4 };
         vector_type y = { 1, 2 };
@@ -188,18 +178,10 @@ int main( int argc, char const *args[] )
 
     log.info( "=== Test: non-square matrix (2x3) ===" );
     {
-        matrix_type mat;
-        mat.init( 2, 3 );
-        {
-            auto mv    = mat.create_view( false );
-            mv( 0, 0 ) = 1;
-            mv( 0, 1 ) = 2;
-            mv( 0, 2 ) = 3;
-            mv( 1, 0 ) = 4;
-            mv( 1, 1 ) = 5;
-            mv( 1, 2 ) = 6;
-            mv.release( true );
-        }
+        matrix_type mat = {
+            { 1, 2, 3 }, //
+            { 4, 5, 6 }
+        };
 
         vector_type x = { 1, 2, 3 };
         vector_type y = { 0, 0 };
@@ -224,16 +206,10 @@ int main( int argc, char const *args[] )
 
     log.info( "=== Test: assign_matrix_vector_prod ===" );
     {
-        matrix_type mat;
-        mat.init( 2, 2 );
-        {
-            auto mv    = mat.create_view( false );
-            mv( 0, 0 ) = 2;
-            mv( 0, 1 ) = 0;
-            mv( 1, 0 ) = 0;
-            mv( 1, 1 ) = 2;
-            mv.release( true );
-        }
+        matrix_type mat = {
+            { 2, 0 }, //
+            { 0, 2 }
+        };
 
         vector_type x = { 3, 4 };
         vector_type y = { 10, 20 };
@@ -263,8 +239,15 @@ int main( int argc, char const *args[] )
 
     log.info( "=== Test: matrix_matrix_prod (2x3) * (3x2) ===" );
     {
-        matrix_type A = { { 1, 2, 3 }, { 4, 5, 6 } };
-        matrix_type B = { { 1, 4 }, { 2, 5 }, { 3, 6 } };
+        matrix_type A = {
+            { 1, 2, 3 }, //
+            { 4, 5, 6 }
+        };
+        matrix_type B = {
+            { 1, 4 }, //
+            { 2, 5 }, //
+            { 3, 6 }
+        };
 
         auto C  = ops->matrix_matrix_prod( A, B );
         auto cv = C->create_view( true );
@@ -292,8 +275,14 @@ int main( int argc, char const *args[] )
 
     log.info( "=== Test: matrix_matrix_prod square (2x2) * (2x2) ===" );
     {
-        matrix_type A = { { 1, 2 }, { 3, 4 } };
-        matrix_type B = { { 5, 6 }, { 7, 8 } };
+        matrix_type A = {
+            { 1, 2 }, //
+            { 3, 4 }
+        };
+        matrix_type B = {
+            { 5, 6 }, //
+            { 7, 8 }
+        };
 
         auto C  = ops->matrix_matrix_prod( A, B );
         auto cv = C->create_view( true );
@@ -320,8 +309,14 @@ int main( int argc, char const *args[] )
 
     log.info( "=== Test: matrix_matrix_sum ===" );
     {
-        matrix_type A = { { 1, 2 }, { 3, 4 } };
-        matrix_type B = { { 10, 20 }, { 30, 40 } };
+        matrix_type A = {
+            { 1, 2 }, //
+            { 3, 4 }
+        };
+        matrix_type B = {
+            { 10, 20 }, //
+            { 30, 40 }
+        };
 
         auto C  = ops->matrix_matrix_sum( 2.0, A, 3.0, B );
         auto cv = C->create_view( true );
@@ -348,7 +343,10 @@ int main( int argc, char const *args[] )
 
     log.info( "=== Test: matrix_transpose ===" );
     {
-        matrix_type A = { { 1, 2, 3 }, { 4, 5, 6 } };
+        matrix_type A = {
+            { 1, 2, 3 }, //
+            { 4, 5, 6 }
+        };
 
         auto AT = ops->matrix_transpose( A );
         auto tv = AT->create_view( true );
@@ -372,7 +370,11 @@ int main( int argc, char const *args[] )
 
     log.info( "=== Test: matrix_norm_fro 3x3 ===" );
     {
-        matrix_type A = { { 5, 6, 7 }, { 8, 9, 10 }, { 11, 12, 13 } };
+        matrix_type A = {
+            { 5, 6, 7 },  //
+            { 8, 9, 10 }, //
+            { 11, 12, 13 }
+        };
 
         T nf       = ops->matrix_norm_fro( A );
         T expected = std::sqrt( 789 );
@@ -394,7 +396,10 @@ int main( int argc, char const *args[] )
 
     log.info( "=== Test: matrix_norm_fro 2x2 ===" );
     {
-        matrix_type A = { { 1, 2 }, { 3, 4 } };
+        matrix_type A = {
+            { 1, 2 }, //
+            { 3, 4 }
+        };
 
         T nf       = ops->matrix_norm_fro( A );
         T expected = std::sqrt( 30.0 );
@@ -440,7 +445,11 @@ int main( int argc, char const *args[] )
 
     log.info( "=== Test: matrix_diag (to vector) ===" );
     {
-        matrix_type A = { { 10, 1, 2 }, { 3, 20, 4 }, { 5, 6, 30 } };
+        matrix_type A = {
+            { 10, 1, 2 }, //
+            { 3, 20, 4 }, //
+            { 5, 6, 30 }
+        };
 
         vector_type d = { 0, 0, 0 };
         ops->matrix_diag( A, d );
@@ -464,7 +473,10 @@ int main( int argc, char const *args[] )
 
     log.info( "=== Test: matrix_diag (to vector, inverted) ===" );
     {
-        matrix_type A = { { 2, 99 }, { 99, 5 } };
+        matrix_type A = {
+            { 2, 99 }, //
+            { 99, 5 }
+        };
 
         vector_type d = { 0, 0 };
         ops->matrix_diag( A, d, true );
@@ -488,7 +500,11 @@ int main( int argc, char const *args[] )
 
     log.info( "=== Test: matrix_diag (to diagonal matrix) ===" );
     {
-        matrix_type A = { { 10, 1, 2 }, { 3, 20, 4 }, { 5, 6, 30 } };
+        matrix_type A = {
+            { 10, 1, 2 }, //
+            { 3, 20, 4 }, //
+            { 5, 6, 30 }
+        };
 
         auto D  = ops->matrix_diag( A );
         auto dv = D->create_view( true );
@@ -536,8 +552,14 @@ int main( int argc, char const *args[] )
 
     log.info( "=== Test: matrix_matrix_prod identity ===" );
     {
-        matrix_type A = { { 1, 2 }, { 3, 4 } };
-        matrix_type I = { { 1, 0 }, { 0, 1 } };
+        matrix_type A = {
+            { 1, 2 }, //
+            { 3, 4 }
+        };
+        matrix_type I = {
+            { 1, 0 }, //
+            { 0, 1 }
+        };
 
         auto C  = ops->matrix_matrix_prod( A, I );
         auto cv = C->create_view( true );
@@ -560,7 +582,10 @@ int main( int argc, char const *args[] )
 
     log.info( "=== Test: (A^T)^T = A ===" );
     {
-        matrix_type A = { { 1, 2, 3 }, { 4, 5, 6 } };
+        matrix_type A = {
+            { 1, 2, 3 }, //
+            { 4, 5, 6 }
+        };
 
         auto AT  = ops->matrix_transpose( A );
         auto ATT = ops->matrix_transpose( *AT );
@@ -586,7 +611,11 @@ int main( int argc, char const *args[] )
 
     log.info( "=== Test: norm_fro of identity ===" );
     {
-        matrix_type I = { { 1, 0, 0 }, { 0, 1, 0 }, { 0, 0, 1 } };
+        matrix_type I = {
+            { 1, 0, 0 }, //
+            { 0, 1, 0 }, //
+            { 0, 0, 1 }
+        };
 
         T nf       = ops->matrix_norm_fro( I );
         T expected = std::sqrt( 3.0 );

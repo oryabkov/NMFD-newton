@@ -34,9 +34,7 @@ struct matrix_sum_2d
     template <class IdxND>
     __DEVICE_TAG__ void operator()( const IdxND &idx )
     {
-        const auto i = idx[0];
-        const auto j = idx[1];
-        c( i, j )    = alpha * a( i, j ) + beta * b( i, j );
+        c( idx ) = alpha * a( idx ) + beta * b( idx );
     }
 };
 
@@ -49,10 +47,7 @@ struct matrix_sq_2d
     template <class IdxND>
     __DEVICE_TAG__ void operator()( const IdxND &idx )
     {
-        const auto i = idx[0];
-        const auto j = idx[1];
-        const auto v = src( i, j );
-        dst( i, j )  = v * v;
+        dst( idx ) = src( idx ) * src( idx );
     }
 };
 
@@ -71,11 +66,11 @@ struct matrix_extract_diag_2d
         if ( i == j )
         {
             const auto d = src( i, j );
-            dst( i, j )  = invert ? ( Scalar{ 1 } / d ) : d;
+            dst( idx )   = invert ? ( Scalar{ 1 } / d ) : d;
         }
         else
         {
-            dst( i, j ) = Scalar{ 0 };
+            dst( idx ) = Scalar{ 0 };
         }
     }
 };
@@ -91,7 +86,7 @@ struct matrix_diag_from_vec_2d
     {
         const auto i = idx[0];
         const auto j = idx[1];
-        dst( i, j )  = ( i == j ) ? vec[i] : Scalar{ 0 };
+        dst( idx )   = ( i == j ) ? vec[i] : Scalar{ 0 };
     }
 };
 
@@ -106,7 +101,7 @@ struct matrix_scalar_diag_2d
     {
         const auto i = idx[0];
         const auto j = idx[1];
-        dst( i, j )  = ( i == j ) ? val : Scalar{ 0 };
+        dst( idx )   = ( i == j ) ? val : Scalar{ 0 };
     }
 };
 

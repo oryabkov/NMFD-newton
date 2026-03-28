@@ -6,12 +6,18 @@
 #include <nmfd/operations/detail/static_vector_traits.h>
 #include <nmfd/operations/dense_vector_space.h>
 
-const double eps = 1e-10;
+#ifndef USE_DOUBLE_PRECISION
+using scalar           = float;
+inline constexpr scalar eps = 1e-5f;
+#else
+using scalar           = double;
+inline constexpr scalar eps = 1e-10;
+#endif
 
 int main( int argc, char const *args[] )
 {
     using log_t                = scfd::utils::log_std;
-    using T                    = double;
+    using T                    = scalar;
     static const int Dim       = 3;
     using vector_type          = std::array<T, Dim>;
     using vector_traits        = nmfd::operations::detail::static_vector_traits<T, Dim>;
