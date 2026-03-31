@@ -20,7 +20,6 @@ public:
     using matrix_type = typename parent_t::matrix_type;
     using vector_type = typename parent_t::vector_type;
     using scalar_type = typename parent_t::scalar_type;
-    using cublas_t    = scfd::cublas_wrap;
 
 public:
     dense_operations_cuda() = default;
