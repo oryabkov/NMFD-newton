@@ -24,18 +24,19 @@ class dense_operations
     using parent_t    = dense_vector_operations<traits_type, Backend, Ordinal>;
 
 public:
-    using arr_ord           = scfd::arrays::ordinal_type;
-    using scalar_type       = Type;
-    using vector_type       = typename traits_type::vector_type;
-    using memory_type       = typename Backend::memory_type;
-    using for_each_nd_type  = typename Backend::template for_each_nd_type<Dim, arr_ord>;
-    using reduce_type       = typename Backend::reduce_type;
-    using idx_nd_type       = scfd::static_vec::vec<arr_ord, Dim>;
-    using matrix_type       = scfd::arrays::array_nd<scalar_type, Dim, memory_type>;
+    using arr_ord          = scfd::arrays::ordinal_type;
+    using scalar_type      = Type;
+    using vector_type      = typename traits_type::vector_type;
+    using memory_type      = typename Backend::memory_type;
+    using for_each_nd_type = typename Backend::template for_each_nd_type<Dim, arr_ord>;
+    using reduce_type      = typename Backend::reduce_type;
+    using idx_nd_type      = scfd::static_vec::vec<arr_ord, Dim>;
+    using matrix_type = scfd::arrays::array_nd<scalar_type, Dim, memory_type, scfd::arrays::first_index_fast_arranger>;
     using multivector_type  = typename std::vector<vector_type>;
     using vector_space_type = dense_vector_space<traits_type, Backend, Ordinal>;
 
     using matrix_transpose_2d_kernel     = kernels::matrix_transpose_2d<matrix_type>;
+    using matrix_assign_scalar_2d_kernel = kernels::matrix_assign_scalar_2d<scalar_type, matrix_type>;
     using matrix_sum_2d_kernel           = kernels::matrix_sum_2d<scalar_type, matrix_type>;
     using matrix_sq_2d_kernel            = kernels::matrix_sq_2d<matrix_type>;
     using matrix_extract_diag_2d_kernel  = kernels::matrix_extract_diag_2d<scalar_type, matrix_type>;
@@ -101,6 +102,16 @@ public:
 
 
     // matrix_operations
+
+    void init_matrix( arr_ord rows, arr_ord cols, matrix_type &mat ) const
+    {
+        mat.init( rows, cols );
+    }
+
+    void assign_zero_matrix( matrix_type &mat ) const
+    {
+        for_each_nd_inst_( matrix_assign_scalar_2d_kernel{ scalar_type{ 0 }, mat }, mat.size_nd() );
+    }
 
     /// C = A^T
     [[nodiscard]] std::shared_ptr<matrix_type> matrix_transpose( const matrix_type &mat ) const

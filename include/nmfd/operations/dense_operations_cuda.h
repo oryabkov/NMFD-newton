@@ -58,6 +58,7 @@ public:
 
         auto result = std::make_shared<matrix_type>();
         result->init( rows_a, cols_b );
+        parent_t::assign_zero_matrix( *result );
 
         cublas.gemm(
             'N', 'N', rows_a, cols_b, cols_a_rows_b, scalar_type{ 1 }, mat_a.raw_ptr(), rows_a, mat_b.raw_ptr(),
@@ -66,9 +67,6 @@ public:
 
         return result;
     }
-
-private:
-    mutable cublas_t cublas_wrap_;
 };
 
 }

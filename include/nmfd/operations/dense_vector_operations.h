@@ -52,6 +52,11 @@ public:
         vt_.alloc( vt_.loc_size(), helper_ );
     }
 
+    void init_vector( Ordinal loc_sz, vector_type &v ) const
+    {
+        vt_.alloc( loc_sz, v );
+    }
+
     [[nodiscard]] Ordinal get_loc_size( const vector_type &x ) const
     {
         return vt_.get_loc_size( x );
