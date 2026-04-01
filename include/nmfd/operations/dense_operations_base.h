@@ -5,6 +5,7 @@
 
 #include <scfd/arrays/array_nd.h>
 
+#include <nmfd/operations/default_multivector_operations_base.h>
 #include <nmfd/operations/detail/scfd_array_traits.h>
 #include <nmfd/operations/dense_vector_space.h>
 #include <nmfd/operations/kernels/dense_operations.h>
@@ -16,12 +17,29 @@ namespace operations
 
 template <class Type, class Backend, class Ordinal = std::ptrdiff_t>
 class dense_operations
-    : public dense_vector_operations<detail::scfd_array_traits<Type, typename Backend::memory_type>, Backend, Ordinal>
+    : public default_multivector_operations_base<
+          dense_operations<Type, Backend, Ordinal>, Type,
+          typename detail::scfd_array_traits<Type, typename Backend::memory_type>::vector_type, Ordinal>,
+      public dense_vector_operations<detail::scfd_array_traits<Type, typename Backend::memory_type>, Backend, Ordinal>
 {
     static constexpr int Dim = 2;
 
     using traits_type = detail::scfd_array_traits<Type, typename Backend::memory_type>;
     using parent_t    = dense_vector_operations<traits_type, Backend, Ordinal>;
+
+private:
+    using multivector_ops_base = default_multivector_operations_base<
+        dense_operations<Type, Backend, Ordinal>, Type, typename traits_type::vector_type, Ordinal>;
+
+public:
+    using multivector_ops_base::add_lin_comb;
+    using multivector_ops_base::assign;
+    using multivector_ops_base::scalar_prod;
+    using multivector_ops_base::scalar_prod_l2;
+    using parent_t::add_lin_comb;
+    using parent_t::assign;
+    using parent_t::scalar_prod;
+    using parent_t::scalar_prod_l2;
 
 public:
     using arr_ord          = scfd::arrays::ordinal_type;
@@ -30,7 +48,6 @@ public:
     using memory_type      = typename Backend::memory_type;
     using for_each_nd_type = typename Backend::template for_each_nd_type<Dim, arr_ord>;
     using reduce_type      = typename Backend::reduce_type;
-    using idx_nd_type      = scfd::static_vec::vec<arr_ord, Dim>;
     using matrix_type = scfd::arrays::array_nd<scalar_type, Dim, memory_type, scfd::arrays::first_index_fast_arranger>;
     using multivector_type  = typename std::vector<vector_type>;
     using vector_space_type = dense_vector_space<traits_type, Backend, Ordinal>;
@@ -48,7 +65,7 @@ public:
     dense_operations() = default;
 
     template <typename... Args>
-    dense_operations( Args &&...args ) : parent_t( std::forward<Args>( args )... )
+    dense_operations( Args &&...args ) : multivector_ops_base(), parent_t( std::forward<Args>( args )... )
     {
     }
 

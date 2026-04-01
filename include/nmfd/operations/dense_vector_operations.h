@@ -6,6 +6,7 @@
 #include <scfd/utils/todo.h>
 
 #include <nmfd/operations/kernels/dense_vector_space.h>
+#include <nmfd/operations/vector_operations_base.h>
 
 namespace nmfd
 {
@@ -13,7 +14,9 @@ namespace operations
 {
 
 template <class VectorTraits, class Backend, class Ordinal = std::ptrdiff_t>
-class dense_vector_operations
+class dense_vector_operations : public virtual vector_operations_base<
+                                    typename VectorTraits::scalar_type, typename VectorTraits::vector_type,
+                                    std::vector<typename VectorTraits::vector_type>, Ordinal>
 {
 public:
     using scalar_type   = typename VectorTraits::scalar_type;
@@ -62,7 +65,7 @@ public:
         return vt_.get_loc_size( x );
     }
 
-    bool check_is_valid_number( const vector_type &x ) const
+    bool is_valid_number( const vector_type &x ) const
     {
         return std::isfinite( norm2_sq( x ) );
     }
