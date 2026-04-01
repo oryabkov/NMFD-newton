@@ -176,7 +176,7 @@ public:
     }
 
 private:
-    using vec_wrap_t = detail::vector_wrap<VectorSpace,true,true>;
+    using vec_wrap_t = ::nmfd::detail::vector_wrap<VectorSpace, true, true>;
 
     std::shared_ptr<VectorSpace> vec_ops_;
     std::shared_ptr<IterationOperator> iter_op_;

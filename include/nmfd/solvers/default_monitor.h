@@ -53,7 +53,7 @@ public:
 
 private:
     using T = scalar_type;
-    using buf_arr_t = detail::vector_wrap<VectorOperations,true,false>;
+    using buf_arr_t = ::nmfd::detail::vector_wrap<VectorOperations, true, false>;
     const vector_operations_type &vec_ops_;
 
 public:
