@@ -28,14 +28,16 @@ namespace nmfd
 namespace backend
 {
 
-template <class VectorTraits, class Log = scfd::utils::log_std>
+template <class Type, class Log = scfd::utils::log_std>
 class serial_cpu : public scfd::backend::serial_cpu
 {
+    using traits_type = operations::detail::scfd_array_traits<Type, memory_type>;
+
 public:
     using log_type              = Log;
     using scfd_backend_type     = scfd::backend::serial_cpu;
-    using vector_space_type     = operations::dense_vector_space<VectorTraits, scfd_backend_type>;
-    using dense_operations_type = operations::dense_operations<typename VectorTraits::scalar_type, scfd_backend_type>;
+    using vector_space_type     = operations::dense_vector_space<traits_type, scfd_backend_type>;
+    using dense_operations_type = operations::dense_operations<Type, scfd_backend_type>;
 
 public:
     log_type &log()

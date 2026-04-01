@@ -29,15 +29,16 @@ namespace nmfd
 namespace backend
 {
 
-template <class VectorTraits, class Log = scfd::utils::log_std>
+template <class Type, class Log = scfd::utils::log_std>
 class cuda : public scfd::backend::cuda
 {
+    using traits_type = operations::detail::scfd_array_traits<Type, memory_type>;
+
 public:
     using log_type              = Log;
     using scfd_backend_type     = scfd::backend::cuda;
-    using vector_space_type     = operations::dense_vector_space<VectorTraits, scfd_backend_type>;
-    using dense_operations_type =
-        operations::dense_operations_cuda<typename VectorTraits::scalar_type>;
+    using vector_space_type     = operations::dense_vector_space<traits_type, scfd_backend_type>;
+    using dense_operations_type = operations::dense_operations_cuda<Type>;
     using cublas_t              = scfd::cublas_wrap;
 
 public:

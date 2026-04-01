@@ -56,11 +56,11 @@ namespace nmfd
 namespace backend
 {
 
-template <class VectorTraits, class Log = scfd::utils::log_std>
-using vector_space_type = typename current<VectorTraits, Log>::vector_space_type;
+template <class Type, class Log = scfd::utils::log_std>
+using vector_space_type = typename current<Type, Log>::vector_space_type;
 
-template <class VectorTraits, class Log = scfd::utils::log_std>
-using dense_operations_type = typename current<VectorTraits, Log>::dense_operations_type;
+template <class Type, class Log = scfd::utils::log_std>
+using dense_operations_type = typename current<Type, Log>::dense_operations_type;
 
 } // namespace backend
 } // namespace nmfd
