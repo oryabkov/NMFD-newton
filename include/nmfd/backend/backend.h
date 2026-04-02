@@ -19,6 +19,7 @@
 
 #include <scfd/utils/log_std.h>
 
+
 #if defined( PLATFORM_SERIAL_CPU )
 #    include "serial_cpu.h"
 
@@ -27,8 +28,8 @@ namespace nmfd
 namespace backend
 {
 
-template <class VectorTraits, class Log = scfd::utils::log_std>
-using current = serial_cpu<VectorTraits, Log>;
+template <class Type, class Log = scfd::utils::log_std>
+using current = serial_cpu<Type, Log>;
 
 } // namespace backend
 } // namespace nmfd
@@ -41,8 +42,8 @@ namespace nmfd
 namespace backend
 {
 
-template <class VectorTraits, class Log = scfd::utils::log_std>
-using current = cuda<VectorTraits, Log>;
+template <class Type, class Log = scfd::utils::log_std>
+using current = cuda<Type, Log>;
 
 } // namespace backend
 } // namespace nmfd
