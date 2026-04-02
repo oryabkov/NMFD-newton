@@ -1,12 +1,11 @@
 #ifndef __NMFD_DENSE_VECTOR_OPERATIONS_H__
 #define __NMFD_DENSE_VECTOR_OPERATIONS_H__
 
-#include <vector>
-
 #include <scfd/utils/todo.h>
 
 #include <nmfd/operations/kernels/dense_vector_space.h>
 #include <nmfd/operations/vector_operations_base.h>
+#include <nmfd/operations/default_multivector_operations_base.h>
 
 namespace nmfd
 {
@@ -14,16 +13,23 @@ namespace operations
 {
 
 template <class VectorTraits, class Backend, class Ordinal = std::ptrdiff_t>
-class dense_vector_operations : public virtual vector_operations_base<
-                                    typename VectorTraits::scalar_type, typename VectorTraits::vector_type,
-                                    std::vector<typename VectorTraits::vector_type>, Ordinal>
+class dense_vector_operations : public default_multivector_operations_base<
+                                    dense_vector_operations<VectorTraits, Backend, Ordinal>,
+                                    typename VectorTraits::scalar_type, typename VectorTraits::vector_type, Ordinal>
 {
+    using multivector_operations_base = default_multivector_operations_base<
+        dense_vector_operations<VectorTraits, Backend, Ordinal>, typename VectorTraits::scalar_type,
+        typename VectorTraits::vector_type, Ordinal>;
+
 public:
-    using scalar_type   = typename VectorTraits::scalar_type;
-    using vector_type   = typename VectorTraits::vector_type;
-    using for_each_type = typename Backend::template for_each_type<Ordinal>;
-    using reduce_type   = typename Backend::reduce_type;
-    using memory_type   = typename Backend::memory_type;
+    using multivector_type = typename multivector_operations_base::multivector_type;
+    using scalar_type      = typename VectorTraits::scalar_type;
+    using vector_type      = typename VectorTraits::vector_type;
+    using ordinal_type     = Ordinal;
+    using Ord              = Ordinal;
+    using for_each_type    = typename Backend::template for_each_type<Ordinal>;
+    using reduce_type      = typename Backend::reduce_type;
+    using memory_type      = typename Backend::memory_type;
 
 public:
     using scalar_prod_kernel       = kernels::scalar_prod<scalar_type, vector_type>;
@@ -45,6 +51,12 @@ public:
     using mul_pointwise_kernel     = kernels::mul_pointwise<scalar_type>;
     using div_pointwise_kernel     = kernels::div_pointwise<scalar_type>;
     using assign_random_kernel     = kernels::assign_random<scalar_type>;
+
+public:
+    using multivector_operations_base::add_lin_comb;
+    using multivector_operations_base::assign;
+    using multivector_operations_base::scalar_prod;
+    using multivector_operations_base::scalar_prod_l2;
 
 public:
     dense_vector_operations() = default;

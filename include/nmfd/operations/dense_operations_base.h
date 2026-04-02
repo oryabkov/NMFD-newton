@@ -15,31 +15,33 @@ namespace nmfd
 namespace operations
 {
 
-template <class Type, class Backend, class Ordinal = std::ptrdiff_t>
-class dense_operations
-    : public default_multivector_operations_base<
-          dense_operations<Type, Backend, Ordinal>, Type,
-          typename detail::scfd_array_traits<Type, typename Backend::memory_type>::vector_type, Ordinal>,
-      public dense_vector_operations<detail::scfd_array_traits<Type, typename Backend::memory_type>, Backend, Ordinal>
+template <
+    class Type, class Backend, class Ordinal = std::ptrdiff_t,
+    /************* Internal usage only ********************************************/
+    class VectorTraits = detail::scfd_array_traits<Type, typename Backend::memory_type>>
+class dense_operations : public dense_vector_operations<VectorTraits, Backend, Ordinal>
 {
     static constexpr int Dim = 2;
 
-    using traits_type = detail::scfd_array_traits<Type, typename Backend::memory_type>;
-    using parent_t    = dense_vector_operations<traits_type, Backend, Ordinal>;
-
-private:
-    using multivector_ops_base = default_multivector_operations_base<
-        dense_operations<Type, Backend, Ordinal>, Type, typename traits_type::vector_type, Ordinal>;
+    using parent_t    = dense_vector_operations<VectorTraits, Backend, Ordinal>;
+    using traits_type = VectorTraits;
 
 public:
-    using multivector_ops_base::add_lin_comb;
-    using multivector_ops_base::assign;
-    using multivector_ops_base::scalar_prod;
-    using multivector_ops_base::scalar_prod_l2;
     using parent_t::add_lin_comb;
+    using parent_t::add_mul_scalar;
     using parent_t::assign;
+    using parent_t::assign_lin_comb;
+    using parent_t::assign_scalar;
+    using parent_t::asum;
+    using parent_t::is_valid_number;
+    using parent_t::norm;
+    using parent_t::norm2;
+    using parent_t::norm2_sq;
+    using parent_t::norm_sq;
     using parent_t::scalar_prod;
     using parent_t::scalar_prod_l2;
+    using parent_t::scale;
+    using parent_t::sum;
 
 public:
     using arr_ord          = scfd::arrays::ordinal_type;
@@ -65,7 +67,7 @@ public:
     dense_operations() = default;
 
     template <typename... Args>
-    dense_operations( Args &&...args ) : multivector_ops_base(), parent_t( std::forward<Args>( args )... )
+    dense_operations( Args &&...args ) : parent_t( std::forward<Args>( args )... )
     {
     }
 
