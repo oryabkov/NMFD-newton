@@ -36,6 +36,19 @@ struct matrix_assign_scalar_2d
     }
 };
 
+template <class MatrixType>
+struct matrix_assign_2d
+{
+    const MatrixType src;
+    MatrixType       dst;
+
+    template <class IdxND>
+    __DEVICE_TAG__ void operator()( const IdxND &idx )
+    {
+        dst( idx ) = src( idx );
+    }
+};
+
 template <class Scalar, class MatrixType>
 struct matrix_sum_2d
 {

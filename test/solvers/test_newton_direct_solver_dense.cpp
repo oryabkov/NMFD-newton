@@ -3,10 +3,10 @@
 
 #include <scfd/utils/device_tag.h>
 
+#define PLATFORM_SERIAL_CPU
+
 #include <nmfd/solvers/nonlinear_solver.h>
 #include <nmfd/solvers/newton_iteration.h>
-#include <nmfd/solvers/monitor_krylov.h>
-#include <nmfd/solvers/gmres.h>
 #include <nmfd/backend/backend.h>
 #include <nmfd/operations/matrix_operator.h>
 
@@ -45,12 +45,15 @@ struct jacobi_2d_kernel
     {
         const auto i = idx[0];
         const auto j = idx[1];
-        J( idx )     = ( i == 0 ) ? ( Scalar{ 2 } * u[j] ) : ( j == 0 ? u[1] : u[0] );
+        J( i, j )    = ( i == 1 && j == 1 ) ? u[0]
+                       : ( i == 1 )         ? u[1]
+                       : ( j == 1 )         ? Scalar{ 2 } * u[1]
+                                            : Scalar{ 2 } * u[0];
     }
 };
 
 template <class DenseOpsBase>
-struct nonlinear_dense_ops : DenseOpsBase
+struct newton_dense_ops : DenseOpsBase
 {
     using DenseOpsBase::DenseOpsBase;
     using DenseOpsBase::for_each_inst_;
@@ -60,14 +63,14 @@ struct nonlinear_dense_ops : DenseOpsBase
     using typename DenseOpsBase::scalar_type;
     using typename DenseOpsBase::vector_type;
 
-    void apply_nonlinear_residual( const vector_type &u, vector_type &f ) const
+    void apply_residual( const vector_type &u, vector_type &f ) const
     {
         const scalar_type *pu = vt_.get_raw_ptr( u );
         scalar_type       *pf = vt_.get_raw_ptr( f );
         for_each_inst_( residual_kernel<scalar_type>{ pu, pf }, 2 );
     }
 
-    void fill_exact_jacobian( matrix_type &J, const vector_type &u ) const
+    void fill_jacobian( matrix_type &J, const vector_type &u ) const
     {
         const scalar_type *pu = vt_.get_raw_ptr( u );
         for_each_nd_inst_( jacobi_2d_kernel<scalar_type, matrix_type>{ pu, J }, J.size_nd() );
@@ -91,13 +94,31 @@ int main( int argc, char const *args[] )
     using log_t        = typename backend_type::log_type;
 
     using dense_ops_base_t  = typename backend_type::dense_operations_type;
-    using dense_ops_t       = nonlinear_dense_ops<dense_ops_base_t>;
+    using dense_ops_t       = newton_dense_ops<dense_ops_base_t>;
     using vec_space_t       = typename backend_type::vector_space_type;
     using vector_type       = typename dense_ops_t::vector_type;
     using matrix_type       = typename dense_ops_t::matrix_type;
     using matrix_operator_t = nmfd::operations::matrix_operator<dense_ops_t>;
-    using monitor_t         = nmfd::solvers::monitor_krylov<vec_space_t, log_t>;
-    using gmres_t           = nmfd::solvers::gmres<vec_space_t, monitor_t, log_t, matrix_operator_t>;
+
+    struct direct_solver_t
+    {
+        explicit direct_solver_t( std::shared_ptr<dense_ops_t> ops ) : ops_( std::move( ops ) )
+        {
+        }
+
+        void set_operator( std::shared_ptr<const matrix_operator_t> A )
+        {
+            A_ = std::move( A );
+        }
+
+        void solve( const vector_type &b, vector_type &x ) const
+        {
+            ops_->solve( *A_, b, x );
+        }
+
+        std::shared_ptr<dense_ops_t>             ops_;
+        std::shared_ptr<const matrix_operator_t> A_;
+    };
 
     struct system_op_t
     {
@@ -112,14 +133,14 @@ int main( int argc, char const *args[] )
             jacobi_ = std::make_shared<matrix_operator_t>( ops_, std::move( M ) );
         }
 
-        void apply( const vector_type &x, vector_type &f ) const
+        void apply( const vector_type &u, vector_type &f ) const
         {
-            ops_->apply_nonlinear_residual( x, f );
+            ops_->apply_residual( u, f );
         }
 
-        void set_linearization_point( const vector_type &x )
+        void set_linearization_point( const vector_type &u )
         {
-            ops_->fill_exact_jacobian( *jacobi_, x );
+            ops_->fill_jacobian( *jacobi_, u );
         }
 
         [[nodiscard]] std::shared_ptr<const matrix_operator_t> get_jacobi_operator() const
@@ -131,7 +152,7 @@ int main( int argc, char const *args[] )
         std::shared_ptr<matrix_operator_t> jacobi_;
     };
 
-    using newton_iteration_t = nmfd::solvers::newton_iteration<vec_space_t, system_op_t, gmres_t>;
+    using newton_iteration_t = nmfd::solvers::newton_iteration<vec_space_t, system_op_t, direct_solver_t>;
     using newton_solver_t    = nmfd::solvers::nonlinear_solver<vec_space_t, log_t, system_op_t, newton_iteration_t>;
 
     int          error = 0;
@@ -142,10 +163,13 @@ int main( int argc, char const *args[] )
     auto vec_sp = std::make_shared<vec_space_t>( 2 );
 
     {
-        log.info( "test newton with backend construction" );
-        std::shared_ptr<newton_solver_t> newton_solver =
-            std::make_shared<newton_solver_t>( newton_solver_t::utils_hierarchy( backend, vec_sp ) );
+        log.info( "test newton with direct solver" );
+
+        auto direct_solver = std::make_shared<direct_solver_t>( ops );
+        auto newton_iter   = std::make_shared<newton_iteration_t>( vec_sp, direct_solver );
+        auto newton_solver = std::make_shared<newton_solver_t>( vec_sp, &log, newton_iter );
         newton_solver->convergence_strategy()->set_tolerance( eps );
+
         system_op_t system_op( ops );
 
         vector_type x;

@@ -55,6 +55,7 @@ public:
     using vector_space_type = dense_vector_space<traits_type, Backend, Ordinal>;
 
     using matrix_transpose_2d_kernel     = kernels::matrix_transpose_2d<matrix_type>;
+    using matrix_assign_2d_kernel        = kernels::matrix_assign_2d<matrix_type>;
     using matrix_assign_scalar_2d_kernel = kernels::matrix_assign_scalar_2d<scalar_type, matrix_type>;
     using matrix_sum_2d_kernel           = kernels::matrix_sum_2d<scalar_type, matrix_type>;
     using matrix_sq_2d_kernel            = kernels::matrix_sq_2d<matrix_type>;
@@ -130,6 +131,11 @@ public:
     void assign_zero_matrix( matrix_type &mat ) const
     {
         for_each_nd_inst_( matrix_assign_scalar_2d_kernel{ scalar_type{ 0 }, mat }, mat.size_nd() );
+    }
+
+    void assign_matrix( const matrix_type &src, matrix_type &dst ) const
+    {
+        for_each_nd_inst_( matrix_assign_2d_kernel{ src, dst }, src.size_nd() );
     }
 
     /// C = A^T
@@ -261,6 +267,27 @@ public:
         return result;
     }
 
+    void solve( const matrix_type &mat, const vector_type &b, vector_type &x ) const
+    {
+        const auto n = mat.size_nd()[0];
+        parent_t::verify_max_loc_size( n * n );
+
+        matrix_type A;
+        A.init_by_raw_data( parent_t::vt_.get_raw_ptr( parent_t::helper_ ), mat.size_nd() );
+
+        parent_t::assign( b, x );
+        assign_matrix( mat, A );
+
+        auto A_view = A.create_view( true );
+        auto x_view = x.create_view( true );
+
+        gaussian_elimination( A_view, x_view, n );
+        solve_upper_triangular( A_view, x_view, n );
+
+        A_view.release( false );
+        x_view.release( true );
+    }
+
 
     void write_matrix_to_mm_file( const std::string &file_name, const matrix_type &mat ) const
     {
@@ -272,7 +299,63 @@ public:
         SCFD_TODO( "Implement write_matrix_to_mm_file" );
     }
 
-private:
+protected:
+    template <class MatView, class VecView>
+    static void solve_upper_triangular( const MatView &R, VecView &x, arr_ord n )
+    {
+        for ( arr_ord j = n; j-- > 0; )
+        {
+            x( j ) /= R( j, j );
+            for ( arr_ord k = 0; k < j; ++k )
+                x( k ) -= R( k, j ) * x( j );
+        }
+    }
+
+    template <class MatView>
+    static arr_ord select_pivot( MatView &A, arr_ord n, arr_ord k )
+    {
+        arr_ord pivot = k;
+        auto    pval  = std::abs( A( k, k ) );
+        for ( arr_ord i = k + 1; i < n; ++i )
+        {
+            const auto v = std::abs( A( i, k ) );
+            if ( v > pval )
+            {
+                pval  = v;
+                pivot = i;
+            }
+        }
+        return pivot;
+    }
+
+    template <class MatView, class VecView>
+    static void gaussian_elimination( MatView &A, VecView &rhs, arr_ord n )
+    {
+        for ( arr_ord k = 0; k < n; ++k )
+        {
+            const auto pivot = select_pivot( A, n, k );
+            if ( pivot != k )
+            {
+                for ( arr_ord j = 0; j < n; ++j )
+                {
+                    std::swap( A( k, j ), A( pivot, j ) );
+                }
+                std::swap( rhs( k ), rhs( pivot ) );
+            }
+
+            const auto diag = A( k, k );
+            for ( arr_ord i = k + 1; i < n; ++i )
+            {
+                const auto factor = A( i, k ) / diag;
+                A( i, k )         = scalar_type{ 0 };
+                for ( arr_ord j = k + 1; j < n; ++j )
+                    A( i, j ) -= factor * A( k, j );
+                rhs( i ) -= factor * rhs( k );
+            }
+        }
+    }
+
+protected:
     mutable for_each_nd_type for_each_nd_inst_;
 };
 
