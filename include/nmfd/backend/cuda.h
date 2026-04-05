@@ -18,6 +18,7 @@
 #define __NMFD_BACKEND_CUDA_H__
 
 #include <scfd/external_libraries/cublas_wrap.h>
+#include <scfd/external_libraries/cusolver_wrap.h>
 #include <scfd/utils/log_std.h>
 #include <scfd/backend/cuda.h>
 
@@ -39,7 +40,8 @@ public:
     using scfd_backend_type     = scfd::backend::cuda;
     using vector_space_type     = operations::dense_vector_space<traits_type, scfd_backend_type>;
     using dense_operations_type = operations::dense_operations_cuda<Type>;
-    using cublas_t              = scfd::cublas_wrap;
+    using cublas_t   = scfd::cublas_wrap;
+    using cusolver_t = scfd::cusolver_wrap;
 
 public:
     log_type &log()
@@ -52,8 +54,15 @@ public:
         return scfd::cublas_wrap::inst();
     }
 
+    cusolver_t &cusolver()
+    {
+        return scfd::cusolver_wrap::inst();
+    }
+
 protected:
-    log_type log_;
+    scfd::cublas_wrap    cublas_{ true };
+    scfd::cusolver_wrap cusolver_{ &cublas_, true };
+    log_type             log_;
 };
 
 } /// namespace backend

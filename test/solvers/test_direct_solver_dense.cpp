@@ -2,16 +2,16 @@
 #include <cmath>
 #include <random>
 
-#define PLATFORM_SERIAL_CPU
-
 #include <nmfd/backend/backend.h>
 
 #ifndef USE_DOUBLE_PRECISION
-using scalar                = float;
-inline constexpr scalar eps = 1e-5f;
+using scalar                      = float;
+inline constexpr scalar eps       = 1e-5f;
+inline constexpr scalar rel_tol   = 1e-3f;
 #else
-using scalar                = double;
-inline constexpr scalar eps = 1e-10;
+using scalar                      = double;
+inline constexpr scalar eps       = 1e-10;
+inline constexpr scalar rel_tol   = 1e-10;
 #endif
 
 int main( int argc, char const *args[] )
@@ -52,14 +52,19 @@ int main( int argc, char const *args[] )
         const T ref[N] = { 1, 2, 3, 4, 5 };
         for ( int i = 0; i < N; ++i )
         {
-            const T diff = std::abs( x( i ) - ref[i] );
+            const T xi   = vec_sp->get_value_at_point( i, x );
+            const T diff = std::abs( xi - ref[i] );
             if ( diff > eps )
             {
-                log.error_f( "x[%d] = %.15f, expected %.1f, diff = %.2e", i, x( i ), ref[i], diff );
+                log.error_f( "x[%d] = %.15f, expected %.1f, diff = %.2e", i, xi, ref[i], diff );
                 error++;
             }
         }
-        log.info_f( "x: %.6f %.6f %.6f %.6f %.6f", x( 0 ), x( 1 ), x( 2 ), x( 3 ), x( 4 ) );
+        log.info_f(
+            "x: %.6f %.6f %.6f %.6f %.6f", vec_sp->get_value_at_point( 0, x ),
+            vec_sp->get_value_at_point( 1, x ), vec_sp->get_value_at_point( 2, x ),
+            vec_sp->get_value_at_point( 3, x ), vec_sp->get_value_at_point( 4, x )
+        );
     }
 
     {
@@ -84,29 +89,27 @@ int main( int argc, char const *args[] )
         std::uniform_real_distribution<T> dis( -10., 10. );
         {
             auto av = A.create_view( false );
+            auto bv = b.create_view( false );
             for ( int i = 0; i < M; ++i )
             {
                 for ( int j = 0; j < M; ++j )
                     av( i, j ) = dis( gen );
-                b( i ) = dis( gen );
+                bv( i ) = dis( gen );
             }
+            bv.release( true );
             av.release( true );
         }
 
         ops->solve( A, b, x );
 
-        ops->add_matrix_vector_prod( T{ 1 }, A, x, T{ 0 }, resid );
-        vec_sp->add_lin_comb( T{ -1 }, b, resid );
+        ops->add_matrix_vector_prod( scalar( 1 ), A, x, scalar( 0 ), resid );
+        vec_sp->add_lin_comb( scalar( -1 ), b, resid );
 
         const T rhs_norm = vec_sp->norm( b );
-        const T rel      = ( rhs_norm > T{ 0 } ) ? vec_sp->norm( resid ) / rhs_norm : vec_sp->norm( resid );
+        const T rel      = ( rhs_norm > scalar( 0 ) ) ? vec_sp->norm( resid ) / rhs_norm : vec_sp->norm( resid );
         log.info_f( "relative residual ||Ax-b||/||b|| = %.2e", rel );
 
-#ifdef USE_DOUBLE_PRECISION
-        if ( rel > T{ 1e-10 } )
-#else
-        if ( rel > T{ 1e-3 } )
-#endif
+        if ( rel > rel_tol )
         {
             log.error( "residual too large" );
             error++;

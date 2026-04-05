@@ -14,7 +14,7 @@ template <
     /************* Internal usage only ********************************************/
     class MultiVectorType = std::vector<VectorType>,
     class ParentType      = vector_operations_base<Type, VectorType, MultiVectorType, Ordinal>>
-class default_multivector_operations_base : public virtual ParentType
+class default_multivector_operations_base : public ParentType
 {
 
 public:

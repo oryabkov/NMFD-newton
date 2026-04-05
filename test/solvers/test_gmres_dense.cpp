@@ -8,6 +8,14 @@
 #include <nmfd/backend/backend.h>
 #include <nmfd/operations/matrix_operator.h>
 
+#ifndef USE_DOUBLE_PRECISION
+using scalar                    = float;
+inline constexpr scalar rel_tol = 1e-3f;
+#else
+using scalar                    = double;
+inline constexpr scalar rel_tol = 1e-10;
+#endif
+
 #define M_PIl 3.141592653589793238462643383279502884L
 
 template <typename MatrixType, typename MatrixOperator, typename DenseOperations>
@@ -42,10 +50,9 @@ auto get_matrix_operator( const int N )
 int main( int argc, char const *args[] )
 {
     using log_t        = scfd::utils::log_std;
-    using T            = double;
+    using T            = scalar;
     using backend_type = nmfd::backend::current<T, log_t>;
 
-    using memory_type       = backend_type::memory_type;
     using dense_ops_t       = backend_type::dense_operations_type;
     using vec_ops_t         = backend_type::vector_space_type;
     using vector_type       = typename dense_ops_t::vector_type;
@@ -56,7 +63,8 @@ int main( int argc, char const *args[] )
 
 
     int   error = 0;
-    log_t log;
+    backend_type backend;
+    log_t       &log = backend.log();
     log.info( "test gmres" );
 
 
@@ -71,7 +79,7 @@ int main( int argc, char const *args[] )
         vec_ops->init_vector( resid );
         vec_ops->start_use_vector( resid );
         A.apply( x, resid );
-        vec_ops->add_lin_comb( 1, y, -1, resid );
+        vec_ops->add_lin_comb( scalar( 1 ), y, scalar( -1 ), resid );
         log.info_f( "||Lx-y|| = %e", vec_ops->norm( resid ) );
         vec_ops->stop_use_vector( resid );
         vec_ops->free_vector( resid );
@@ -86,27 +94,28 @@ int main( int argc, char const *args[] )
 
         log.info_f( "=> dense GMRES, size %zu", vec_ops->size() );
 
-        for ( int j = 0; j < N; j++ )
+        for ( std::size_t j = 0; j < N; ++j )
         {
-            y( j ) = std::sin( 1.0 * j / ( N - 1 ) * M_PIl );
-            // x[j] = 0.1*std::sin(1.0*j/(N-1)*M_PIl);
+            const scalar v = scalar( std::sin( M_PIl * ( 1.0 * j / ( N - 1 ) ) ) );
+            vec_ops->set_value_at_point( v, j, y );
         }
-        y( 0 ) = y( N - 1 ) = 0;
+        vec_ops->set_value_at_point( scalar( 0 ), 0, y );
+        vec_ops->set_value_at_point( scalar( 0 ), N - 1, y );
         typename gmres_t::params prm;
         prm.basis_size            = 30;
-        prm.monitor.rel_tol       = 1.0e-10;
+        prm.monitor.rel_tol       = rel_tol;
         prm.monitor.max_iters_num = 300;
 
         gmres_t gmres( A_op, vec_ops, &log, prm );
 
-        vec_ops->assign_scalar( 0.0, x );
+        vec_ops->assign_scalar( scalar( 0 ), x );
         log.info( "no preconditioner" );
         bool res = gmres.solve( y, x );
         error += ( !res );
 
         log.info_f( "gmres res: %s", res ? "true" : "false" );
         log.info( "reusing the solution..." );
-        vec_ops->add_mul_scalar( 0.0, 0.9999999, x );
+        vec_ops->add_mul_scalar( scalar( 0 ), scalar( 0.9999999 ), x );
         res = gmres.solve( y, x );
         error += ( !res );
         log.info_f( "gmres res with x0: %s", res ? "true" : "false" );

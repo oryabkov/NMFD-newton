@@ -11,11 +11,13 @@
 #include <nmfd/operations/matrix_operator.h>
 
 #ifndef USE_DOUBLE_PRECISION
-using scalar                = float;
-inline constexpr scalar eps = 1e-5f;
+using scalar                               = float;
+inline constexpr scalar eps                = 1e-5f;
+inline constexpr scalar newton_lin_rel_tol = 1e-4f;
 #else
-using scalar                = double;
-inline constexpr scalar eps = 1e-10;
+using scalar                               = double;
+inline constexpr scalar eps                = 1e-10;
+inline constexpr scalar newton_lin_rel_tol = 1e-6;
 #endif
 
 namespace
@@ -49,16 +51,16 @@ struct jacobi_2d_kernel
     }
 };
 
-template <class DenseOpsBase>
-struct nonlinear_dense_ops : DenseOpsBase
+template <class DenseOperationsBase>
+struct nonlinear_dense_ops : DenseOperationsBase
 {
-    using DenseOpsBase::DenseOpsBase;
-    using DenseOpsBase::for_each_inst_;
-    using DenseOpsBase::for_each_nd_inst_;
-    using DenseOpsBase::vt_;
-    using typename DenseOpsBase::matrix_type;
-    using typename DenseOpsBase::scalar_type;
-    using typename DenseOpsBase::vector_type;
+    using DenseOperationsBase::DenseOperationsBase;
+    using DenseOperationsBase::for_each_inst_;
+    using DenseOperationsBase::for_each_nd_inst_;
+    using DenseOperationsBase::vt_;
+    using typename DenseOperationsBase::matrix_type;
+    using typename DenseOperationsBase::scalar_type;
+    using typename DenseOperationsBase::vector_type;
 
     void apply_nonlinear_residual( const vector_type &u, vector_type &f ) const
     {
@@ -76,11 +78,13 @@ struct nonlinear_dense_ops : DenseOpsBase
 
 } // namespace
 
-template <class T, class VectorType>
-T eq_residual( const VectorType &x )
+template <class VecSpace>
+scalar eq_residual( const VecSpace &vec_sp, const typename VecSpace::vector_type &x )
 {
-    T f0 = x( 0 ) * x( 0 ) + x( 1 ) * x( 1 ) - 2;
-    T f1 = x( 0 ) * x( 1 ) - 1;
+    const scalar x0 = vec_sp.get_value_at_point( 0, x );
+    const scalar x1 = vec_sp.get_value_at_point( 1, x );
+    const scalar f0 = x0 * x0 + x1 * x1 - scalar( 2 );
+    const scalar f1 = x0 * x1 - scalar( 1 );
     return std::sqrt( f0 * f0 + f1 * f1 );
 }
 
@@ -143,20 +147,25 @@ int main( int argc, char const *args[] )
 
     {
         log.info( "test newton with backend construction" );
-        std::shared_ptr<newton_solver_t> newton_solver =
-            std::make_shared<newton_solver_t>( newton_solver_t::utils_hierarchy( backend, vec_sp ) );
+        newton_solver_t::params_hierarchy prm;
+        prm.iteration_operator.lin_solver.monitor.rel_tol = newton_lin_rel_tol;
+        std::shared_ptr<newton_solver_t> newton_solver    = std::make_shared<newton_solver_t>(
+            newton_solver_t::utils_hierarchy( backend, vec_sp ), prm );
         newton_solver->convergence_strategy()->set_tolerance( eps );
         system_op_t system_op( ops );
 
         vector_type x;
         vec_sp->init_vector( x );
         vec_sp->start_use_vector( x );
-        x( 0 ) = T{ 10 };
-        x( 1 ) = T{ 2 };
+        vec_sp->set_value_at_point( scalar( 10 ), 0, x );
+        vec_sp->set_value_at_point( scalar( 2 ), 1, x );
 
         newton_solver->solve( &system_op, nullptr, nullptr, x );
-        log.info_f( "result vector x: %0.15f %0.15f", x( 0 ), x( 1 ) );
-        T resid = eq_residual<T>( x );
+        log.info_f(
+            "result vector x: %0.15f %0.15f", vec_sp->get_value_at_point( 0, x ),
+            vec_sp->get_value_at_point( 1, x )
+        );
+        scalar resid = eq_residual( *vec_sp, x );
         log.info_f( "residual norm: %0.15e", resid );
         if ( resid > eps )
         {
