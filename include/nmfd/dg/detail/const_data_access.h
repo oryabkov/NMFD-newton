@@ -21,7 +21,7 @@
 #include <nmfd/mesh/cubature_reference.h>
 #include "device_dg_basis_reference.h"
 #include <nmfd/mesh/device_mesh.h>
-#include <scfd/dg/device_dg_qubature_ref.h>
+#include <nmfd/dg/device_dg_qubature_ref.h>
 
 namespace scfd
 {
