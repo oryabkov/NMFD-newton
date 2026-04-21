@@ -1,8 +1,9 @@
 #ifndef __NMFD_DENSE_OPERATIONS_CUDA_H__
 #define __NMFD_DENSE_OPERATIONS_CUDA_H__
 
-#include <scfd/external_libraries/cublas_wrap.h>
+#include <scfd/external_libraries/cusolver_wrap.h>
 #include <scfd/backend/cuda.h>
+#include <scfd/utils/cuda_safe_call.h>
 
 #include <nmfd/operations/dense_operations_base.h>
 
@@ -20,7 +21,6 @@ public:
     using matrix_type = typename parent_t::matrix_type;
     using vector_type = typename parent_t::vector_type;
     using scalar_type = typename parent_t::scalar_type;
-    using cublas_t    = scfd::cublas_wrap;
 
 public:
     dense_operations_cuda() = default;
@@ -58,6 +58,7 @@ public:
 
         auto result = std::make_shared<matrix_type>();
         result->init( rows_a, cols_b );
+        parent_t::assign_zero_matrix( *result );
 
         cublas.gemm(
             'N', 'N', rows_a, cols_b, cols_a_rows_b, scalar_type{ 1 }, mat_a.raw_ptr(), rows_a, mat_b.raw_ptr(),
@@ -67,8 +68,25 @@ public:
         return result;
     }
 
-private:
-    mutable cublas_t cublas_wrap_;
+    void solve( const matrix_type &mat, const vector_type &b, vector_type &x ) const
+    {
+        auto &cusolver = scfd::cusolver_wrap::inst();
+
+        const auto n = mat.size_nd()[0];
+        parent_t::verify_max_loc_size( n * n + n );
+
+        scalar_type *const A_buf = parent_t::vt_.get_raw_ptr( parent_t::helper_ );
+        scalar_type *const tau   = A_buf + n * n;
+
+        CUDA_SAFE_CALL( cudaMemcpy( A_buf, mat.raw_ptr(), sizeof( scalar_type ) * n * n, cudaMemcpyDeviceToDevice ) );
+        CUDA_SAFE_CALL( cudaMemcpy(
+            parent_t::vt_.get_raw_ptr( x ), parent_t::vt_.get_raw_ptr( b ), sizeof( scalar_type ) * n,
+            cudaMemcpyDeviceToDevice
+        ) );
+
+        cusolver.geqrf( n, n, A_buf, tau );
+        cusolver.gesv_apply_qr( n, A_buf, tau, parent_t::vt_.get_raw_ptr( x ) );
+    }
 };
 
 }

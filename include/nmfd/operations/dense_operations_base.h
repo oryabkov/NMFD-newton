@@ -5,6 +5,7 @@
 
 #include <scfd/arrays/array_nd.h>
 
+#include <nmfd/operations/default_multivector_operations_base.h>
 #include <nmfd/operations/detail/scfd_array_traits.h>
 #include <nmfd/operations/dense_vector_space.h>
 #include <nmfd/operations/kernels/dense_operations.h>
@@ -14,28 +15,48 @@ namespace nmfd
 namespace operations
 {
 
-template <class Type, class Backend, class Ordinal = std::ptrdiff_t>
-class dense_operations
-    : public dense_vector_operations<detail::scfd_array_traits<Type, typename Backend::memory_type>, Backend, Ordinal>
+template <
+    class Type, class Backend, class Ordinal = std::ptrdiff_t,
+    /************* Internal usage only ********************************************/
+    class VectorTraits = detail::scfd_array_traits<Type, typename Backend::memory_type>>
+class dense_operations : public dense_vector_operations<VectorTraits, Backend, Ordinal>
 {
     static constexpr int Dim = 2;
 
-    using traits_type = detail::scfd_array_traits<Type, typename Backend::memory_type>;
-    using parent_t    = dense_vector_operations<traits_type, Backend, Ordinal>;
+    using parent_t    = dense_vector_operations<VectorTraits, Backend, Ordinal>;
+    using traits_type = VectorTraits;
 
 public:
-    using arr_ord           = scfd::arrays::ordinal_type;
-    using scalar_type       = Type;
-    using vector_type       = typename traits_type::vector_type;
-    using memory_type       = typename Backend::memory_type;
-    using for_each_nd_type  = typename Backend::template for_each_nd_type<Dim, arr_ord>;
-    using reduce_type       = typename Backend::reduce_type;
-    using idx_nd_type       = scfd::static_vec::vec<arr_ord, Dim>;
-    using matrix_type       = scfd::arrays::array_nd<scalar_type, Dim, memory_type>;
+    using parent_t::add_lin_comb;
+    using parent_t::add_mul_scalar;
+    using parent_t::assign;
+    using parent_t::assign_lin_comb;
+    using parent_t::assign_scalar;
+    using parent_t::asum;
+    using parent_t::is_valid_number;
+    using parent_t::norm;
+    using parent_t::norm2;
+    using parent_t::norm2_sq;
+    using parent_t::norm_sq;
+    using parent_t::scalar_prod;
+    using parent_t::scalar_prod_l2;
+    using parent_t::scale;
+    using parent_t::sum;
+
+public:
+    using arr_ord          = scfd::arrays::ordinal_type;
+    using scalar_type      = Type;
+    using vector_type      = typename traits_type::vector_type;
+    using memory_type      = typename Backend::memory_type;
+    using for_each_nd_type = typename Backend::template for_each_nd_type<Dim, arr_ord>;
+    using reduce_type      = typename Backend::reduce_type;
+    using matrix_type = scfd::arrays::array_nd<scalar_type, Dim, memory_type, scfd::arrays::first_index_fast_arranger>;
     using multivector_type  = typename std::vector<vector_type>;
     using vector_space_type = dense_vector_space<traits_type, Backend, Ordinal>;
 
     using matrix_transpose_2d_kernel     = kernels::matrix_transpose_2d<matrix_type>;
+    using matrix_assign_2d_kernel        = kernels::matrix_assign_2d<matrix_type>;
+    using matrix_assign_scalar_2d_kernel = kernels::matrix_assign_scalar_2d<scalar_type, matrix_type>;
     using matrix_sum_2d_kernel           = kernels::matrix_sum_2d<scalar_type, matrix_type>;
     using matrix_sq_2d_kernel            = kernels::matrix_sq_2d<matrix_type>;
     using matrix_extract_diag_2d_kernel  = kernels::matrix_extract_diag_2d<scalar_type, matrix_type>;
@@ -101,6 +122,21 @@ public:
 
 
     // matrix_operations
+
+    void init_matrix( arr_ord rows, arr_ord cols, matrix_type &mat ) const
+    {
+        mat.init( rows, cols );
+    }
+
+    void assign_zero_matrix( matrix_type &mat ) const
+    {
+        for_each_nd_inst_( matrix_assign_scalar_2d_kernel{ scalar_type{ 0 }, mat }, mat.size_nd() );
+    }
+
+    void assign_matrix( const matrix_type &src, matrix_type &dst ) const
+    {
+        for_each_nd_inst_( matrix_assign_2d_kernel{ src, dst }, src.size_nd() );
+    }
 
     /// C = A^T
     [[nodiscard]] std::shared_ptr<matrix_type> matrix_transpose( const matrix_type &mat ) const
@@ -231,6 +267,27 @@ public:
         return result;
     }
 
+    void solve( const matrix_type &mat, const vector_type &b, vector_type &x ) const
+    {
+        const auto n = mat.size_nd()[0];
+        parent_t::verify_max_loc_size( n * n );
+
+        matrix_type A;
+        A.init_by_raw_data( parent_t::vt_.get_raw_ptr( parent_t::helper_ ), mat.size_nd() );
+
+        parent_t::assign( b, x );
+        assign_matrix( mat, A );
+
+        auto A_view = A.create_view( true );
+        auto x_view = x.create_view( true );
+
+        gaussian_elimination( A_view, x_view, n );
+        solve_upper_triangular( A_view, x_view, n );
+
+        A_view.release( false );
+        x_view.release( true );
+    }
+
 
     void write_matrix_to_mm_file( const std::string &file_name, const matrix_type &mat ) const
     {
@@ -242,7 +299,63 @@ public:
         SCFD_TODO( "Implement write_matrix_to_mm_file" );
     }
 
-private:
+protected:
+    template <class MatView, class VecView>
+    static void solve_upper_triangular( const MatView &R, VecView &x, arr_ord n )
+    {
+        for ( arr_ord j = n; j-- > 0; )
+        {
+            x( j ) /= R( j, j );
+            for ( arr_ord k = 0; k < j; ++k )
+                x( k ) -= R( k, j ) * x( j );
+        }
+    }
+
+    template <class MatView>
+    static arr_ord select_pivot( MatView &A, arr_ord n, arr_ord k )
+    {
+        arr_ord pivot = k;
+        auto    pval  = std::abs( A( k, k ) );
+        for ( arr_ord i = k + 1; i < n; ++i )
+        {
+            const auto v = std::abs( A( i, k ) );
+            if ( v > pval )
+            {
+                pval  = v;
+                pivot = i;
+            }
+        }
+        return pivot;
+    }
+
+    template <class MatView, class VecView>
+    static void gaussian_elimination( MatView &A, VecView &rhs, arr_ord n )
+    {
+        for ( arr_ord k = 0; k < n; ++k )
+        {
+            const auto pivot = select_pivot( A, n, k );
+            if ( pivot != k )
+            {
+                for ( arr_ord j = 0; j < n; ++j )
+                {
+                    std::swap( A( k, j ), A( pivot, j ) );
+                }
+                std::swap( rhs( k ), rhs( pivot ) );
+            }
+
+            const auto diag = A( k, k );
+            for ( arr_ord i = k + 1; i < n; ++i )
+            {
+                const auto factor = A( i, k ) / diag;
+                A( i, k )         = scalar_type{ 0 };
+                for ( arr_ord j = k + 1; j < n; ++j )
+                    A( i, j ) -= factor * A( k, j );
+                rhs( i ) -= factor * rhs( k );
+            }
+        }
+    }
+
+protected:
     mutable for_each_nd_type for_each_nd_inst_;
 };
 

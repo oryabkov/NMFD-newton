@@ -71,6 +71,7 @@ else
 CUDACOMPILER = nvcc
 endif
 
+CUDA_SOLVER_LIBS = -lcublas -lcusolver
 
 #MPICOMPILER = $(MPI_ROOT_PATH)/bin/mpic++
 #SM = $(CUDA_ARCH)
