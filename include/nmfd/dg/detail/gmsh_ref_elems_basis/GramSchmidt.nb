@@ -1,0 +1,1437 @@
+(* Content-type: application/vnd.wolfram.mathematica *)
+
+(*** Wolfram Notebook File ***)
+(* http://www.wolfram.com/nb *)
+
+(* CreatedBy='Mathematica 11.2' *)
+
+(*CacheID: 234*)
+(* Internal cache information:
+NotebookFileLineBreakTest
+NotebookFileLineBreakTest
+NotebookDataPosition[       158,          7]
+NotebookDataLength[     52528,       1429]
+NotebookOptionsPosition[     48989,       1363]
+NotebookOutlinePosition[     49347,       1379]
+CellTagsIndexPosition[     49304,       1376]
+WindowFrame->Normal*)
+
+(* Beginning of Notebook Content *)
+Notebook[{
+Cell[BoxData[
+ RowBox[{"\[IndentingNewLine]", 
+  RowBox[{"(*", " ", 
+   RowBox[{
+   "Dot", " ", "products", " ", "for", " ", "different", " ", "elements"}], 
+   " ", "*)"}], "\[IndentingNewLine]", 
+  RowBox[{
+   RowBox[{
+    RowBox[{"ipTriangle", "[", 
+     RowBox[{"f1_", ",", " ", "f2_"}], "]"}], ":=", 
+    RowBox[{"Integrate", "[", 
+     RowBox[{
+      RowBox[{"f1", " ", "f2"}], ",", 
+      RowBox[{
+       RowBox[{"{", 
+        RowBox[{"x", ",", "y"}], "}"}], "\[Element]", 
+       RowBox[{"Triangle", "[", 
+        RowBox[{"{", 
+         RowBox[{
+          RowBox[{"{", 
+           RowBox[{"0", ",", "0"}], "}"}], ",", 
+          RowBox[{"{", 
+           RowBox[{"1", ",", "0"}], "}"}], ",", 
+          RowBox[{"{", 
+           RowBox[{"0", ",", "1"}], "}"}]}], "}"}], "]"}]}]}], "]"}]}], 
+   "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"ipQuadrangle", "[", 
+     RowBox[{"f1_", ",", " ", "f2_"}], "]"}], ":=", 
+    RowBox[{"Integrate", "[", 
+     RowBox[{
+      RowBox[{"f1", " ", "f2"}], ",", 
+      RowBox[{
+       RowBox[{"{", 
+        RowBox[{"x", ",", "y"}], "}"}], "\[Element]", 
+       RowBox[{"Rectangle", "[", 
+        RowBox[{
+         RowBox[{"{", 
+          RowBox[{
+           RowBox[{"-", "1"}], ",", 
+           RowBox[{"-", "1"}]}], "}"}], ",", 
+         RowBox[{"{", 
+          RowBox[{"1", ",", "1"}], "}"}]}], "]"}]}]}], "]"}]}]}]}]], "Input",
+ CellChangeTimes->{{3.836890856924283*^9, 3.8368908598370113`*^9}, {
+   3.836890894336609*^9, 3.836890895575194*^9}, {3.836890949536474*^9, 
+   3.8368909849070663`*^9}, {3.836891056438835*^9, 3.836891078732315*^9}, {
+   3.836891121173921*^9, 3.8368911570733547`*^9}, {3.8368912317584763`*^9, 
+   3.836891247099865*^9}, {3.836891289459421*^9, 3.836891297790433*^9}, {
+   3.836891392980638*^9, 3.83689141209085*^9}, {3.8368915071397047`*^9, 
+   3.836891531796496*^9}, {3.836891572512763*^9, 3.836891596176482*^9}, {
+   3.836892404588965*^9, 3.836892407148479*^9}, 3.836892627489744*^9, {
+   3.836893572418754*^9, 3.8368935961767893`*^9}, 3.836893668747272*^9, {
+   3.83689371623392*^9, 3.836893748618005*^9}, {3.836894367809231*^9, 
+   3.836894369444532*^9}, {3.8368946297741413`*^9, 3.836894642242964*^9}, {
+   3.836895874735936*^9, 3.836895887689371*^9}, 
+   3.8368961790442753`*^9},ExpressionUUID->"56d34e16-ad5f-4ad5-a923-\
+c0ff8fba6f94"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[{
+ RowBox[{
+  RowBox[{"tet", " ", "=", " ", 
+   RowBox[{"Tetrahedron", "[", 
+    RowBox[{"{", 
+     RowBox[{
+      RowBox[{"{", 
+       RowBox[{"0", ",", "0", ",", "0"}], "}"}], ",", 
+      RowBox[{"{", 
+       RowBox[{"1", ",", "0", ",", "0"}], "}"}], ",", 
+      RowBox[{"{", 
+       RowBox[{"0", ",", "1", ",", "0"}], "}"}], ",", 
+      RowBox[{"{", 
+       RowBox[{"0", ",", "0", ",", "1"}], "}"}]}], "}"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{"Graphics3D", "[", 
+  RowBox[{"tet", ",", " ", 
+   RowBox[{"Axes", "\[Rule]", "True"}]}], "]"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{
+   RowBox[{"ipTetrahedron", "[", 
+    RowBox[{"f1_", ",", " ", "f2_"}], "]"}], ":=", 
+   RowBox[{"Integrate", "[", 
+    RowBox[{
+     RowBox[{"f1", " ", "f2"}], ",", 
+     RowBox[{
+      RowBox[{"{", 
+       RowBox[{"x", ",", "y", ",", "z"}], "}"}], "\[Element]", "tet"}]}], 
+    "]"}]}], ";"}]}], "Input",
+ CellChangeTimes->{{3.8368914259531403`*^9, 3.8368914259685383`*^9}, {
+   3.836892426053162*^9, 3.836892440401801*^9}, {3.836894004251216*^9, 
+   3.8368940274023457`*^9}, {3.8368943728275757`*^9, 3.83689437304731*^9}, {
+   3.836894652761858*^9, 3.8368946587899723`*^9}, {3.836894786858119*^9, 
+   3.836894796365304*^9}, {3.836894857411284*^9, 3.836894961649673*^9}, 
+   3.836895658543549*^9},ExpressionUUID->"8342ee02-b5e6-4385-ad1f-\
+575775b29d11"],
+
+Cell[BoxData[
+ Graphics3DBox[TetrahedronBox[{{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}}],
+  Axes->True,
+  ImageSize->{367.7420567888558, 414.0182542219401},
+  ImageSizeRaw->Automatic,
+  ViewPoint->{1.3109618464136341`, -2.4388014849690363`, 1.9451545836155466`},
+  
+  ViewVertical->{-0.05096752439652302, -0.052003154553889985`, 
+   0.9973454684177064}]], "Output",
+ CellChangeTimes->{3.836972757119028*^9, 3.836974268516423*^9, 
+  3.83698622016777*^9, 3.8370090363301477`*^9, 3.837064715025943*^9, 
+  3.837067874804328*^9},ExpressionUUID->"8293236c-387d-4250-85a9-\
+46e90ad7b269"]
+}, Open  ]],
+
+Cell[BoxData[""], "Input",
+ CellChangeTimes->{{3.836900995268503*^9, 
+  3.836900995274653*^9}},ExpressionUUID->"6b5380fa-95fd-47e2-a6ef-\
+3adc3c59ac86"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[{
+ RowBox[{
+  RowBox[{"hex", " ", "=", " ", 
+   RowBox[{"Hexahedron", "[", 
+    RowBox[{"{", 
+     RowBox[{
+      RowBox[{"{", 
+       RowBox[{
+        RowBox[{"-", "1"}], ",", 
+        RowBox[{"-", "1"}], ",", 
+        RowBox[{"-", "1"}]}], "}"}], ",", 
+      RowBox[{"{", 
+       RowBox[{"1", ",", 
+        RowBox[{"-", "1"}], ",", 
+        RowBox[{"-", "1"}]}], "}"}], ",", 
+      RowBox[{"{", 
+       RowBox[{"1", ",", "1", ",", 
+        RowBox[{"-", "1"}]}], "}"}], ",", 
+      RowBox[{"{", 
+       RowBox[{
+        RowBox[{"-", "1"}], ",", "1", ",", 
+        RowBox[{"-", "1"}]}], "}"}], ",", 
+      RowBox[{"{", 
+       RowBox[{
+        RowBox[{"-", "1"}], ",", 
+        RowBox[{"-", "1"}], ",", "1"}], "}"}], ",", 
+      RowBox[{"{", 
+       RowBox[{"1", ",", 
+        RowBox[{"-", "1"}], ",", "1"}], "}"}], ",", 
+      RowBox[{"{", 
+       RowBox[{"1", ",", "1", ",", "1"}], "}"}], ",", 
+      RowBox[{"{", 
+       RowBox[{
+        RowBox[{"-", "1"}], ",", "1", ",", "1"}], "}"}]}], "}"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{"Graphics3D", "[", 
+  RowBox[{"hex", ",", " ", 
+   RowBox[{"Axes", "\[Rule]", "True"}]}], "]"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{
+   RowBox[{"ipHexahedron", "[", 
+    RowBox[{"f1_", ",", " ", "f2_"}], "]"}], ":=", 
+   RowBox[{"Integrate", "[", 
+    RowBox[{
+     RowBox[{"f1", " ", "f2"}], ",", 
+     RowBox[{
+      RowBox[{"{", 
+       RowBox[{"x", ",", "y", ",", "z"}], "}"}], "\[Element]", "hex"}]}], 
+    "]"}]}], ";"}]}], "Input",
+ CellChangeTimes->{{3.836891091647972*^9, 3.8368910916523933`*^9}, {
+  3.836894758057753*^9, 3.836894770740676*^9}, {3.836894965969002*^9, 
+  3.8368950263400183`*^9}, {3.836895092117216*^9, 
+  3.83689511765746*^9}},ExpressionUUID->"3e170a28-fa6f-46a3-8b5d-\
+be5c8ca3aad8"],
+
+Cell[BoxData[
+ Graphics3DBox[
+  HexahedronBox[{{-1, -1, -1}, {1, -1, -1}, {1, 1, -1}, {-1, 1, -1}, {-1, -1, 
+   1}, {1, -1, 1}, {1, 1, 1}, {-1, 1, 1}}],
+  Axes->True,
+  ImageSize->{334.1391570543817, 336.24976986519056`},
+  ImageSizeRaw->Automatic,
+  ViewPoint->{1.204142797682541, -2.954362310378278, 1.1277337725747096`},
+  ViewVertical->{0.09279921522319229, -0.27371389822305714`, 
+   0.9573238780963825}]], "Output",
+ CellChangeTimes->{
+  3.8369727593598022`*^9, 3.8369742685451927`*^9, 3.8369862217945347`*^9, {
+   3.8370090380503063`*^9, 3.837009040601029*^9}, 3.8370647175149517`*^9, 
+   3.837067874835539*^9},ExpressionUUID->"d9fd6661-a29b-4f67-965c-\
+00a13c1a0bdb"]
+}, Open  ]],
+
+Cell[BoxData[""], "Input",
+ CellChangeTimes->{{3.8369009962308292`*^9, 
+  3.8369009962401752`*^9}},ExpressionUUID->"d2a78465-3192-4b46-a8d4-\
+809e05ce29a4"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[{
+ RowBox[{
+  RowBox[{"pyr", " ", "=", " ", 
+   RowBox[{"Pyramid", "[", 
+    RowBox[{"{", 
+     RowBox[{
+      RowBox[{"{", 
+       RowBox[{
+        RowBox[{"-", "1"}], ",", 
+        RowBox[{"-", "1"}], ",", "0"}], "}"}], ",", 
+      RowBox[{"{", 
+       RowBox[{"1", ",", 
+        RowBox[{"-", "1"}], ",", "0"}], "}"}], ",", 
+      RowBox[{"{", 
+       RowBox[{"1", ",", "1", ",", "0"}], "}"}], ",", 
+      RowBox[{"{", 
+       RowBox[{
+        RowBox[{"-", "1"}], ",", "1", ",", "0"}], "}"}], ",", 
+      RowBox[{"{", 
+       RowBox[{"0", ",", "0", ",", "1"}], "}"}]}], "}"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{"Graphics3D", "[", 
+  RowBox[{"pyr", ",", " ", 
+   RowBox[{"Axes", "\[Rule]", "True"}]}], "]"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{
+   RowBox[{"ipPyramid", "[", 
+    RowBox[{"f1_", ",", " ", "f2_"}], "]"}], ":=", 
+   RowBox[{"Integrate", "[", 
+    RowBox[{
+     RowBox[{"f1", " ", "f2"}], ",", 
+     RowBox[{
+      RowBox[{"{", 
+       RowBox[{"x", ",", "y", ",", "z"}], "}"}], "\[Element]", "pyr"}]}], 
+    "]"}]}], ";"}]}], "Input",
+ CellChangeTimes->{{3.836895223684945*^9, 
+  3.836895291673649*^9}},ExpressionUUID->"a5548fd8-84a6-4a52-bfbe-\
+f29e3f825796"],
+
+Cell[BoxData[
+ Graphics3DBox[
+  PyramidBox[{{-1, -1, 0}, {1, -1, 0}, {1, 1, 0}, {-1, 1, 0}, {0, 0, 1}}],
+  Axes->True,
+  ImageSize->{353.5225954911287, 286.7697322501915},
+  ImageSizeRaw->Automatic,
+  ViewPoint->{1.2202268245804968`, -2.5796230895607026`, 1.8184034789835546`},
+  
+  ViewVertical->{0.017610364964996114`, -0.06360317576349511, 
+   1.9956397581513534`}]], "Output",
+ CellChangeTimes->{3.8369727609174023`*^9, 3.836974268595037*^9, 
+  3.8369862230394487`*^9, 3.837009044669368*^9, 3.83706471964063*^9, 
+  3.837067874867086*^9},ExpressionUUID->"7a37ae33-f3a5-4ae8-967e-\
+389344e377e1"]
+}, Open  ]],
+
+Cell[BoxData[""], "Input",
+ CellChangeTimes->{{3.836900997226822*^9, 
+  3.836900997235157*^9}},ExpressionUUID->"bdfea9e9-cde0-4289-9df5-\
+1a7e89f4ed1b"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[{
+ RowBox[{
+  RowBox[{"pri", " ", "=", " ", 
+   RowBox[{"Prism", "[", 
+    RowBox[{"{", 
+     RowBox[{
+      RowBox[{"{", 
+       RowBox[{"0", ",", "0", ",", 
+        RowBox[{"-", "1"}]}], "}"}], ",", 
+      RowBox[{"{", 
+       RowBox[{"1", ",", "0", ",", 
+        RowBox[{"-", "1"}]}], "}"}], ",", 
+      RowBox[{"{", 
+       RowBox[{"0", ",", "1", ",", 
+        RowBox[{"-", "1"}]}], "}"}], ",", 
+      RowBox[{"{", 
+       RowBox[{"0", ",", "0", ",", "1"}], "}"}], ",", 
+      RowBox[{"{", 
+       RowBox[{"1", ",", "0", ",", "1"}], "}"}], ",", 
+      RowBox[{"{", 
+       RowBox[{"0", ",", "1", ",", "1"}], "}"}]}], "}"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{"Graphics3D", "[", 
+  RowBox[{"pri", ",", " ", 
+   RowBox[{"Axes", "\[Rule]", "True"}]}], "]"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{
+   RowBox[{"ipPrism", "[", 
+    RowBox[{"f1_", ",", " ", "f2_"}], "]"}], ":=", 
+   RowBox[{"Integrate", "[", 
+    RowBox[{
+     RowBox[{"f1", " ", "f2"}], ",", 
+     RowBox[{
+      RowBox[{"{", 
+       RowBox[{"x", ",", "y", ",", "z"}], "}"}], "\[Element]", "pri"}]}], 
+    "]"}]}], ";"}]}], "Input",
+ CellChangeTimes->{{3.83689531768223*^9, 
+  3.8368953817257767`*^9}},ExpressionUUID->"e847f4ee-4144-4f7d-9d95-\
+00e87666e008"],
+
+Cell[BoxData[
+ Graphics3DBox[
+  PrismBox[{{0, 0, -1}, {1, 0, -1}, {0, 1, -1}, {0, 0, 1}, {1, 0, 1}, {0, 1, 
+   1}}],
+  Axes->True,
+  ImageSize->{312.6364554799386, 322.1682245146099},
+  ImageSizeRaw->Automatic,
+  ViewPoint->{-0.22080045257965192`, -0.8007828887223176, 3.280242967414176},
+  ViewVertical->{-1.3807247357697048`, -1.179105553417301, 
+   0.41931768920895807`}]], "Output",
+ CellChangeTimes->{3.8369727626765738`*^9, 3.83697426864333*^9, 
+  3.836986224644787*^9, 3.837009046513751*^9, 3.837064721472584*^9, 
+  3.837067874899157*^9},ExpressionUUID->"c5c5aa9b-7c5d-44f9-8b94-\
+e7efc7ee0818"]
+}, Open  ]],
+
+Cell[BoxData[""], "Input",
+ CellChangeTimes->{{3.8369009989691963`*^9, 
+  3.836900998978478*^9}},ExpressionUUID->"9bc00097-118e-4d4a-bb3c-\
+dcf6117ea5d0"],
+
+Cell[BoxData[
+ RowBox[{"\[IndentingNewLine]", 
+  RowBox[{"(*", " ", 
+   RowBox[{"Monomal", " ", "basis"}], " ", "*)"}], "\[IndentingNewLine]", 
+  RowBox[{
+   RowBox[{
+    RowBox[{"basis2d", " ", "=", " ", 
+     RowBox[{"List", "[", 
+      RowBox[{"1", ",", "x", ",", "y", ",", 
+       RowBox[{"x", "^", "2"}], ",", 
+       RowBox[{"x", " ", "y"}], ",", 
+       RowBox[{"y", "^", "2"}], ",", 
+       RowBox[{"x", "^", "3"}], ",", 
+       RowBox[{
+        RowBox[{"x", "^", "2"}], "y"}], ",", 
+       RowBox[{"x", " ", 
+        RowBox[{"y", "^", "2"}]}], ",", " ", 
+       RowBox[{"y", "^", "3"}]}], "]"}]}], ";"}], "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"basis3d", " ", "=", " ", 
+     RowBox[{"List", "[", 
+      RowBox[{"1", ",", "x", ",", "y", ",", "z", ",", 
+       RowBox[{"x", "^", "2"}], ",", 
+       RowBox[{"x", " ", "y"}], ",", " ", 
+       RowBox[{"x", " ", "z"}], ",", " ", 
+       RowBox[{"y", "^", "2"}], ",", " ", 
+       RowBox[{"y", " ", "z"}], ",", " ", 
+       RowBox[{"z", "^", "2"}], ",", " ", 
+       RowBox[{"x", "^", "3"}], ",", " ", 
+       RowBox[{
+        RowBox[{"x", "^", "2"}], " ", "y"}], ",", " ", 
+       RowBox[{
+        RowBox[{"x", "^", "2"}], " ", "z"}], ",", " ", 
+       RowBox[{"x", " ", 
+        RowBox[{"y", "^", "2"}]}], ",", " ", 
+       RowBox[{"x", " ", "y", " ", "z"}], ",", " ", 
+       RowBox[{"x", " ", 
+        RowBox[{"z", "^", "2"}]}], ",", " ", 
+       RowBox[{"y", "^", "3"}], ",", " ", 
+       RowBox[{
+        RowBox[{"y", "^", "2"}], " ", "z"}], ",", " ", 
+       RowBox[{"y", " ", 
+        RowBox[{"z", "^", "2"}]}], ",", " ", 
+       RowBox[{"z", "^", "3"}]}], "]"}]}], ";"}]}]}]], "Input",
+ CellChangeTimes->{{3.8368916348448133`*^9, 3.836891688357641*^9}, {
+  3.836891721792161*^9, 3.836891725878537*^9}, {3.836891998882595*^9, 
+  3.8368920098759327`*^9}, {3.836892278902277*^9, 3.836892390070097*^9}, {
+  3.8368941401609573`*^9, 3.836894144035143*^9}, {3.836894617121176*^9, 
+  3.8368946237508802`*^9}, {3.83697283082137*^9, 
+  3.836972936058835*^9}},ExpressionUUID->"15b135c6-bfdb-4416-b362-\
+4fb3a75a0429"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"(*", " ", 
+   RowBox[{"2", "D", " ", "elements"}], " ", "*)"}], "\[IndentingNewLine]", 
+  RowBox[{
+   RowBox[{
+    RowBox[{"orthogonalbasisTrangle", " ", "=", " ", 
+     RowBox[{"FullSimplify", "[", 
+      RowBox[{"Orthogonalize", "[", 
+       RowBox[{"basis2d", ",", "ipTriangle"}], "]"}], "]"}]}], ";"}], 
+   "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"p", " ", "=", " ", 
+     RowBox[{"Table", "[", 
+      RowBox[{
+       RowBox[{"ipTriangle", "[", 
+        RowBox[{
+         RowBox[{"orthogonalbasisTrangle", "[", 
+          RowBox[{"[", "j", "]"}], "]"}], ",", 
+         RowBox[{"orthogonalbasisTrangle", "[", 
+          RowBox[{"[", "k", "]"}], "]"}]}], "]"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"j", ",", "1", ",", 
+         RowBox[{"Length", "[", "basis2d", "]"}]}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"k", ",", "1", ",", 
+         RowBox[{"Length", "[", "basis2d", "]"}]}], "}"}]}], "]"}]}], ";"}], 
+   "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"If", "[", 
+     RowBox[{
+      RowBox[{
+       RowBox[{"Norm", "[", 
+        RowBox[{"p", "-", 
+         RowBox[{"IdentityMatrix", "[", 
+          RowBox[{"Length", "[", "basis2d", "]"}], "]"}]}], "]"}], "\[Equal]",
+        "0"}], ",", 
+      RowBox[{"Print", "[", "\"\<Ok\>\"", "]"}], ",", 
+      RowBox[{"Print", "[", "\"\<Error\>\"", "]"}]}], "]"}], " ", ";"}], 
+   "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"Cres", " ", "=", " ", 
+     RowBox[{"CForm", "[", 
+      RowBox[{"MonomialList", "[", 
+       RowBox[{"Expand", "[", "orthogonalbasisTrangle", "]"}], "]"}], "]"}]}],
+     ";"}], "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"fname", " ", "=", " ", 
+     RowBox[{"FileNameJoin", "[", 
+      RowBox[{"{", 
+       RowBox[{
+        RowBox[{"NotebookDirectory", "[", "]"}], ",", 
+        "\"\<triangle.txt\>\""}], "}"}], "]"}]}], ";"}], 
+   "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"str", "=", " ", 
+     RowBox[{"OpenWrite", "[", "fname", "]"}]}], ";"}], "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"Write", "[", 
+     RowBox[{"str", ",", 
+      RowBox[{"Cres", "[", 
+       RowBox[{"[", "1", "]"}], "]"}]}], "]"}], ";"}], "\[IndentingNewLine]", 
+   
+   RowBox[{
+    RowBox[{"Close", "[", "str", "]"}], ";"}], "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"orthogonalbasisTrangleX", " ", "=", " ", 
+     RowBox[{"D", "[", 
+      RowBox[{"orthogonalbasisTrangle", ",", "x"}], "]"}]}], ";"}], 
+   "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"CresX", " ", "=", " ", 
+     RowBox[{"CForm", "[", 
+      RowBox[{"MonomialList", "[", "orthogonalbasisTrangleX", "]"}], "]"}]}], 
+    ";"}], "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"fname", " ", "=", " ", 
+     RowBox[{"FileNameJoin", "[", 
+      RowBox[{"{", 
+       RowBox[{
+        RowBox[{"NotebookDirectory", "[", "]"}], ",", 
+        "\"\<triangle_x.txt\>\""}], "}"}], "]"}]}], ";"}], 
+   "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"str", "=", " ", 
+     RowBox[{"OpenWrite", "[", "fname", "]"}]}], ";"}], "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"Write", "[", 
+     RowBox[{"str", ",", 
+      RowBox[{"CresX", "[", 
+       RowBox[{"[", "1", "]"}], "]"}]}], "]"}], ";"}], "\[IndentingNewLine]", 
+   
+   RowBox[{
+    RowBox[{"Close", "[", "str", "]"}], ";"}], "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"orthogonalbasisTrangleY", " ", "=", " ", 
+     RowBox[{"D", "[", 
+      RowBox[{"orthogonalbasisTrangle", ",", "y"}], "]"}]}], ";"}], 
+   "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"CresY", " ", "=", " ", 
+     RowBox[{"CForm", "[", 
+      RowBox[{"MonomialList", "[", "orthogonalbasisTrangleY", "]"}], "]"}]}], 
+    ";"}], "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"fname", " ", "=", " ", 
+     RowBox[{"FileNameJoin", "[", 
+      RowBox[{"{", 
+       RowBox[{
+        RowBox[{"NotebookDirectory", "[", "]"}], ",", 
+        "\"\<triangle_y.txt\>\""}], "}"}], "]"}]}], ";"}], 
+   "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"str", "=", " ", 
+     RowBox[{"OpenWrite", "[", "fname", "]"}]}], ";"}], "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"Write", "[", 
+     RowBox[{"str", ",", 
+      RowBox[{"CresY", "[", 
+       RowBox[{"[", "1", "]"}], "]"}]}], "]"}], ";"}], "\[IndentingNewLine]", 
+   
+   RowBox[{
+    RowBox[{"Close", "[", "str", "]"}], ";"}]}]}]], "Input",
+ CellChangeTimes->{{3.836891821943307*^9, 3.836891831590343*^9}, {
+   3.8368918648814707`*^9, 3.836891889620069*^9}, {3.836891960007399*^9, 
+   3.836891976861124*^9}, {3.83689241012824*^9, 3.8368924169217987`*^9}, {
+   3.836892933639974*^9, 3.8368929341683292`*^9}, {3.836893820458392*^9, 
+   3.836893989529675*^9}, {3.8368942822687674`*^9, 3.8368942873219137`*^9}, {
+   3.836894391276577*^9, 3.8368944752154083`*^9}, {3.836894509491206*^9, 
+   3.83689452761122*^9}, {3.836894559862266*^9, 3.836894582757072*^9}, {
+   3.836895744811183*^9, 3.836895865633762*^9}, {3.836895898679126*^9, 
+   3.836895939285097*^9}, {3.8368960309611177`*^9, 3.836896031663966*^9}, {
+   3.836896072872458*^9, 3.836896150220398*^9}, {3.8368961829246807`*^9, 
+   3.836896189876506*^9}, {3.836896290974658*^9, 3.8368964333715563`*^9}, {
+   3.836896468591181*^9, 3.83689646988942*^9}, {3.836896584593203*^9, 
+   3.836896652710441*^9}, 3.836972993953537*^9, {3.836973547190228*^9, 
+   3.836973549759479*^9}, {3.836973780771332*^9, 3.8369737817911997`*^9}, {
+   3.836973836787353*^9, 3.836973837477848*^9}, {3.8369738745077343`*^9, 
+   3.836973875544595*^9}, {3.836973951590578*^9, 3.836974060262446*^9}, {
+   3.8369741294617977`*^9, 3.8369741325385017`*^9}, 3.836974164598589*^9, 
+   3.836974201919258*^9, {3.83697425739224*^9, 3.8369742580757713`*^9}, {
+   3.836974316797605*^9, 3.836974344955132*^9}, {3.836989212892222*^9, 
+   3.836989215073316*^9}, {3.837068140513316*^9, 3.837068190159862*^9}, {
+   3.837068229220016*^9, 3.837068263778021*^9}, {3.8370683249158163`*^9, 
+   3.837068342858428*^9}},ExpressionUUID->"f69cfd9f-ba7f-4d6f-8d09-\
+f75a0f152ad6"],
+
+Cell[BoxData["\<\"Ok\"\>"], "Print",
+ CellChangeTimes->{
+  3.8370683449618587`*^9},ExpressionUUID->"ad9219ed-163d-4899-aba9-\
+4812821d9977"]
+}, Open  ]],
+
+Cell[BoxData[""], "Input",
+ CellChangeTimes->{{3.8369895684604177`*^9, 
+  3.836989568462117*^9}},ExpressionUUID->"03c0a4d7-b6fd-4dfb-8171-\
+0eb3ee3546bd"],
+
+Cell[BoxData[""], "Input",
+ CellChangeTimes->{{3.836989571754225*^9, 
+  3.836989571760274*^9}},ExpressionUUID->"d06f3db2-777c-420f-8a74-\
+543cd78b5d28"],
+
+Cell[BoxData[""], "Input",
+ CellChangeTimes->{{3.8369893173702908`*^9, 3.836989350462536*^9}, {
+  3.836989418366989*^9, 
+  3.836989479681513*^9}},ExpressionUUID->"4b997ab2-4088-4dd0-bb52-\
+4c79e99e8651"],
+
+Cell[BoxData[""], "Input",
+ CellChangeTimes->{{3.83698931540301*^9, 
+  3.836989315417431*^9}},ExpressionUUID->"12b0466b-c62d-4ed7-ac62-\
+b43379f3e4c4"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[{
+ RowBox[{
+  RowBox[{"orthogonalbasisQuadrangle", " ", "=", " ", 
+   RowBox[{"FullSimplify", "[", 
+    RowBox[{"Orthogonalize", "[", 
+     RowBox[{"basis2d", ",", "ipQuadrangle"}], "]"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"p", " ", "=", 
+   RowBox[{"Table", "[", 
+    RowBox[{
+     RowBox[{"ipQuadrangle", "[", 
+      RowBox[{
+       RowBox[{"orthogonalbasisQuadrangle", "[", 
+        RowBox[{"[", "j", "]"}], "]"}], ",", 
+       RowBox[{"orthogonalbasisQuadrangle", "[", 
+        RowBox[{"[", "k", "]"}], "]"}]}], "]"}], ",", 
+     RowBox[{"{", 
+      RowBox[{"j", ",", "1", ",", 
+       RowBox[{"Length", "[", "basis2d", "]"}]}], "}"}], ",", 
+     RowBox[{"{", 
+      RowBox[{"k", ",", "1", ",", 
+       RowBox[{"Length", "[", "basis2d", "]"}]}], "}"}]}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"If", "[", 
+   RowBox[{
+    RowBox[{
+     RowBox[{"Norm", "[", 
+      RowBox[{"p", "-", 
+       RowBox[{"IdentityMatrix", "[", 
+        RowBox[{"Length", "[", "basis2d", "]"}], "]"}]}], "]"}], "\[Equal]", 
+     "0"}], ",", 
+    RowBox[{"Print", "[", "\"\<Ok\>\"", "]"}], ",", 
+    RowBox[{"Print", "[", "\"\<Error\>\"", "]"}]}], "]"}], " ", 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Cres", " ", "=", " ", 
+   RowBox[{"CForm", "[", 
+    RowBox[{"MonomialList", "[", 
+     RowBox[{"Expand", "[", "orthogonalbasisQuadrangle", "]"}], "]"}], 
+    "]"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"fname", " ", "=", " ", 
+   RowBox[{"FileNameJoin", "[", 
+    RowBox[{"{", 
+     RowBox[{
+      RowBox[{"NotebookDirectory", "[", "]"}], ",", 
+      "\"\<quadrangle.txt\>\""}], "}"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"str", "=", " ", 
+   RowBox[{"OpenWrite", "[", "fname", "]"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Write", "[", 
+   RowBox[{"str", ",", 
+    RowBox[{"Cres", "[", 
+     RowBox[{"[", "1", "]"}], "]"}]}], "]"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Close", "[", "str", "]"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"orthogonalbasisQuadrangleX", " ", "=", " ", 
+   RowBox[{"D", "[", 
+    RowBox[{"orthogonalbasisQuadrangle", ",", "x"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"CresX", " ", "=", " ", 
+   RowBox[{"CForm", "[", 
+    RowBox[{"MonomialList", "[", "orthogonalbasisQuadrangleX", "]"}], "]"}]}],
+   ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"fname", " ", "=", " ", 
+   RowBox[{"FileNameJoin", "[", 
+    RowBox[{"{", 
+     RowBox[{
+      RowBox[{"NotebookDirectory", "[", "]"}], ",", 
+      "\"\<quadrangle_x.txt\>\""}], "}"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"str", "=", " ", 
+   RowBox[{"OpenWrite", "[", "fname", "]"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Write", "[", 
+   RowBox[{"str", ",", 
+    RowBox[{"CresX", "[", 
+     RowBox[{"[", "1", "]"}], "]"}]}], "]"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Close", "[", "str", "]"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"orthogonalbasisQuadrangleY", " ", "=", " ", 
+   RowBox[{"D", "[", 
+    RowBox[{"orthogonalbasisQuadrangle", ",", "y"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"CresY", " ", "=", " ", 
+   RowBox[{"CForm", "[", 
+    RowBox[{"MonomialList", "[", "orthogonalbasisQuadrangleY", "]"}], "]"}]}],
+   ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"fname", " ", "=", " ", 
+   RowBox[{"FileNameJoin", "[", 
+    RowBox[{"{", 
+     RowBox[{
+      RowBox[{"NotebookDirectory", "[", "]"}], ",", 
+      "\"\<quadrangle_y.txt\>\""}], "}"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"str", "=", " ", 
+   RowBox[{"OpenWrite", "[", "fname", "]"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Write", "[", 
+   RowBox[{"str", ",", 
+    RowBox[{"CresY", "[", 
+     RowBox[{"[", "1", "]"}], "]"}]}], "]"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Close", "[", "str", "]"}], ";"}]}], "Input",
+ CellChangeTimes->{{3.8368957603023987`*^9, 3.8368957649074297`*^9}, {
+   3.836896689051992*^9, 3.836896708390787*^9}, {3.836973704146977*^9, 
+   3.836973705763047*^9}, 3.83697389211592*^9, {3.8369898043470793`*^9, 
+   3.836989810281231*^9}, {3.8370684510191708`*^9, 
+   3.837068496843128*^9}},ExpressionUUID->"77a5ec76-39c0-40e2-b9ef-\
+dba1c63e3894"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData["\<\"Ok\"\>"], "Print",
+ GeneratedCell->False,
+ CellAutoOverwrite->False,
+ CellChangeTimes->{
+  3.836896710841442*^9, 3.83689681834274*^9, 3.836897453811811*^9, 
+   3.836972943744982*^9, 3.836974269066758*^9, 3.836989811103766*^9, {
+   3.837064733535104*^9, 3.8370647552840757`*^9}, 3.837067815668665*^9, 
+   3.8370678754033747`*^9, {3.8370684495818443`*^9, 3.8370684498564262`*^9}, 
+   3.837068500413694*^9},ExpressionUUID->"1c6fd79f-04db-421c-95ca-\
+9397ff3c281a"],
+
+Cell[BoxData["\"\<\>"], "Print",
+ GeneratedCell->False,
+ CellAutoOverwrite->False,
+ CellChangeTimes->{
+  3.836896710841442*^9, 3.83689681834274*^9, 3.836897453811811*^9, 
+   3.836972943744982*^9, 3.836974269066758*^9, 3.836989811103766*^9, {
+   3.837064733535104*^9, 3.8370647552840757`*^9}, 3.837067815668665*^9, 
+   3.8370678754033747`*^9, {3.8370684495818443`*^9, 
+   3.8370684498564262`*^9}},ExpressionUUID->"0a62a124-3bd7-4c86-9110-\
+153c3f78b435"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"(*", " ", 
+   RowBox[{"3", "D", " ", "elements"}], " ", "*)"}], "\[IndentingNewLine]", 
+  RowBox[{
+   RowBox[{
+    RowBox[{"orthogonalbasisTetrahedron", " ", "=", " ", 
+     RowBox[{"FullSimplify", "[", 
+      RowBox[{"Orthogonalize", "[", 
+       RowBox[{"basis3d", ",", "ipTetrahedron"}], "]"}], "]"}]}], ";"}], 
+   "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"p", " ", "=", " ", 
+     RowBox[{"Table", "[", 
+      RowBox[{
+       RowBox[{"ipTetrahedron", "[", 
+        RowBox[{
+         RowBox[{"orthogonalbasisTetrahedron", "[", 
+          RowBox[{"[", "j", "]"}], "]"}], ",", 
+         RowBox[{"orthogonalbasisTetrahedron", "[", 
+          RowBox[{"[", "k", "]"}], "]"}]}], "]"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"j", ",", "1", ",", 
+         RowBox[{"Length", "[", "basis3d", "]"}]}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"k", ",", "1", ",", 
+         RowBox[{"Length", "[", "basis3d", "]"}]}], "}"}]}], "]"}]}], ";"}], 
+   "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"If", "[", 
+     RowBox[{
+      RowBox[{
+       RowBox[{"Norm", "[", 
+        RowBox[{"p", "-", 
+         RowBox[{"IdentityMatrix", "[", 
+          RowBox[{"Length", "[", "basis3d", "]"}], "]"}]}], "]"}], "\[Equal]",
+        "0"}], ",", 
+      RowBox[{"Print", "[", "\"\<Ok\>\"", "]"}], ",", 
+      RowBox[{"Print", "[", "\"\<Error\>\"", "]"}]}], "]"}], " ", ";"}], 
+   "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"Cres", " ", "=", " ", 
+     RowBox[{"CForm", "[", 
+      RowBox[{"MonomialList", "[", "orthogonalbasisTetrahedron", "]"}], 
+      "]"}]}], ";"}], "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"fname", " ", "=", " ", 
+     RowBox[{"FileNameJoin", "[", 
+      RowBox[{"{", 
+       RowBox[{
+        RowBox[{"NotebookDirectory", "[", "]"}], ",", 
+        "\"\<tetrahedron.txt\>\""}], "}"}], "]"}]}], ";"}], 
+   "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"str", "=", " ", 
+     RowBox[{"OpenWrite", "[", "fname", "]"}]}], ";"}], "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"Write", "[", 
+     RowBox[{"str", ",", 
+      RowBox[{"Cres", "[", 
+       RowBox[{"[", "1", "]"}], "]"}]}], "]"}], ";"}], "\[IndentingNewLine]", 
+   
+   RowBox[{
+    RowBox[{"Close", "[", "str", "]"}], ";"}], "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"orthogonalbasisTetrahedronX", " ", "=", " ", 
+     RowBox[{"D", "[", 
+      RowBox[{"orthogonalbasisTetrahedron", ",", "x"}], "]"}]}], ";"}], 
+   "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"CresX", " ", "=", " ", 
+     RowBox[{"CForm", "[", 
+      RowBox[{"MonomialList", "[", "orthogonalbasisTetrahedronX", "]"}], 
+      "]"}]}], ";"}], "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"fname", " ", "=", " ", 
+     RowBox[{"FileNameJoin", "[", 
+      RowBox[{"{", 
+       RowBox[{
+        RowBox[{"NotebookDirectory", "[", "]"}], ",", 
+        "\"\<tetrahedron_x.txt\>\""}], "}"}], "]"}]}], ";"}], 
+   "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"str", "=", " ", 
+     RowBox[{"OpenWrite", "[", "fname", "]"}]}], ";"}], "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"Write", "[", 
+     RowBox[{"str", ",", 
+      RowBox[{"CresX", "[", 
+       RowBox[{"[", "1", "]"}], "]"}]}], "]"}], ";"}], "\[IndentingNewLine]", 
+   
+   RowBox[{
+    RowBox[{"Close", "[", "str", "]"}], ";"}], "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"orthogonalbasisTetrahedronY", " ", "=", " ", 
+     RowBox[{"D", "[", 
+      RowBox[{"orthogonalbasisTetrahedron", ",", "y"}], "]"}]}], ";"}], 
+   "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"CresY", " ", "=", " ", 
+     RowBox[{"CForm", "[", 
+      RowBox[{"MonomialList", "[", "orthogonalbasisTetrahedronY", "]"}], 
+      "]"}]}], ";"}], "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"fname", " ", "=", " ", 
+     RowBox[{"FileNameJoin", "[", 
+      RowBox[{"{", 
+       RowBox[{
+        RowBox[{"NotebookDirectory", "[", "]"}], ",", 
+        "\"\<tetrahedron_y.txt\>\""}], "}"}], "]"}]}], ";"}], 
+   "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"str", "=", " ", 
+     RowBox[{"OpenWrite", "[", "fname", "]"}]}], ";"}], "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"Write", "[", 
+     RowBox[{"str", ",", 
+      RowBox[{"CresY", "[", 
+       RowBox[{"[", "1", "]"}], "]"}]}], "]"}], ";"}], "\[IndentingNewLine]", 
+   
+   RowBox[{
+    RowBox[{"Close", "[", "str", "]"}], ";"}], "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"orthogonalbasisTetrahedronZ", " ", "=", " ", 
+     RowBox[{"D", "[", 
+      RowBox[{"orthogonalbasisTetrahedron", ",", "z"}], "]"}]}], ";"}], 
+   "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"CresZ", " ", "=", " ", 
+     RowBox[{"CForm", "[", 
+      RowBox[{"MonomialList", "[", "orthogonalbasisTetrahedronZ", "]"}], 
+      "]"}]}], ";"}], "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"fname", " ", "=", " ", 
+     RowBox[{"FileNameJoin", "[", 
+      RowBox[{"{", 
+       RowBox[{
+        RowBox[{"NotebookDirectory", "[", "]"}], ",", 
+        "\"\<tetrahedron_z.txt\>\""}], "}"}], "]"}]}], ";"}], 
+   "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"str", "=", " ", 
+     RowBox[{"OpenWrite", "[", "fname", "]"}]}], ";"}], "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"Write", "[", 
+     RowBox[{"str", ",", 
+      RowBox[{"CresZ", "[", 
+       RowBox[{"[", "1", "]"}], "]"}]}], "]"}], ";"}], "\[IndentingNewLine]", 
+   
+   RowBox[{
+    RowBox[{"Close", "[", "str", "]"}], ";"}]}]}]], "Input",
+ CellChangeTimes->{{3.8368924183616056`*^9, 3.836892418634706*^9}, 
+   3.836892624783853*^9, {3.836894266353114*^9, 3.836894290714554*^9}, {
+   3.836894593165702*^9, 3.836894595796856*^9}, 3.836895446648963*^9, {
+   3.836896745738662*^9, 3.836896754627535*^9}, {3.836973709135619*^9, 
+   3.836973710451384*^9}, {3.837064758176502*^9, 3.8370647613049107`*^9}, 
+   3.8370678177377453`*^9, {3.837068561561799*^9, 3.837068590289208*^9}, {
+   3.8370686390809107`*^9, 3.837068654121544*^9}},
+ NumberMarks->False,ExpressionUUID->"6c6fbb9e-931e-4817-9abc-625534311f2d"],
+
+Cell[BoxData["\<\"Ok\"\>"], "Print",
+ CellChangeTimes->{3.836896823525288*^9, 3.8368974596413107`*^9, 
+  3.836972947621051*^9, 3.8369742714028263`*^9, 3.837014905646083*^9, 
+  3.8370647655898733`*^9, 3.837067877166999*^9, 3.83706859736526*^9, 
+  3.8370686583082323`*^9},ExpressionUUID->"59687565-98ed-48ea-9e4e-\
+10656b5a5f44"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[{
+ RowBox[{
+  RowBox[{"orthogonalbasisHexahedron", " ", "=", " ", 
+   RowBox[{"FullSimplify", "[", 
+    RowBox[{"Orthogonalize", "[", 
+     RowBox[{"basis3d", ",", "ipHexahedron"}], "]"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"p", " ", "=", " ", 
+   RowBox[{"Table", "[", 
+    RowBox[{
+     RowBox[{"ipHexahedron", "[", 
+      RowBox[{
+       RowBox[{"orthogonalbasisHexahedron", "[", 
+        RowBox[{"[", "j", "]"}], "]"}], ",", 
+       RowBox[{"orthogonalbasisHexahedron", "[", 
+        RowBox[{"[", "k", "]"}], "]"}]}], "]"}], ",", 
+     RowBox[{"{", 
+      RowBox[{"j", ",", "1", ",", 
+       RowBox[{"Length", "[", "basis3d", "]"}]}], "}"}], ",", 
+     RowBox[{"{", 
+      RowBox[{"k", ",", "1", ",", 
+       RowBox[{"Length", "[", "basis3d", "]"}]}], "}"}]}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"If", "[", 
+   RowBox[{
+    RowBox[{
+     RowBox[{"Norm", "[", 
+      RowBox[{"p", "-", 
+       RowBox[{"IdentityMatrix", "[", 
+        RowBox[{"Length", "[", "basis3d", "]"}], "]"}]}], "]"}], "\[Equal]", 
+     "0"}], ",", 
+    RowBox[{"Print", "[", "\"\<Ok\>\"", "]"}], ",", 
+    RowBox[{"Print", "[", "\"\<Error\>\"", "]"}]}], "]"}], " ", 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Cres", " ", "=", " ", 
+   RowBox[{"CForm", "[", 
+    RowBox[{"MonomialList", "[", "orthogonalbasisHexahedron", "]"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"fname", " ", "=", " ", 
+   RowBox[{"FileNameJoin", "[", 
+    RowBox[{"{", 
+     RowBox[{
+      RowBox[{"NotebookDirectory", "[", "]"}], ",", 
+      "\"\<hexahedron.txt\>\""}], "}"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"str", "=", " ", 
+   RowBox[{"OpenWrite", "[", "fname", "]"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Write", "[", 
+   RowBox[{"str", ",", 
+    RowBox[{"Cres", "[", 
+     RowBox[{"[", "1", "]"}], "]"}]}], "]"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Close", "[", "str", "]"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"orthogonalbasisHexahedronX", " ", "=", " ", 
+   RowBox[{"D", "[", 
+    RowBox[{"orthogonalbasisHexahedron", ",", "x"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"CresX", " ", "=", " ", 
+   RowBox[{"CForm", "[", 
+    RowBox[{"MonomialList", "[", "orthogonalbasisHexahedronX", "]"}], "]"}]}],
+   ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"fname", " ", "=", " ", 
+   RowBox[{"FileNameJoin", "[", 
+    RowBox[{"{", 
+     RowBox[{
+      RowBox[{"NotebookDirectory", "[", "]"}], ",", 
+      "\"\<hexahedron_x.txt\>\""}], "}"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"str", "=", " ", 
+   RowBox[{"OpenWrite", "[", "fname", "]"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Write", "[", 
+   RowBox[{"str", ",", 
+    RowBox[{"CresX", "[", 
+     RowBox[{"[", "1", "]"}], "]"}]}], "]"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Close", "[", "str", "]"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"orthogonalbasisHexahedronY", " ", "=", " ", 
+   RowBox[{"D", "[", 
+    RowBox[{"orthogonalbasisHexahedron", ",", "y"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"CresY", " ", "=", " ", 
+   RowBox[{"CForm", "[", 
+    RowBox[{"MonomialList", "[", "orthogonalbasisHexahedronY", "]"}], "]"}]}],
+   ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"fname", " ", "=", " ", 
+   RowBox[{"FileNameJoin", "[", 
+    RowBox[{"{", 
+     RowBox[{
+      RowBox[{"NotebookDirectory", "[", "]"}], ",", 
+      "\"\<hexahedron_y.txt\>\""}], "}"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"str", "=", " ", 
+   RowBox[{"OpenWrite", "[", "fname", "]"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Write", "[", 
+   RowBox[{"str", ",", 
+    RowBox[{"CresY", "[", 
+     RowBox[{"[", "1", "]"}], "]"}]}], "]"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Close", "[", "str", "]"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"orthogonalbasisHexahedronZ", " ", "=", " ", 
+   RowBox[{"D", "[", 
+    RowBox[{"orthogonalbasisHexahedron", ",", "z"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"CresZ", " ", "=", " ", 
+   RowBox[{"CForm", "[", 
+    RowBox[{"MonomialList", "[", "orthogonalbasisHexahedronZ", "]"}], "]"}]}],
+   ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"fname", " ", "=", " ", 
+   RowBox[{"FileNameJoin", "[", 
+    RowBox[{"{", 
+     RowBox[{
+      RowBox[{"NotebookDirectory", "[", "]"}], ",", 
+      "\"\<hexahedron_z.txt\>\""}], "}"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"str", "=", " ", 
+   RowBox[{"OpenWrite", "[", "fname", "]"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Write", "[", 
+   RowBox[{"str", ",", 
+    RowBox[{"CresZ", "[", 
+     RowBox[{"[", "1", "]"}], "]"}]}], "]"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Close", "[", "str", "]"}], ";"}]}], "Input",
+ CellChangeTimes->{
+  3.8368919945820637`*^9, {3.83689212411207*^9, 3.836892127046198*^9}, {
+   3.836892178628339*^9, 3.8368922232081347`*^9}, {3.836892265056924*^9, 
+   3.8368922763797503`*^9}, {3.836892477414068*^9, 3.836892503698579*^9}, {
+   3.836895145103003*^9, 3.8368951703114557`*^9}, {3.836896759078697*^9, 
+   3.836896775643742*^9}, {3.836973713121106*^9, 3.836973714069026*^9}, {
+   3.837067822820632*^9, 3.8370678377350597`*^9}, {3.837068724978244*^9, 
+   3.837068758978911*^9}},
+ NumberMarks->False,ExpressionUUID->"daa63214-b3ca-4cd5-abc6-a2c4d0a5b4fd"],
+
+Cell[BoxData["\<\"Ok\"\>"], "Print",
+ CellChangeTimes->{
+  3.8370687719649467`*^9},ExpressionUUID->"59c48ae8-cef6-420d-953e-\
+df0e7028d692"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[{
+ RowBox[{
+  RowBox[{"orthogonalbasisPyramid", " ", "=", " ", 
+   RowBox[{"FullSimplify", "[", 
+    RowBox[{"Orthogonalize", "[", 
+     RowBox[{"basis3d", ",", "ipPyramid"}], "]"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"p", " ", "=", " ", 
+   RowBox[{"Table", "[", 
+    RowBox[{
+     RowBox[{"ipPyramid", "[", 
+      RowBox[{
+       RowBox[{"orthogonalbasisPyramid", "[", 
+        RowBox[{"[", "j", "]"}], "]"}], ",", 
+       RowBox[{"orthogonalbasisPyramid", "[", 
+        RowBox[{"[", "k", "]"}], "]"}]}], "]"}], ",", 
+     RowBox[{"{", 
+      RowBox[{"j", ",", "1", ",", 
+       RowBox[{"Length", "[", "basis3d", "]"}]}], "}"}], ",", 
+     RowBox[{"{", 
+      RowBox[{"k", ",", "1", ",", 
+       RowBox[{"Length", "[", "basis3d", "]"}]}], "}"}]}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"If", "[", 
+   RowBox[{
+    RowBox[{
+     RowBox[{"Norm", "[", 
+      RowBox[{"p", "-", 
+       RowBox[{"IdentityMatrix", "[", 
+        RowBox[{"Length", "[", "basis3d", "]"}], "]"}]}], "]"}], "\[Equal]", 
+     "0"}], ",", 
+    RowBox[{"Print", "[", "\"\<Ok\>\"", "]"}], ",", 
+    RowBox[{"Print", "[", "\"\<Error\>\"", "]"}]}], "]"}], " ", 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Cres", " ", "=", " ", 
+   RowBox[{"CForm", "[", 
+    RowBox[{"MonomialList", "[", "orthogonalbasisPyramid", "]"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"fname", " ", "=", " ", 
+   RowBox[{"FileNameJoin", "[", 
+    RowBox[{"{", 
+     RowBox[{
+      RowBox[{"NotebookDirectory", "[", "]"}], ",", "\"\<pyramid.txt\>\""}], 
+     "}"}], "]"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"str", "=", " ", 
+   RowBox[{"OpenWrite", "[", "fname", "]"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Write", "[", 
+   RowBox[{"str", ",", 
+    RowBox[{"Cres", "[", 
+     RowBox[{"[", "1", "]"}], "]"}]}], "]"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Close", "[", "str", "]"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"orthogonalbasisPyramidX", " ", "=", " ", 
+   RowBox[{"D", "[", 
+    RowBox[{"orthogonalbasisPyramid", ",", "x"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"CresX", " ", "=", " ", 
+   RowBox[{"CForm", "[", 
+    RowBox[{"MonomialList", "[", "orthogonalbasisPyramidX", "]"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"fname", " ", "=", " ", 
+   RowBox[{"FileNameJoin", "[", 
+    RowBox[{"{", 
+     RowBox[{
+      RowBox[{"NotebookDirectory", "[", "]"}], ",", "\"\<pyramid_x.txt\>\""}],
+      "}"}], "]"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"str", "=", " ", 
+   RowBox[{"OpenWrite", "[", "fname", "]"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Write", "[", 
+   RowBox[{"str", ",", 
+    RowBox[{"CresX", "[", 
+     RowBox[{"[", "1", "]"}], "]"}]}], "]"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Close", "[", "str", "]"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"orthogonalbasisPyramidY", " ", "=", " ", 
+   RowBox[{"D", "[", 
+    RowBox[{"orthogonalbasisPyramid", ",", "y"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"CresY", " ", "=", " ", 
+   RowBox[{"CForm", "[", 
+    RowBox[{"MonomialList", "[", "orthogonalbasisPyramidY", "]"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"fname", " ", "=", " ", 
+   RowBox[{"FileNameJoin", "[", 
+    RowBox[{"{", 
+     RowBox[{
+      RowBox[{"NotebookDirectory", "[", "]"}], ",", "\"\<pyramid_y.txt\>\""}],
+      "}"}], "]"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"str", "=", " ", 
+   RowBox[{"OpenWrite", "[", "fname", "]"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Write", "[", 
+   RowBox[{"str", ",", 
+    RowBox[{"CresY", "[", 
+     RowBox[{"[", "1", "]"}], "]"}]}], "]"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Close", "[", "str", "]"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"orthogonalbasisPyramidZ", " ", "=", " ", 
+   RowBox[{"D", "[", 
+    RowBox[{"orthogonalbasisPyramid", ",", "z"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"CresZ", " ", "=", " ", 
+   RowBox[{"CForm", "[", 
+    RowBox[{"MonomialList", "[", "orthogonalbasisPyramidZ", "]"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"fname", " ", "=", " ", 
+   RowBox[{"FileNameJoin", "[", 
+    RowBox[{"{", 
+     RowBox[{
+      RowBox[{"NotebookDirectory", "[", "]"}], ",", "\"\<pyramid_z.txt\>\""}],
+      "}"}], "]"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"str", "=", " ", 
+   RowBox[{"OpenWrite", "[", "fname", "]"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Write", "[", 
+   RowBox[{"str", ",", 
+    RowBox[{"CresZ", "[", 
+     RowBox[{"[", "1", "]"}], "]"}]}], "]"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Close", "[", "str", "]"}], ";"}]}], "Input",
+ CellChangeTimes->{{3.8368930695491467`*^9, 3.836893075066389*^9}, {
+   3.836894037733182*^9, 3.8368940527836227`*^9}, 3.836894263809379*^9, {
+   3.836895449764083*^9, 3.8368954738817387`*^9}, {3.836896781054984*^9, 
+   3.8368967944550047`*^9}, {3.836973716945442*^9, 3.8369737180139713`*^9}, {
+   3.837067826346574*^9, 3.83706784086385*^9}, {3.837068825360619*^9, 
+   3.837068862034305*^9}},ExpressionUUID->"8cc8d8b4-0aec-4db5-b1dd-\
+c719faaae468"],
+
+Cell[BoxData["\<\"Ok\"\>"], "Print",
+ CellChangeTimes->{3.83689683993666*^9, 3.8368974752867107`*^9, 
+  3.836972966559062*^9, 3.836974288912108*^9, 3.837067841119244*^9, 
+  3.837067893296115*^9, 
+  3.837068873628808*^9},ExpressionUUID->"04d81bca-dba7-42af-bfb7-\
+4c0646200427"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[{
+ RowBox[{
+  RowBox[{"orthogonalbasisPrism", " ", "=", " ", 
+   RowBox[{"FullSimplify", "[", 
+    RowBox[{"Orthogonalize", "[", 
+     RowBox[{"basis3d", ",", "ipPrism"}], "]"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"p", " ", "=", " ", 
+   RowBox[{"Table", "[", 
+    RowBox[{
+     RowBox[{"ipPrism", "[", 
+      RowBox[{
+       RowBox[{"orthogonalbasisPrism", "[", 
+        RowBox[{"[", "j", "]"}], "]"}], ",", 
+       RowBox[{"orthogonalbasisPrism", "[", 
+        RowBox[{"[", "k", "]"}], "]"}]}], "]"}], ",", 
+     RowBox[{"{", 
+      RowBox[{"j", ",", "1", ",", 
+       RowBox[{"Length", "[", "basis3d", "]"}]}], "}"}], ",", 
+     RowBox[{"{", 
+      RowBox[{"k", ",", "1", ",", 
+       RowBox[{"Length", "[", "basis3d", "]"}]}], "}"}]}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"If", "[", 
+   RowBox[{
+    RowBox[{
+     RowBox[{"Norm", "[", 
+      RowBox[{"p", "-", 
+       RowBox[{"IdentityMatrix", "[", 
+        RowBox[{"Length", "[", "basis3d", "]"}], "]"}]}], "]"}], "\[Equal]", 
+     "0"}], ",", 
+    RowBox[{"Print", "[", "\"\<Ok\>\"", "]"}], ",", 
+    RowBox[{"Print", "[", "\"\<Error\>\"", "]"}]}], "]"}], " ", 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Cres", " ", "=", " ", 
+   RowBox[{"CForm", "[", 
+    RowBox[{"MonomialList", "[", "orthogonalbasisPrism", "]"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"fname", " ", "=", " ", 
+   RowBox[{"FileNameJoin", "[", 
+    RowBox[{"{", 
+     RowBox[{
+      RowBox[{"NotebookDirectory", "[", "]"}], ",", "\"\<prism.txt\>\""}], 
+     "}"}], "]"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"str", "=", " ", 
+   RowBox[{"OpenWrite", "[", "fname", "]"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Write", "[", 
+   RowBox[{"str", ",", 
+    RowBox[{"Cres", "[", 
+     RowBox[{"[", "1", "]"}], "]"}]}], "]"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Close", "[", "str", "]"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"orthogonalbasisPrismX", " ", "=", " ", 
+   RowBox[{"D", "[", 
+    RowBox[{"orthogonalbasisPrism", ",", "x"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"CresX", " ", "=", " ", 
+   RowBox[{"CForm", "[", 
+    RowBox[{"MonomialList", "[", "orthogonalbasisPrismX", "]"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"fname", " ", "=", " ", 
+   RowBox[{"FileNameJoin", "[", 
+    RowBox[{"{", 
+     RowBox[{
+      RowBox[{"NotebookDirectory", "[", "]"}], ",", "\"\<prism_x.txt\>\""}], 
+     "}"}], "]"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"str", "=", " ", 
+   RowBox[{"OpenWrite", "[", "fname", "]"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Write", "[", 
+   RowBox[{"str", ",", 
+    RowBox[{"CresX", "[", 
+     RowBox[{"[", "1", "]"}], "]"}]}], "]"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Close", "[", "str", "]"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"orthogonalbasisPrismY", " ", "=", " ", 
+   RowBox[{"D", "[", 
+    RowBox[{"orthogonalbasisPrism", ",", "y"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"CresY", " ", "=", " ", 
+   RowBox[{"CForm", "[", 
+    RowBox[{"MonomialList", "[", "orthogonalbasisPrismY", "]"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"fname", " ", "=", " ", 
+   RowBox[{"FileNameJoin", "[", 
+    RowBox[{"{", 
+     RowBox[{
+      RowBox[{"NotebookDirectory", "[", "]"}], ",", "\"\<prism_y.txt\>\""}], 
+     "}"}], "]"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"str", "=", " ", 
+   RowBox[{"OpenWrite", "[", "fname", "]"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Write", "[", 
+   RowBox[{"str", ",", 
+    RowBox[{"CresY", "[", 
+     RowBox[{"[", "1", "]"}], "]"}]}], "]"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Close", "[", "str", "]"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"orthogonalbasisPrismZ", " ", "=", " ", 
+   RowBox[{"D", "[", 
+    RowBox[{"orthogonalbasisPrism", ",", "z"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"CresZ", " ", "=", " ", 
+   RowBox[{"CForm", "[", 
+    RowBox[{"MonomialList", "[", "orthogonalbasisPrismZ", "]"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"fname", " ", "=", " ", 
+   RowBox[{"FileNameJoin", "[", 
+    RowBox[{"{", 
+     RowBox[{
+      RowBox[{"NotebookDirectory", "[", "]"}], ",", "\"\<prism_z.txt\>\""}], 
+     "}"}], "]"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"str", "=", " ", 
+   RowBox[{"OpenWrite", "[", "fname", "]"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Write", "[", 
+   RowBox[{"str", ",", 
+    RowBox[{"CresZ", "[", 
+     RowBox[{"[", "1", "]"}], "]"}]}], "]"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Close", "[", "str", "]"}], ";"}], "\[IndentingNewLine]"}], "Input",\
+
+ CellChangeTimes->{{3.836895504597542*^9, 3.836895516981675*^9}, {
+  3.836896798359276*^9, 3.836896806510309*^9}, {3.836973720523875*^9, 
+  3.8369737214160433`*^9}, {3.837067831389607*^9, 3.837067843753272*^9}, {
+  3.837068872423511*^9, 
+  3.8370689131691732`*^9}},ExpressionUUID->"4c94b7d8-fa92-4673-8296-\
+94871a3128b8"],
+
+Cell[BoxData["\<\"Ok\"\>"], "Print",
+ CellChangeTimes->{
+  3.837068921400422*^9},ExpressionUUID->"cc5407b5-dc22-4532-a219-\
+9942eda7f09c"]
+}, Open  ]]
+},
+WindowSize->{1920, 998},
+WindowMargins->{{0, Automatic}, {1, Automatic}},
+Magnification->1.5,
+FrontEndVersion->"11.2 for Linux x86 (64-bit) (September 10, 2017)",
+StyleDefinitions->"Default.nb"
+]
+(* End of Notebook Content *)
+
+(* Internal cache information *)
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+(*NotebookFileOutline
+Notebook[{
+Cell[558, 20, 2315, 56, 150, "Input",ExpressionUUID->"56d34e16-ad5f-4ad5-a923-c0ff8fba6f94"],
+Cell[CellGroupData[{
+Cell[2898, 80, 1375, 35, 116, "Input",ExpressionUUID->"8342ee02-b5e6-4385-ad1f-575775b29d11"],
+Cell[4276, 117, 582, 12, 647, "Output",ExpressionUUID->"8293236c-387d-4250-85a9-46e90ad7b269"]
+}, Open  ]],
+Cell[4873, 132, 152, 3, 47, "Input",ExpressionUUID->"6b5380fa-95fd-47e2-a6ef-3adc3c59ac86"],
+Cell[CellGroupData[{
+Cell[5050, 139, 1784, 53, 116, "Input",ExpressionUUID->"3e170a28-fa6f-46a3-8b5d-be5c8ca3aad8"],
+Cell[6837, 194, 675, 14, 553, "Output",ExpressionUUID->"d9fd6661-a29b-4f67-965c-00a13c1a0bdb"]
+}, Open  ]],
+Cell[7527, 211, 156, 3, 47, "Input",ExpressionUUID->"d2a78465-3192-4b46-a8d4-809e05ce29a4"],
+Cell[CellGroupData[{
+Cell[7708, 218, 1214, 37, 116, "Input",ExpressionUUID->"a5548fd8-84a6-4a52-bfbe-f29e3f825796"],
+Cell[8925, 257, 598, 13, 479, "Output",ExpressionUUID->"7a37ae33-f3a5-4ae8-967e-389344e377e1"]
+}, Open  ]],
+Cell[9538, 273, 152, 3, 47, "Input",ExpressionUUID->"bdfea9e9-cde0-4289-9df5-1a7e89f4ed1b"],
+Cell[CellGroupData[{
+Cell[9715, 280, 1262, 38, 116, "Input",ExpressionUUID->"e847f4ee-4144-4f7d-9d95-00e87666e008"],
+Cell[10980, 320, 602, 13, 532, "Output",ExpressionUUID->"c5c5aa9b-7c5d-44f9-8b94-e7efc7ee0818"]
+}, Open  ]],
+Cell[11597, 336, 154, 3, 47, "Input",ExpressionUUID->"9bc00097-118e-4d4a-bb3c-dcf6117ea5d0"],
+Cell[11754, 341, 2079, 50, 150, "Input",ExpressionUUID->"15b135c6-bfdb-4416-b362-4fb3a75a0429"],
+Cell[CellGroupData[{
+Cell[13858, 395, 5951, 145, 728, "Input",ExpressionUUID->"f69cfd9f-ba7f-4d6f-8d09-f75a0f152ad6"],
+Cell[19812, 542, 140, 3, 37, "Print",ExpressionUUID->"ad9219ed-163d-4899-aba9-4812821d9977"]
+}, Open  ]],
+Cell[19967, 548, 154, 3, 47, "Input",ExpressionUUID->"03c0a4d7-b6fd-4dfb-8171-0eb3ee3546bd"],
+Cell[20124, 553, 152, 3, 47, "Input",ExpressionUUID->"d06f3db2-777c-420f-8a74-543cd78b5d28"],
+Cell[20279, 558, 203, 4, 47, "Input",ExpressionUUID->"4b997ab2-4088-4dd0-bb52-4c79e99e8651"],
+Cell[20485, 564, 151, 3, 47, "Input",ExpressionUUID->"12b0466b-c62d-4ed7-ac62-b43379f3e4c4"],
+Cell[CellGroupData[{
+Cell[20661, 571, 4351, 121, 694, "Input",ExpressionUUID->"77a5ec76-39c0-40e2-b9ef-dba1c63e3894"],
+Cell[CellGroupData[{
+Cell[25037, 696, 479, 9, 37, "Print",ExpressionUUID->"1c6fd79f-04db-421c-95ca-9397ff3c281a"],
+Cell[25519, 707, 453, 9, 37, "Print",ExpressionUUID->"0a62a124-3bd7-4c86-9110-153c3f78b435"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[26021, 722, 5942, 158, 966, "Input",ExpressionUUID->"6c6fbb9e-931e-4817-9abc-625534311f2d"],
+Cell[31966, 882, 327, 5, 37, "Print",ExpressionUUID->"59687565-98ed-48ea-9e4e-10656b5a5f44"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[32330, 892, 5509, 151, 898, "Input",ExpressionUUID->"daa63214-b3ca-4cd5-abc6-a2c4d0a5b4fd"],
+Cell[37842, 1045, 140, 3, 37, "Print",ExpressionUUID->"59c48ae8-cef6-420d-953e-df0e7028d692"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[38019, 1053, 5318, 145, 898, "Input",ExpressionUUID->"8cc8d8b4-0aec-4db5-b1dd-c719faaae468"],
+Cell[43340, 1200, 277, 5, 37, "Print",ExpressionUUID->"04d81bca-dba7-42af-bfb7-4c0646200427"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[43654, 1210, 5178, 145, 932, "Input",ExpressionUUID->"4c94b7d8-fa92-4673-8296-94871a3128b8"],
+Cell[48835, 1357, 138, 3, 37, "Print",ExpressionUUID->"cc5407b5-dc22-4532-a219-9942eda7f09c"]
+}, Open  ]]
+}
+]
+*)
+
