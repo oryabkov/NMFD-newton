@@ -91,11 +91,11 @@ public:
     }
 
     // domain -> (restrict) -> image
-    void apply( vector_type &from, vector_type &to ) const
+    void apply( vector_type &from, vector_type &to, bool use_linearized_ghost = true ) const
     {
         auto             half_r = range_ / Ord{ 2u };
         for_each_nd_type for_each_nd_inst;
-        for_each_nd_inst( restrictor_kernel{ from, to, *lin_vector_wrap_, b_cond_, step_, from.rect_nd() }, half_r );
+        for_each_nd_inst( restrictor_kernel{ from, to, *lin_vector_wrap_, b_cond_, step_, from.rect_nd(), use_linearized_ghost }, half_r );
     };
 
 private:

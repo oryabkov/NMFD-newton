@@ -62,18 +62,27 @@ public:
         auto coarse_size = op.get_size() / Ord{ 2 };
         auto coarse_h    = op.get_h() * Scalar{ 2 };
 
+        scalar_type C = 4;
+        Scalar max_h = coarse_h[0];
+        for ( int i = 0; i < coarse_h.dim; ++i )
+            max_h = std::max(coarse_h[i], max_h);
+        // Scalar new_gamma = op.get_gamma();
+        // Scalar new_gamma = 4 * op.get_gamma();
+        Scalar new_gamma = std::max( op.get_gamma(), C*max_h*max_h );
+
         auto b_cond = op.get_b_cond();
+        b_cond.set_gamma( new_gamma );
 
         auto coarse_op =
             std::make_shared<operator_type>( coarse_size, coarse_h, b_cond, op.get_time_derivative() );
 
         coarse_op->set_D( op.get_D() );
-        coarse_op->set_gamma( op.get_gamma() );
+        coarse_op->set_gamma( new_gamma );
 
         // Restrict the linearization point from fine to coarse level
         vector_type fine_vector = op.get_lin_vector();
         vector_type coarse_vector( coarse_size );
-        restrictor.apply( fine_vector, coarse_vector );
+        restrictor.apply( fine_vector, coarse_vector, false );
         coarse_op->set_linearization_point( coarse_vector );
 
         // Set the prolongator's b_cond and linearization point (both coarse-level)

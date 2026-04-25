@@ -1,8 +1,8 @@
 TARGET_GCC = -O3
 TARGET_NVCC = -O3
 
-# CUDA_ROOT_PATH = /usr/local/cuda/
-CUDA_ROOT_PATH =
+CUDA_ROOT_PATH = /home/fluffymelon/cuda-12.3/
+# CUDA_ROOT_PATH =
 
 BOOST_INCLUDE = /usr/local/boost/include/
 

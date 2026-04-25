@@ -62,7 +62,8 @@ public:
 
     __DEVICE_TAG__ scalar_type compute_D( scalar_type C0, scalar_type A ) const
     {
-        return 1 + A * C0 + A * A;
+        // return 1 + A * C0 + A * A;
+        return A * A + scalar_type( 2 ) * A * C0 + scalar_type( 1 );
     }
 
 
@@ -73,9 +74,10 @@ public:
             return C0;
         }
 
-        // const scalar_type C0_clamped = st::max( scalar_type( -1 ), st::min( C0, scalar_type( 1 ) ) );
+        scalar_type Cq = st::max( scalar_type( -1 ), st::min( C0, scalar_type( 1 ) ) );
+        // scalar_type Cq = C0;
 
-        scalar_type D = compute_D( C0, A );
+        scalar_type D = compute_D( Cq, A );
         if ( D <= scalar_type( 0 ) )
         {
             #if !defined(PLATFORM_CUDA)
@@ -83,7 +85,8 @@ public:
             #endif
         }
 
-        return ( -( scalar_type( 2 ) + A * C0 ) + 2 * st::sqrt( D ) ) / A;
+        // return ( -( scalar_type( 2 ) + A * C0 ) + 2 * st::sqrt( D ) ) / A;
+        return ( scalar_type( 2 ) * st::sqrt( D ) - A * Cq - scalar_type( 2 ) ) / A;
     }
 
 
@@ -94,17 +97,29 @@ public:
             return scalar_type( 1 );
         }
 
-        // const scalar_type C0_lin_clamped = st::max( scalar_type( -1 ), st::min( C0_lin, scalar_type( 1 ) ) );
+        scalar_type Cq = st::max( scalar_type( -1 ), st::min( C0_lin, scalar_type( 1 ) ) );
+        // scalar_type Cq = C0_lin;
 
-        scalar_type D = compute_D( C0_lin, A );
+        scalar_type D = compute_D( Cq, A );
         if ( D <= scalar_type( 0 ) )
         {
             #if !defined(PLATFORM_CUDA)
                 std::cout << "D <= 0 in nonlinear_ghost_coef_linearized" << " C0: " << C0_lin << " A: " << A << " D: " << D << std::endl;
+                assert();
+                printf();
             #endif
         }
 
-        return scalar_type( 1 ) / st::sqrt( D ) - scalar_type( 1 );
+        // D = st::max( D, scalar_type( 1e-14 ) );
+        // return scalar_type( 1 ) / st::sqrt( D ) - scalar_type( 1 );
+
+        scalar_type dxdCq = scalar_type( 2 ) / st::sqrt( D ) - scalar_type( 1 );
+        if ( C0_lin < scalar_type( -1 ) || C0_lin > scalar_type( 1 ) )
+        {
+            return scalar_type( 0 );
+        }
+
+        return dxdCq;
     }
 
 
@@ -291,6 +306,11 @@ public:
                 scaled_step[j] = (ghost_idx[j] - internal_idx[j]) * step[j];
             }
         }
+    }
+
+    __DEVICE_TAG__ void set_gamma( scalar_type gamma )
+    {
+        gamma_ = gamma;
     }
 
 private:

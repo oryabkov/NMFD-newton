@@ -66,7 +66,7 @@ CUDA_ARCH_FLAG = -arch=$(CUDA_ARCH)
 endif
 CUDAFLAGS = $(TARGET_NVCC) -std=c++17 $(CUDA_ARCH_FLAG)
 ifneq ($(strip $(CUDA_ROOT_PATH)),)
-CUDACOMPILER = $(CUDA_ROOT_PATH)/bin/nvcc
+CUDACOMPILER = $(CUDA_ROOT_PATH)bin/nvcc
 else
 CUDACOMPILER = nvcc
 endif

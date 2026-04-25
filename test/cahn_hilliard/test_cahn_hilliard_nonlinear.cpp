@@ -35,7 +35,6 @@
 #include "restrictor.h"
 #include "solution_io.h"
 #include "timers.h"
-#include "perlin_noise.h"
 #include "scheduler.h"
 
 
@@ -411,11 +410,11 @@ int main( int argc, char const *argv[] )
     // int left_bc[3][2]  = { { 0, 0 }, { 0, 0 }, { 0, 0 } }; // left:  [x,y,z][psi=Neumann, phi=nonlinear]
     // int right_bc[3][2] = { { 0, 0 }, { 0, 0 }, { 0, 0 } };  // right: [x,y,z][psi=Neumann, phi=nonlinear]
 
-    // int left_bc[3][2]  = { { +1, +1 }, { +1, +1 }, { +1, +1 } }; // left:  [x,y,z][psi=Neumann, phi=nonlinear]
-    // int right_bc[3][2] = { { +1, +1 }, { +1, +1 }, { +1, +1 } };  // right: [x,y,z][psi=Neumann, phi=nonlinear]
+    int left_bc[3][2]  = { { +1, +1 }, { +1, +1 }, { +1, +1 } }; // left:  [x,y,z][psi=Neumann, phi=nonlinear]
+    int right_bc[3][2] = { { +1, +1 }, { +1, +1 }, { +1, +1 } };  // right: [x,y,z][psi=Neumann, phi=nonlinear]
 
-    int left_bc[3][2]  = { { 0, 0 }, { 0, 0 }, { +1, 2 } }; // left:  [x,y,z][psi=Neumann, phi=nonlinear]
-    int right_bc[3][2] = { { 0, 0 }, { 0, 0 }, { +1, +1 } };  // right: [x,y,z][psi=Neumann, phi=nonlinear]
+    // int left_bc[3][2]  = { { 0, 0 }, { 0, 0 }, { +1, 2 } }; // left:  [x,y,z][psi=Neumann, phi=nonlinear]
+    // int right_bc[3][2] = { { 0, 0 }, { 0, 0 }, { +1, +1 } };  // right: [x,y,z][psi=Neumann, phi=nonlinear]
 
     auto cond  = tests::boundary_cond<vec_ops_t>(
         left_bc, right_bc, gamma, cos_theta
@@ -451,7 +450,8 @@ int main( int argc, char const *argv[] )
     {
         vector_view_t solution_view( solution, false );
 
-        scalar d = 1.0 / 4.0;
+        // scalar d = 1.0 / 4.0
+        scalar d = 0.1;
         for ( int i = 0; i < range[0]; i++ )
         {
             for ( int j = 0; j < range[1]; j++ )
@@ -465,13 +465,22 @@ int main( int argc, char const *argv[] )
 
                     solution_view( i, j, k, 0 ) = 0.0;
 
-                    if ( x > 0.5 - d && x < 0.5 + d && y > 0.5 - d && y < 0.5 + d && z < 2 * d)
+                    // if ( x > 0.5 - d && x < 0.5 + d && y > 0.5 - d && y < 0.5 + d && z < 2 * d)
+                    // {
+                    //     solution_view( i, j, k, 1 ) = 1.0;
+                    // }
+                    // else
+                    // {
+                    //     solution_view( i, j, k, 1 ) = -1.0;
+                    // }
+
+                    if ( x > 0.5 - d && x < 0.5 + d && y > 0.5 - d && y < 0.5 + d && z > 0.5 - d && z < 0.5 + d)
                     {
                         solution_view( i, j, k, 1 ) = 1.0;
                     }
                     else
                     {
-                        solution_view( i, j, k, 1 ) = -1.0;
+                        solution_view( i, j, k, 1 ) = -0.9;
                     }
                 }
             }
@@ -484,7 +493,7 @@ int main( int argc, char const *argv[] )
     time_derivative->set_dt_inf( dt_inf );
     time_derivative->set_previous_state( solution );
 
-    tests::scheduler<scalar> dt_scheduler( dt_inf, /*success_threshold=*/5 );
+    tests::scheduler<scalar> dt_scheduler( dt_inf, /*success_threshold=*/10 );
 
     auto cahn_hilliard_jacobi_op = std::make_shared<jacobi_op_t>( range, step, cond, time_derivative );
     auto cahn_hilliard_op        = std::make_shared<cahn_hilliard_op_t>( range, step, cond, cahn_hilliard_jacobi_op, time_derivative );

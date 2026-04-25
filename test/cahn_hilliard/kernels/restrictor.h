@@ -17,6 +17,7 @@ struct restrictor_kernel
     BoundaryCond cond;
     GridStep     step;
     Rect dom_r;
+    bool use_linearized_ghost = true;
 
 #if 0
 
@@ -88,38 +89,66 @@ struct restrictor_kernel
 
                 if ( !dom_r.is_own( j ) )
                 {
-                    // Handle periodic BCs by wrapping index to opposite side
+                    // // Handle periodic BCs by wrapping index to opposite side
+                    // IdxND periodic_idx = j;
+                    // bool  is_periodic  = true;
+                    // for ( Ord k = 0; k < IdxND::dim; ++k )
+                    // {
+                    //     auto N = dom_r.i2[k];
+                    //     if ( periodic_idx[k] < 0 )
+                    //     {
+                    //         if ( cond.left[k][i] == 0 ) // periodic
+                    //             periodic_idx[k] += N;
+                    //         else
+                    //             { is_periodic = false; break; }
+                    //     }
+                    //     else if ( periodic_idx[k] >= N )
+                    //     {
+                    //         if ( cond.right[k][i] == 0 ) // periodic
+                    //             periodic_idx[k] -= N;
+                    //         else
+                    //             { is_periodic = false; break; }
+                    //     }
+                    // }
+
                     IdxND periodic_idx = j;
-                    bool  is_periodic  = true;
-                    for ( Ord k = 0; k < IdxND::dim; ++k )
+
+                    #pragma unroll
+                    for ( int jj = 0; jj < IdxND::dim; ++jj )
                     {
-                        auto N = dom_r.i2[k];
-                        if ( periodic_idx[k] < 0 )
+                        auto N = dom_r.i2[jj];
+
+                        if ( j[jj] < 0 && cond.left[jj][i] == 0 )
                         {
-                            if ( cond.left[k][i] == 0 ) // periodic
-                                periodic_idx[k] += N;
-                            else
-                                { is_periodic = false; break; }
+                            periodic_idx[jj] += N;
                         }
-                        else if ( periodic_idx[k] >= N )
+                        else if ( j[jj] >= N && cond.right[jj][i] == 0 )
                         {
-                            if ( cond.right[k][i] == 0 ) // periodic
-                                periodic_idx[k] -= N;
-                            else
-                                { is_periodic = false; break; }
+                            periodic_idx[jj] -= N;
                         }
                     }
 
-                    if ( is_periodic )
+                    // if ( is_periodic )
+                    // {
+                    //     sum += dom( periodic_idx, i ) * mul;
+                    // }
+                    // else
+                    // {
+                    //     Tensor ghost;
+                    //     cond.get_ghost_tensor_linearized( lin_dom, dom, dom_r.i2, j, step, ghost ); // j -> periodic_idx
+                    //     sum += ghost[i] * mul;
+                    // }
+
+                    Tensor ghost;
+                    if ( use_linearized_ghost )
                     {
-                        sum += dom( periodic_idx, i ) * mul;
+                        cond.get_ghost_tensor_linearized( lin_dom, dom, dom_r.i2, periodic_idx, step, ghost ); // j -> periodic_idx
                     }
                     else
                     {
-                        Tensor ghost;
-                        cond.get_ghost_tensor_linearized( lin_dom, dom, dom_r.i2, j, step, ghost );
-                        sum += ghost[i] * mul;
+                        cond.get_ghost_tensor( dom, dom_r.i2, periodic_idx, step, ghost );
                     }
+                    sum += ghost[i] * mul;
                 }
                 else
                 {
