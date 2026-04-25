@@ -59,7 +59,10 @@ public: // Especially for SYCL
 public:
     struct params
     {
-        params( const std::string &log_prefix = "", const std::string &log_name = "smoother_elliptic::" )
+        scalar_type alpha;
+
+        params( const std::string &log_prefix = "", const std::string &log_name = "smoother_elliptic::" ) :
+            alpha(0.71)
         {
         }
     };
@@ -161,7 +164,7 @@ public:
         for_each_nd_type for_each_nd_inst;
         for_each_nd_inst(
             preconditioner_kernel{
-                vector, **lin_vector_wrap_, range_, step_, *b_cond_, phobic_en_, time_derivative_->get_dt_inf(), D_, gamma_
+                vector, **lin_vector_wrap_, range_, step_, *b_cond_, phobic_en_, time_derivative_->get_dt_inf(), params_.alpha, D_, gamma_
             },
             range_
         );
@@ -186,6 +189,8 @@ private:
 
     scalar_type D_     = scalar_type( 1 );
     scalar_type gamma_ = scalar_type( 1 );
+
+    params_hierarchy params_;
 };
 
 } // namespace tests

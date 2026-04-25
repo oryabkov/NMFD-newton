@@ -24,6 +24,7 @@ struct jacobi_pre_kernel
     BoundaryCond cond;
     PhobicEnergy phobic_en;
     Scalar       dt_inf;
+    Scalar       alpha;
 
     Scalar D;
     Scalar gamma;
@@ -64,7 +65,7 @@ struct jacobi_pre_kernel
         mat( 1, 1 ) -= phobic_en.get_derivative( phi );
         mat( 1, 0 ) = Scalar(1);
 
-        auto result = inv( mat ) * vec;
+        auto result = alpha * inv( mat ) * vec;
         vector.set_vec( result, idx );
     }
 };
