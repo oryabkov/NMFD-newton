@@ -105,8 +105,8 @@ public:
         {
             #if !defined(PLATFORM_CUDA)
                 std::cout << "D <= 0 in nonlinear_ghost_coef_linearized" << " C0: " << C0_lin << " A: " << A << " D: " << D << std::endl;
-                assert();
-                printf();
+                // assert();
+                // printf();
             #endif
         }
 

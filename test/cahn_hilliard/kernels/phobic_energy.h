@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <scfd/utils/device_tag.h>
+#include <scfd/utils/scalar_traits.h>
 
 
 namespace tests
@@ -21,6 +22,30 @@ public:
     {
         return 3 * phi * phi - 1;
     }
+};
+
+template <class Scalar>
+class logarithmic_potential
+{
+    using st = scfd::utils::scalar_traits<Scalar>;
+
+public:
+    logarithmic_potential(Scalar omega = 3.0): omega_(omega)
+    {
+    }
+
+    __DEVICE_TAG__ Scalar operator()( Scalar phi ) const
+    {
+        return std::log((Scalar( 1.0 ) + phi) / (Scalar( 1.0 ) - phi)) - omega_ * phi;
+    }
+
+    __DEVICE_TAG__ Scalar get_derivative( Scalar phi ) const
+    {
+        return Scalar( 2.0 ) / (Scalar( 1.0 ) - phi * phi) - omega_;
+    }
+
+private:
+    Scalar omega_;
 };
 
 template <class Scalar>

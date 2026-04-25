@@ -66,7 +66,8 @@ using monitor_funcs_t   = default_monitor_t::custom_funcs_type;
 using monitor_funcs_ptr = default_monitor_t::custom_funcs_ptr;
 
 // Problem
-using phobic_energy = tests::double_well_potential<scalar>;
+// using phobic_energy = tests::double_well_potential<scalar>;
+using phobic_energy = tests::logarithmic_potential<scalar>;
 using rhs_t             = tests::zero_rhs<scalar, tensor_t>;
 using time_derivative_t = tests::time_derivative<vec_ops_t, tensor_t>;
 
@@ -450,7 +451,7 @@ int main( int argc, char const *argv[] )
     {
         vector_view_t solution_view( solution, false );
 
-        // scalar d = 1.0 / 4.0
+        // scalar d = 1.0 / 4.0;
         scalar d = 0.1;
         for ( int i = 0; i < range[0]; i++ )
         {
@@ -467,16 +468,16 @@ int main( int argc, char const *argv[] )
 
                     // if ( x > 0.5 - d && x < 0.5 + d && y > 0.5 - d && y < 0.5 + d && z < 2 * d)
                     // {
-                    //     solution_view( i, j, k, 1 ) = 1.0;
+                    //     solution_view( i, j, k, 1 ) = 0.9;
                     // }
                     // else
                     // {
-                    //     solution_view( i, j, k, 1 ) = -1.0;
+                    //     solution_view( i, j, k, 1 ) = -0.9;
                     // }
 
                     if ( x > 0.5 - d && x < 0.5 + d && y > 0.5 - d && y < 0.5 + d && z > 0.5 - d && z < 0.5 + d)
                     {
-                        solution_view( i, j, k, 1 ) = 1.0;
+                        solution_view( i, j, k, 1 ) = 0.9;
                     }
                     else
                     {
