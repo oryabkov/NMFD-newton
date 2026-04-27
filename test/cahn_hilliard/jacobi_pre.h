@@ -3,6 +3,7 @@
 
 #include "jacobi_op.h"
 #include "kernels/jacobi_pre.h"
+#include "kernels/mobility.h"
 
 #include <memory>
 #include <scfd/static_vec/vec.h>
@@ -18,8 +19,9 @@ template <
     class Log,
     class PhobicEnergy,
     class TimeDerivative,
+    class Mobility,
     /**********************************************/
-    class LinOp   = jacobi_op<VectorSpace, Log, PhobicEnergy, TimeDerivative>,
+    class LinOp   = jacobi_op<VectorSpace, Log, PhobicEnergy, TimeDerivative, Mobility>,
     class Backend = typename VectorSpace::backend_type>
 class jacobi_pre : public nmfd::preconditioners::preconditioner_interface<VectorSpace, LinOp>
 {
@@ -54,7 +56,8 @@ public: // Especially for SYCL
         mat_type,
         grid_step_type,
         boundary_cond_type,
-        PhobicEnergy>;
+        PhobicEnergy,
+        Mobility>;
 
 public:
     struct params
@@ -103,8 +106,8 @@ public:
         range_  = op->get_size();
         step_   = op->get_h();
         b_cond_ = std::make_unique<boundary_cond_type>( op->get_b_cond() );
-        D_      = op->get_D();
         gamma_  = op->get_gamma();
+        mobility_ = op->get_mobility();
 
         // Always recreate lin_vector_wrap_ with the current VectorSpace
         lin_vector_wrap_ = std::make_unique<vector_wrap_t>( *vspace_ );
@@ -132,18 +135,13 @@ public:
         return *b_cond_;
     }
 
-    scalar_type get_D() const noexcept
-    {
-        return D_;
-    }
     scalar_type get_gamma() const noexcept
     {
         return gamma_;
     }
-
-    void set_D( scalar_type D )
+    void set_mobility( const Mobility &mobility )
     {
-        D_ = D;
+        mobility_ = mobility;
     }
     void set_gamma( scalar_type gamma )
     {
@@ -164,7 +162,16 @@ public:
         for_each_nd_type for_each_nd_inst;
         for_each_nd_inst(
             preconditioner_kernel{
-                vector, **lin_vector_wrap_, range_, step_, *b_cond_, phobic_en_, time_derivative_->get_dt_inf(), params_.alpha, D_, gamma_
+                vector,
+                **lin_vector_wrap_,
+                range_,
+                step_,
+                *b_cond_,
+                phobic_en_,
+                mobility_,
+                time_derivative_->get_dt_inf(),
+                params_.alpha,
+                gamma_
             },
             range_
         );
@@ -185,9 +192,9 @@ private:
     using vector_wrap_t = nmfd::detail::vector_wrap<VectorSpace, true, true>;
     std::unique_ptr<vector_wrap_t> lin_vector_wrap_;
     PhobicEnergy                   phobic_en_;
+    Mobility                       mobility_;
     time_derivative_ptr            time_derivative_;
 
-    scalar_type D_     = scalar_type( 1 );
     scalar_type gamma_ = scalar_type( 1 );
 
     params_hierarchy params_;

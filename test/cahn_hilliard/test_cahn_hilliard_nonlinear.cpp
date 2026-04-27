@@ -36,6 +36,7 @@
 #include "solution_io.h"
 #include "timers.h"
 #include "scheduler.h"
+#include "kernels/mobility.h"
 
 
 using backend = scfd::backend::current;
@@ -66,17 +67,18 @@ using monitor_funcs_t   = default_monitor_t::custom_funcs_type;
 using monitor_funcs_ptr = default_monitor_t::custom_funcs_ptr;
 
 // Problem
-// using phobic_energy = tests::double_well_potential<scalar>;
-using phobic_energy = tests::logarithmic_potential<scalar>;
+// using phobic_energy_t = tests::double_well_potential<scalar>;
+using phobic_energy_t   = tests::logarithmic_potential<scalar>;
+using mobility_t        = tests::parabolic_mobility<scalar>;
 using rhs_t             = tests::zero_rhs<scalar, tensor_t>;
 using time_derivative_t = tests::time_derivative<vec_ops_t, tensor_t>;
 
 // MG
 using prolongator_t = tests::prolongator<vec_ops_t, log_t>;
 using restrictor_t  = tests::restrictor<vec_ops_t, log_t>;
-using jacobi_op_t   = tests::jacobi_op<vec_ops_t, log_t, phobic_energy, time_derivative_t>;
+using jacobi_op_t   = tests::jacobi_op<vec_ops_t, log_t, phobic_energy_t, time_derivative_t, mobility_t>;
 using ident_op_t    = nmfd::preconditioners::dummy<vec_ops_t, jacobi_op_t>;
-using smoother_t    = tests::jacobi_pre<vec_ops_t, log_t, phobic_energy, time_derivative_t>;
+using smoother_t    = tests::jacobi_pre<vec_ops_t, log_t, phobic_energy_t, time_derivative_t, mobility_t>;
 using coarsening_t  = tests::coarsening<jacobi_op_t, log_t>;
 
 using precond_interface = nmfd::preconditioners::preconditioner_interface<vec_ops_t, jacobi_op_t>;
@@ -89,7 +91,8 @@ using mg_utils_t  = mg_t::utils_hierarchy;
 using jacobi_solver = nmfd::solvers::jacobi<vec_ops_t, jacobi_op_t, precond_interface, default_monitor_t, log_t>;
 using gmres_solver  = nmfd::solvers::gmres<vec_ops_t, krylov_monitor_t, log_t, jacobi_op_t, precond_interface>;
 
-using cahn_hilliard_op_t = tests::cahn_hilliard_op<vec_ops_t, jacobi_op_t, log_t, phobic_energy, rhs_t, time_derivative_t>;
+using cahn_hilliard_op_t =
+    tests::cahn_hilliard_op<vec_ops_t, jacobi_op_t, log_t, phobic_energy_t, rhs_t, time_derivative_t, mobility_t>;
 
 /**************************************/
 // Logging helpers
@@ -411,11 +414,11 @@ int main( int argc, char const *argv[] )
     // int left_bc[3][2]  = { { 0, 0 }, { 0, 0 }, { 0, 0 } }; // left:  [x,y,z][psi=Neumann, phi=nonlinear]
     // int right_bc[3][2] = { { 0, 0 }, { 0, 0 }, { 0, 0 } };  // right: [x,y,z][psi=Neumann, phi=nonlinear]
 
-    // int left_bc[3][2]  = { { +1, +1 }, { +1, +1 }, { +1, +1 } }; // left:  [x,y,z][psi=Neumann, phi=nonlinear]
-    // int right_bc[3][2] = { { +1, +1 }, { +1, +1 }, { +1, +1 } };  // right: [x,y,z][psi=Neumann, phi=nonlinear]
+    int left_bc[3][2]  = { { +1, +1 }, { +1, +1 }, { +1, +1 } }; // left:  [x,y,z][psi=Neumann, phi=nonlinear]
+    int right_bc[3][2] = { { +1, +1 }, { +1, +1 }, { +1, +1 } };  // right: [x,y,z][psi=Neumann, phi=nonlinear]
 
-    int left_bc[3][2]  = { { 0, 0 }, { 0, 0 }, { +1, 2 } }; // left:  [x,y,z][psi=Neumann, phi=nonlinear]
-    int right_bc[3][2] = { { 0, 0 }, { 0, 0 }, { +1, +1 } };  // right: [x,y,z][psi=Neumann, phi=nonlinear]
+    // int left_bc[3][2]  = { { 0, 0 }, { 0, 0 }, { +1, 2 } }; // left:  [x,y,z][psi=Neumann, phi=nonlinear]
+    // int right_bc[3][2] = { { 0, 0 }, { 0, 0 }, { +1, +1 } };  // right: [x,y,z][psi=Neumann, phi=nonlinear]
 
     auto cond  = tests::boundary_cond<vec_ops_t>(
         left_bc, right_bc, gamma, cos_theta
@@ -451,8 +454,8 @@ int main( int argc, char const *argv[] )
     {
         vector_view_t solution_view( solution, false );
 
-        scalar d = 1.0 / 4.0;
-        // scalar d = 0.1;
+        // scalar d = 1.0 / 4.0;
+        scalar d = 0.1;
         for ( int i = 0; i < range[0]; i++ )
         {
             for ( int j = 0; j < range[1]; j++ )
@@ -466,7 +469,8 @@ int main( int argc, char const *argv[] )
 
                     solution_view( i, j, k, 0 ) = 0.0;
 
-                    if ( x > 0.5 - d && x < 0.5 + d && y > 0.5 - d && y < 0.5 + d && z < 2 * d)
+                    // if ( x > 0.5 - d && x < 0.5 + d && y > 0.5 - d && y < 0.5 + d && z < 2 * d)
+                    if ( x > 0.5 - d && x < 0.5 + d && y > 0.5 - d && y < 0.5 + d && z > 0.5 - d && z < 0.5 + d)
                     {
                         solution_view( i, j, k, 1 ) = 0.9;
                     }
@@ -500,13 +504,14 @@ int main( int argc, char const *argv[] )
     auto cahn_hilliard_op        = std::make_shared<cahn_hilliard_op_t>( range, step, cond, cahn_hilliard_jacobi_op, time_derivative );
 
     // Set D and gamma parameters
-    cahn_hilliard_op->set_D( D );
+    auto mobility = mobility_t(D);
+    cahn_hilliard_op->set_mobility( mobility );
     cahn_hilliard_op->set_gamma( gamma );
 
     // Stationary operators (used for checking time convergence to stationary solution)
     auto cahn_hilliard_jacobi_op_stationary = std::make_shared<jacobi_op_t>( range, step, cond );
     auto cahn_hilliard_op_stationary        = std::make_shared<cahn_hilliard_op_t>( range, step, cond, cahn_hilliard_jacobi_op_stationary );
-    cahn_hilliard_op_stationary->set_D( D );
+    cahn_hilliard_op_stationary->set_mobility( mobility );
     cahn_hilliard_op_stationary->set_gamma( gamma );
 
     std::shared_ptr<precond_interface> precond;

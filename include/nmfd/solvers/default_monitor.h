@@ -29,7 +29,7 @@
 
 namespace nmfd
 {
-namespace solvers 
+namespace solvers
 {
 
 template<class Vector>
@@ -109,10 +109,10 @@ public:
 private:
     T rel_tol_save_;
     int max_iters_num_save_;
-    
+
     //followings are current convergence info
     int iters_performed_;
-    //is_valid_number is a flag, meaning whether current solution is a valid 
+    //is_valid_number is a flag, meaning whether current solution is a valid
     //vector (without nans or infs)
     mutable bool is_valid_number_;
     T rhs_norm_;
@@ -128,15 +128,15 @@ protected:
     T resid_norm_;
 
 public:
-    default_monitor(const vector_operations_type &vec_ops, 
-                    Log *log = NULL, const params &prms = params() ): 
+    default_monitor(const vector_operations_type &vec_ops,
+                    Log *log = NULL, const params &prms = params() ):
         logged_obj_type(log, prms),
         vec_ops_(vec_ops), min_resid_norm_x_(vec_ops),
         prms_(prms), custom_funcs_(nullptr)
     {
-       
+
         max_iters_num_save_ = prms_.max_iters_num;
-        if (prms_.out_min_resid_norm) 
+        if (prms_.out_min_resid_norm)
         {
             //buf_.init();
         }
@@ -160,7 +160,7 @@ public:
     void set_temp_tolerance(T rel_tol)
     {
         rel_tol_save_ = rel_tol;
-        prms_.rel_tol = rel_tol;   
+        prms_.rel_tol = rel_tol;
     }
     void restore_tolerance()
     {
@@ -192,14 +192,14 @@ public:
     T rel_tol()const { return prms_.rel_tol; }
     T abs_tol()const { return prms_.abs_tol; }
     T rel_tol_base()const { return rhs_norm(); }
-    T tol()const 
-    { 
-        return abs_tol() + rel_tol()*rel_tol_base(); 
+    T tol()const
+    {
+        return abs_tol() + rel_tol()*rel_tol_base();
     }
     int max_iters_num()const
     {
-        return prms_.max_iters_num; 
-    } 
+        return prms_.max_iters_num;
+    }
     int min_iters_num()const { return prms_.min_iters_num; }
     bool out_min_resid_norm()const { return prms_.out_min_resid_norm; }
     bool save_convergence_history()const { return prms_.save_convergence_history; }
@@ -213,24 +213,24 @@ public:
     }
     T rhs_norm()const { return rhs_norm_; }
     T resid_norm()const { return resid_norm_; }
-    T resid_norm_out()const 
-    { 
+    T resid_norm_out()const
+    {
         if (!divide_out_norms_by_rel_base())
-            return resid_norm(); 
+            return resid_norm();
         else
             return resid_norm()/rel_tol_base();
     }
-    T tol_out()const 
-    { 
+    T tol_out()const
+    {
         if (!divide_out_norms_by_rel_base())
-            return tol(); 
+            return tol();
         else
             return tol()/rel_tol_base();
     }
-    T norm_out(T norm_abs)const 
-    { 
+    T norm_out(T norm_abs)const
+    {
         if (!divide_out_norms_by_rel_base())
-            return norm_abs; 
+            return norm_abs;
         else
             return norm_abs/rel_tol_base();
     }
@@ -238,14 +238,14 @@ public:
 
     const std::vector<std::pair<int,T> > &convergence_history()const { return convergence_history_; }
 
-    default_monitor &operator++() 
-    {  
-        ++iters_performed_; 
+    default_monitor &operator++()
+    {
+        ++iters_performed_;
         return *this;
     }
-    default_monitor &operator+=(int n) 
-    {  
-        iters_performed_ += n; 
+    default_monitor &operator+=(int n)
+    {
+        iters_performed_ += n;
         return *this;
     }
     bool converged()const
@@ -259,7 +259,7 @@ public:
         if (custom_funcs_) custom_funcs_->check_finished(iters_performed(), x, r);
 
         is_valid_number_ = vec_ops_.is_valid_number(x);
-        if (!is_valid_number_) 
+        if (!is_valid_number_)
         {
             logged_obj_type::info_f("solution is not a valid number");
             return true;
@@ -268,7 +268,7 @@ public:
         resid_norm_ = vec_ops_.norm(r);
 
         logged_obj_type::info_f("resid norm = %0.6e tol = %0.6e", resid_norm_out(), tol_out());
-        if (prms_.save_convergence_history) 
+        if (prms_.save_convergence_history)
             convergence_history_.emplace_back( iters_performed(), resid_norm_out() );
 
         if (out_min_resid_norm()) {
@@ -277,7 +277,7 @@ public:
                 vec_ops_.assign(x, *min_resid_norm_x_);
             }
         }
-        
+
         return (converged() && iters_performed() >= min_iters_num()) || iters_performed() >= max_iters_num();
     }
 };

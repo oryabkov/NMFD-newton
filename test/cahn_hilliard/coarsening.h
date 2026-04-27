@@ -76,7 +76,7 @@ public:
         auto coarse_op =
             std::make_shared<operator_type>( coarse_size, coarse_h, b_cond, op.get_time_derivative() );
 
-        coarse_op->set_D( op.get_D() );
+        coarse_op->set_mobility( op.get_mobility() );
         coarse_op->set_gamma( new_gamma );
 
         // Restrict the linearization point from fine to coarse level

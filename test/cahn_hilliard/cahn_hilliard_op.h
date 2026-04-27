@@ -4,6 +4,7 @@
 #include "include/boundary.h" // for boundary conditions
 #include "kernels/cahn_hilliard_op.h"
 #include "kernels/jacobi_op.h"
+#include "kernels/mobility.h"
 #include "kernels/phobic_energy.h"
 #include "time_derivative.h"
 
@@ -20,6 +21,7 @@ template <
     class PhobicEnergy,
     class Rhs,
     class TimeDerivative,
+    class Mobility,
     /**********************************************/
     class Backend = typename VectorSpace::backend_type>
 class cahn_hilliard_op
@@ -57,7 +59,8 @@ public: // Especially for SYCL
         grid_step_type,
         boundary_cond_type,
         PhobicEnergy,
-        Rhs>;
+        Rhs,
+        Mobility>;
 
 public:
     cahn_hilliard_op(vector_space_ptr vspace, grid_step_type step, boundary_cond_type b_cond, jacobi_operator_ptr jacobi_op, time_derivative_ptr time_derivative)
@@ -143,9 +146,9 @@ public:
                 b_cond_,
                 phobic_en_,
                 rhs_,
+                mobility_,
                 time_derivative_->get_previous_state(),
                 time_derivative_->get_dt_inf(),
-                D_,
                 gamma_
             },
             range_
@@ -162,19 +165,19 @@ public:
         return jacobi_op_;
     }
 
-    scalar_type get_D() const noexcept
-    {
-        return D_;
-    }
     scalar_type get_gamma() const noexcept
     {
         return gamma_;
     }
-
-    void set_D( scalar_type D )
+    Mobility get_mobility() const noexcept
     {
-        D_ = D;
-        jacobi_op_->set_D( D );
+        return mobility_;
+    }
+
+    void set_mobility( const Mobility &mobility )
+    {
+        mobility_ = mobility;
+        jacobi_op_->set_mobility( mobility );
     }
     void set_gamma( scalar_type gamma )
     {
@@ -191,9 +194,9 @@ private:
     jacobi_operator_ptr jacobi_op_;
     PhobicEnergy        phobic_en_;
     Rhs                 rhs_;
+    Mobility            mobility_;
     time_derivative_ptr time_derivative_;
 
-    scalar_type D_     = scalar_type( 1 );
     scalar_type gamma_ = scalar_type( 1 );
 };
 

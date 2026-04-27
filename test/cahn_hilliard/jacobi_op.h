@@ -3,6 +3,7 @@
 
 #include "include/boundary.h" // for boundary conditions
 #include "kernels/jacobi_op.h"
+#include "kernels/mobility.h"
 
 #include <memory>
 #include <scfd/static_vec/vec.h>
@@ -16,6 +17,7 @@ template <
     class Log,
     class PhobicEnergy,
     class TimeDerivative,
+    class Mobility,
     /**********************************************/
     class Backend = typename VectorSpace::backend_type>
 class jacobi_op
@@ -49,7 +51,8 @@ public: // Especially for SYCL
         vector_type,
         grid_step_type,
         boundary_cond_type,
-        PhobicEnergy>;
+        PhobicEnergy,
+        Mobility>;
 
 public:
     jacobi_op( vector_space_ptr vspace, grid_step_type step, boundary_cond_type b_cond, time_derivative_ptr time_derivative )
@@ -101,18 +104,18 @@ public:
     {
         return b_cond_;
     }
-    scalar_type get_D() const noexcept
-    {
-        return D_;
-    }
     scalar_type get_gamma() const noexcept
     {
         return gamma_;
     }
-
-    void set_D( scalar_type D )
+    Mobility get_mobility() const noexcept
     {
-        D_ = D;
+        return mobility_;
+    }
+
+    void set_mobility( const Mobility &mobility )
+    {
+        mobility_ = mobility;
     }
     void set_gamma( scalar_type gamma )
     {
@@ -147,7 +150,19 @@ public:
     {
         for_each_nd_type for_each_nd_inst;
         for_each_nd_inst(
-            jacobi_op_kernel{ in, out, *lin_vector_wrap_, range_, step_, b_cond_, phobic_en_, time_derivative_->get_dt_inf(), D_, gamma_ }, range_
+            jacobi_op_kernel{
+                in,
+                out,
+                *lin_vector_wrap_,
+                range_,
+                step_,
+                b_cond_,
+                phobic_en_,
+                mobility_,
+                time_derivative_->get_dt_inf(),
+                gamma_
+            },
+            range_
         );
     };
 
@@ -160,9 +175,9 @@ private:
     using vector_wrap_t = nmfd::detail::vector_wrap<VectorSpace, true, true>;
     vector_wrap_t       lin_vector_wrap_;
     PhobicEnergy        phobic_en_;
+    Mobility            mobility_;
     time_derivative_ptr time_derivative_;
 
-    scalar_type D_     = scalar_type( 1 );
     scalar_type gamma_ = scalar_type( 1 );
 };
 

@@ -8,6 +8,35 @@
 namespace tests
 {
 
+template <class IdxND, class Scalar, class TensorType, class VectorType>
+__DEVICE_TAG__ TensorType periodic_bc_vector(
+    const VectorType       &vector,
+    const IdxND            &idx,
+    int                     axis,
+    int                     N,
+    bool                    is_left
+)
+{
+    TensorType periodic_vals;
+    #pragma unroll
+    for ( int c = 0; c < TensorType::dim; ++c )
+    {
+        IdxND periodic_idx = idx;
+        if ( idx[axis] == 0 )
+        {
+            periodic_idx[axis] = is_left ? N - 1 : 1;
+        }
+
+        if ( idx[axis] == N - 1 )
+        {
+            periodic_idx[axis] = is_left ? N - 2 : 0;
+        }
+
+        periodic_vals[c] = vector.get_vec( periodic_idx )[c];
+    }
+
+    return periodic_vals;
+}
 
 template <class VectorSpace>
 class boundary_cond
