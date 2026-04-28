@@ -1,8 +1,12 @@
 #ifndef __SCFD_DG_DEVICE_DG_BASIS_REFERENCE_H__
 #define __SCFD_DG_DEVICE_DG_BASIS_REFERENCE_H__
 
+#include <cmath>
+
 #include "device_polynom_reference.h"
 #include "polylen_static.h"
+
+#include <nmfd/dg/device_dg_qubature_ref.h>
 
 namespace scfd
 {

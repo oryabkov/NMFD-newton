@@ -1,6 +1,6 @@
 
 #include <iostream>
-#include <scfd/dg/detail/polynom_indexing.h>
+#include <nmfd/dg/detail/polynom_indexing.h>
 
 using namespace scfd::dg::detail;
 
