@@ -19,6 +19,7 @@
 
 #include <scfd/utils/log_std.h>
 
+#define PLATFORM_HIP
 
 #if defined( PLATFORM_SERIAL_CPU )
 #    include "serial_cpu.h"
@@ -44,6 +45,20 @@ namespace backend
 
 template <class Type, class Log = scfd::utils::log_std>
 using current = cuda<Type, Log>;
+
+} // namespace backend
+} // namespace nmfd
+
+#elif defined( PLATFORM_HIP )
+#    include "hip.h"
+
+namespace nmfd
+{
+namespace backend
+{
+
+template <class Type, class Log = scfd::utils::log_std>
+using current = hip<Type, Log>;
 
 } // namespace backend
 } // namespace nmfd

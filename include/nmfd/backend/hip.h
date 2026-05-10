@@ -17,10 +17,9 @@
 #ifndef __NMFD_BACKEND_CUDA_H__
 #define __NMFD_BACKEND_CUDA_H__
 
-#include <scfd/external_libraries/cublas_wrap.h>
-#include <scfd/external_libraries/cusolver_wrap.h>
+#include <scfd/external_libraries/hipblas_wrap.h>
 #include <scfd/utils/log_std.h>
-#include <scfd/backend/cuda.h>
+#include <scfd/backend/hip.h>
 
 #include <nmfd/operations/dense_operations_cuda_hip.h>
 #include <nmfd/operations/dense_vector_space.h>
@@ -31,17 +30,17 @@ namespace backend
 {
 
 template <class Type, class Log = scfd::utils::log_std>
-class cuda : public scfd::backend::cuda
+class hip : public scfd::backend::hip
 {
     using traits_type = operations::detail::scfd_array_traits<Type, memory_type>;
 
 public:
     using log_type              = Log;
-    using scfd_backend_type     = scfd::backend::cuda;
+    using scfd_backend_type     = scfd::backend::hip;
     using vector_space_type     = operations::dense_vector_space<traits_type, scfd_backend_type>;
     using dense_operations_type = operations::dense_operations_cuda_hip<Type, scfd_backend_type>;
-    using cublas_t              = scfd::cublas_wrap;
-    using cusolver_t            = scfd::cusolver_wrap;
+    using cublas_t              = scfd::hipblas_wrap;
+    using cusolver_t            = scfd::hipsolver_wrap;
 
 public:
     log_type &log()
@@ -51,18 +50,18 @@ public:
 
     cublas_t &cublas()
     {
-        return scfd::cublas_wrap::inst();
+        return scfd::hipblas_wrap::inst();
     }
 
     cusolver_t &cusolver()
     {
-        return scfd::cusolver_wrap::inst();
+        return scfd::hipsolver_wrap::inst();
     }
 
 protected:
-    scfd::cublas_wrap   cublas_{ true };
-    scfd::cusolver_wrap cusolver_{ &cublas_, true };
-    log_type            log_;
+    scfd::hipblas_wrap   hipblas_{ true };
+    scfd::hipsolver_wrap hipsolver_{ &hipblas_, true };
+    log_type             log_;
 };
 
 } /// namespace backend
