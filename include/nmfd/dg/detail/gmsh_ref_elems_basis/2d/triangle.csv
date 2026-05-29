@@ -1,0 +1,11 @@
+,*1,*x,*y,*x^2,*x*y,*y^2,*x^3,*x^2*y,*x*y^2,*y^3
+0,sqrt(2),,,,,,,,,
+1, -2,6*x,,,,,,,,
+2, -2*sqrt(3),2*sqrt(3)*x, 4*sqrt(3)*y,,,,,,,
+3, sqrt(6), -8*sqrt(6)*x,,10*sqrt(6)*x^2,,,,,,
+4, 3*sqrt(2),   -18*sqrt(2)*x, -6*sqrt(2)*y,15*sqrt(2)*x^2, 30*sqrt(2)*x*y,,,,,
+5, sqrt(30),   -2*sqrt(30)*x, -6*sqrt(30)*y,sqrt(30)*x^2, 6*sqrt(30)*x*y, 6*sqrt(30)*y^2,,,,
+6, -2*sqrt(2), 30*sqrt(2)*x,, -90*sqrt(2)*x^2,,,70*sqrt(2)*x^3,,,
+7, -2*sqrt(6),   26*sqrt(6)*x, 4*sqrt(6)*y, -66*sqrt(6)*x^2, -48*sqrt(6)*x*y,,42*sqrt(6)*x^3, 84*sqrt(6)*x^2*y,,
+8,   -2*sqrt(10), 18*sqrt(10)*x, 12*sqrt(10)*y, -30*sqrt(10)*x^2,   -96*sqrt(10)*x*y, -12*sqrt(10)*y^2,14*sqrt(10)*x^3, 84*sqrt(10)*x^2*y, 84*sqrt(10)*x*y^2,
+9, -2*sqrt(14), 6*sqrt(14)*x, 24*sqrt(14)*y, -6*sqrt(14)*x^2, -48*sqrt(14)*x*y,   -60*sqrt(14)*y^2,2*sqrt(14)*x^3, 24*sqrt(14)*x^2*y,   60*sqrt(14)*x*y^2, 40*sqrt(14)*y^3
