@@ -96,11 +96,23 @@ struct jacobi_pre_kernel
             const Scalar mobility_deriv_minus_half = mobility.get_derivative( ( prev_lin_vec[1] + lin_curr[1] ) / Scalar( 2 ) );
 
             mat( 0, 0 ) += mobility(lin_curr[1]) * diag_j[0] / Scalar(hj * hj);
-            mat( 0, 1 ) += (
-                mobility_deriv_plus_half * next_lin_vec[0] +
+            // ============ VARIANT 1: continuous linearization ============
+            // Слагаемое M' * (grad(d_phi) . grad(psi)) при центральных разностях
+            // не содержит d_phi_i, поэтому вклада в диагональ нет.
+            // mat( 0, 1 ) += (
+            //     mobility_deriv_plus_half  * next_lin_vec[0] +
+            //     mobility_deriv_minus_half * prev_lin_vec[0] -
+            //     ( mobility_deriv_plus_half + mobility_deriv_minus_half ) * lin_curr[0]
+            // ) / Scalar( hj * hj );
+
+            // ============ VARIANT 2: discrete linearization ============
+            // // Только диагональный коэффициент при d_phi_i, с множителем 1/2
+            mat( 0, 1 ) += Scalar( 0.5 ) * (
+                mobility_deriv_plus_half  * next_lin_vec[0] +
                 mobility_deriv_minus_half * prev_lin_vec[0] -
                 ( mobility_deriv_plus_half + mobility_deriv_minus_half ) * lin_curr[0]
             ) / Scalar( hj * hj );
+
             mat( 1, 1 ) += gamma * diag_j[1] / Scalar(hj * hj);
         }
         mat( 0, 1 ) -= dt_inf;

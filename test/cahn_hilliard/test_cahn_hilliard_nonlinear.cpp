@@ -69,6 +69,7 @@ using monitor_funcs_ptr = default_monitor_t::custom_funcs_ptr;
 // Problem
 // using phobic_energy_t = tests::double_well_potential<scalar>;
 using phobic_energy_t   = tests::logarithmic_potential<scalar>;
+// using mobility_t        = tests::constant_mobility<scalar>;
 using mobility_t        = tests::parabolic_mobility<scalar>;
 using rhs_t             = tests::zero_rhs<scalar, tensor_t>;
 using time_derivative_t = tests::time_derivative<vec_ops_t, tensor_t>;

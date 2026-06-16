@@ -113,11 +113,39 @@ struct jacobi_op_kernel
             ) / Scalar( hj * hj );
 
             // [eq.1] div(M'(phi_lin) grad(psi)) * d_phi
-            state[0] += (
-                mobility_deriv_plus_half * next_lin_vec[0] +
+            // ============ VARIANT 1: continuous linearization ============
+            // div(M'(phi_lin) grad(psi)) * d_phi  +  M'(phi_lin) * (grad(d_phi) . grad(psi))
+            // state[0] += (
+            //     mobility_deriv_plus_half  * next_lin_vec[0] +
+            //     mobility_deriv_minus_half * prev_lin_vec[0] -
+            //     ( mobility_deriv_plus_half + mobility_deriv_minus_half ) * lin_curr[0]
+            // ) / Scalar( hj * hj ) * curr[1];
+
+            // // M'_i = (M'_{i+1/2} + M'_{i-1/2}) / 2
+            // // d(d_phi)/dx_j = ( d_phi_{i+1} - d_phi_{i-1} ) / (2 h_j)
+            // // d(psi)/dx_j   = ( psi_{i+1}   - psi_{i-1}   ) / (2 h_j)
+            // state[0] += ( mobility_deriv_plus_half + mobility_deriv_minus_half )
+            //         * ( next_vec[1]     - prev_vec[1]     )
+            //         * ( next_lin_vec[0] - prev_lin_vec[0] )
+            //         / Scalar( 8 * hj * hj );
+
+            // ============ VARIANT 2: discrete linearization ============
+            // 1/2 * div(M'(phi_lin) grad(psi)) * d_phi_i
+            state[0] += Scalar( 0.5 ) * (
+                mobility_deriv_plus_half  * next_lin_vec[0] +
                 mobility_deriv_minus_half * prev_lin_vec[0] -
                 ( mobility_deriv_plus_half + mobility_deriv_minus_half ) * lin_curr[0]
             ) / Scalar( hj * hj ) * curr[1];
+
+            // + M'_{i+1/2} * (psi_{i+1} - psi_i) / (2 h^2) * d_phi_{i+1}
+            state[0] += mobility_deriv_plus_half
+                      * ( next_lin_vec[0] - lin_curr[0] )
+                      / Scalar( 2 * hj * hj ) * next_vec[1];
+
+            // - M'_{i-1/2} * (psi_i - psi_{i-1}) / (2 h^2) * d_phi_{i-1}
+            state[0] -= mobility_deriv_minus_half
+                      * ( lin_curr[0] - prev_lin_vec[0] )
+                      / Scalar( 2 * hj * hj ) * prev_vec[1];
 
             // [eq.2] gamma * laplace(d_phi)
             state[1] += gamma * ( next_vec[1] + prev_vec[1] - Scalar(2) * curr[1] ) / Scalar(hj * hj);
