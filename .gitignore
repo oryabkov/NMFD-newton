@@ -9,3 +9,4 @@
 .clangd
 .clang-format
 **/#*#
+.serena/
