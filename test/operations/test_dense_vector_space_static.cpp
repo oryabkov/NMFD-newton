@@ -1,9 +1,9 @@
 #include <memory>
 
 #include <scfd/utils/log.h>
-#include <scfd/backend/backend.h>
+#include <scfd/backend/serial_cpu.h>
 
-#include <nmfd/operations/detail/scfd_array_traits.h>
+#include <nmfd/operations/detail/static_vector_traits.h>
 #include <nmfd/operations/dense_vector_space.h>
 
 #ifndef USE_DOUBLE_PRECISION
@@ -19,10 +19,9 @@ int main( int argc, char const *args[] )
     using log_t                = scfd::utils::log_std;
     using T                    = scalar;
     static const int Dim       = 3;
-    using backend_type         = scfd::backend::current;
-    using memory_type          = backend_type::memory_type;
-    using vector_type          = scfd::arrays::array<T, memory_type>;
-    using vector_traits        = nmfd::operations::detail::scfd_array_traits<T, memory_type>;
+    using vector_type          = std::array<T, Dim>;
+    using vector_traits        = nmfd::operations::detail::static_vector_traits<T, Dim>;
+    using backend_type         = scfd::backend::serial_cpu;
     using dense_vector_space_t = nmfd::operations::dense_vector_space<vector_traits, backend_type>;
 
     log_t log;
@@ -31,7 +30,7 @@ int main( int argc, char const *args[] )
     size_t failed_counter = 0;
 
     // Initialize vector space and test vectors
-    std::shared_ptr<dense_vector_space_t> vec_space = std::make_shared<dense_vector_space_t>( Dim );
+    std::shared_ptr<dense_vector_space_t> vec_space = std::make_shared<dense_vector_space_t>();
     vector_type                           x         = { 1, 2, 3 };
     vector_type                           y         = { 4, 5, 6 };
 
@@ -256,8 +255,7 @@ int main( int argc, char const *args[] )
     {
         vector_type tmp_x = { 1, 2, 3 };
         vec_space->set_value_at_point( 10, 0, tmp_x );
-        const auto tmp_x_view = tmp_x.create_view( true );
-        if ( ( tmp_x_view( 0 ) - 10 ) < eps && ( tmp_x_view( 1 ) - 2 ) < eps && ( tmp_x_view( 2 ) - 3 ) < eps )
+        if ( ( tmp_x[0] - 10 ) < eps && ( tmp_x[1] - 2 ) < eps && ( tmp_x[2] - 3 ) < eps )
         {
             log.info( "✓ `set_value_at_point(val_x, at, x)` method test passed" );
             passed_counter++;
@@ -267,8 +265,7 @@ int main( int argc, char const *args[] )
             log.error(
                 "✗ `set_value_at_point(val_x, at, x)` method test failed. "
                 "Expected {10, 2, 3} but got {" +
-                std::to_string( tmp_x_view( 0 ) ) + ", " + std::to_string( tmp_x_view( 1 ) ) + ", " +
-                std::to_string( tmp_x_view( 2 ) ) + "}"
+                std::to_string( tmp_x[0] ) + ", " + std::to_string( tmp_x[1] ) + ", " + std::to_string( tmp_x[2] ) + "}"
             );
             failed_counter++;
         }
@@ -276,10 +273,9 @@ int main( int argc, char const *args[] )
 
     // Test getting value at specific index
     {
-        vector_type tmp_x      = { 1, 2, 3 };
-        T           value      = vec_space->get_value_at_point( 0, tmp_x );
-        const auto  tmp_x_view = tmp_x.create_view( true );
-        if ( ( value - 1 ) < eps && ( tmp_x_view( 1 ) - 2 ) < eps && ( tmp_x_view( 2 ) - 3 ) < eps )
+        vector_type tmp_x = { 1, 2, 3 };
+        T           value = vec_space->get_value_at_point( 0, tmp_x );
+        if ( ( value - 1 ) < eps && ( tmp_x[1] - 2 ) < eps && ( tmp_x[2] - 3 ) < eps )
         {
             log.info( "✓ `get_value_at_point(at, x)` method test passed" );
             passed_counter++;
@@ -304,8 +300,7 @@ int main( int argc, char const *args[] )
     {
         vector_type tmp_x = { 1, 2, 3 };
         vec_space->assign_scalar( 10, tmp_x );
-        const auto tmp_x_view = tmp_x.create_view( true );
-        if ( ( tmp_x_view( 0 ) - 10 ) < eps && ( tmp_x_view( 1 ) - 10 ) < eps && ( tmp_x_view( 2 ) - 10 ) < eps )
+        if ( ( tmp_x[0] - 10 ) < eps && ( tmp_x[1] - 10 ) < eps && ( tmp_x[2] - 10 ) < eps )
         {
             log.info( "✓ `assign_scalar(scalar, x)` method test passed" );
             passed_counter++;
@@ -315,8 +310,7 @@ int main( int argc, char const *args[] )
             log.error(
                 "✗ `assign_scalar(scalar, x)` method test failed. Expected "
                 "{10, 10, 10} but got {" +
-                std::to_string( tmp_x_view( 0 ) ) + ", " + std::to_string( tmp_x_view( 1 ) ) + ", " +
-                std::to_string( tmp_x_view( 2 ) ) + "}"
+                std::to_string( tmp_x[0] ) + ", " + std::to_string( tmp_x[1] ) + ", " + std::to_string( tmp_x[2] ) + "}"
             );
             failed_counter++;
         }
@@ -326,8 +320,7 @@ int main( int argc, char const *args[] )
     {
         vector_type tmp_x = { 1, 2, 3 };
         vec_space->add_mul_scalar( 10, 2, tmp_x ); // x = 2*x + 10 = {2*1+10, 2*2+10, 2*3+10} = {12, 14, 16}
-        const auto tmp_x_view = tmp_x.create_view( true );
-        if ( ( tmp_x_view( 0 ) - 12 ) < eps && ( tmp_x_view( 1 ) - 14 ) < eps && ( tmp_x_view( 2 ) - 16 ) < eps )
+        if ( ( tmp_x[0] - 12 ) < eps && ( tmp_x[1] - 14 ) < eps && ( tmp_x[2] - 16 ) < eps )
         {
             log.info( "✓ `add_mul_scalar(scalar, mul_x, x)` method test passed" );
             passed_counter++;
@@ -337,8 +330,7 @@ int main( int argc, char const *args[] )
             log.error(
                 "✗ `add_mul_scalar(scalar, mul_x, x)` method test failed. "
                 "Expected {12, 14, 16} but got {" +
-                std::to_string( tmp_x_view( 0 ) ) + ", " + std::to_string( tmp_x_view( 1 ) ) + ", " +
-                std::to_string( tmp_x_view( 2 ) ) + "}"
+                std::to_string( tmp_x[0] ) + ", " + std::to_string( tmp_x[1] ) + ", " + std::to_string( tmp_x[2] ) + "}"
             );
             failed_counter++;
         }
@@ -354,8 +346,7 @@ int main( int argc, char const *args[] )
         vector_type tmp_x = { 1, 2, 3 };
         vector_type tmp_y = { 0, 0, 0 };
         vec_space->assign( tmp_x, tmp_y );
-        const auto tmp_y_view = tmp_y.create_view( true );
-        if ( ( tmp_y_view( 0 ) - 1 ) < eps && ( tmp_y_view( 1 ) - 2 ) < eps && ( tmp_y_view( 2 ) - 3 ) < eps )
+        if ( ( tmp_y[0] - 1 ) < eps && ( tmp_y[1] - 2 ) < eps && ( tmp_y[2] - 3 ) < eps )
         {
             log.info( "✓ `assign(x, y)` method test passed" );
             passed_counter++;
@@ -363,9 +354,8 @@ int main( int argc, char const *args[] )
         else
         {
             log.error(
-                "✗ `assign(x, y)` method test failed. Expected {1, 2, 3} but got {" +
-                std::to_string( tmp_y_view( 0 ) ) + ", " + std::to_string( tmp_y_view( 1 ) ) + ", " +
-                std::to_string( tmp_y_view( 2 ) ) + "}"
+                "✗ `assign(x, y)` method test failed. Expected {1, 2, 3} but got {" + std::to_string( tmp_y[0] ) +
+                ", " + std::to_string( tmp_y[1] ) + ", " + std::to_string( tmp_y[2] ) + "}"
             );
             failed_counter++;
         }
@@ -377,8 +367,7 @@ int main( int argc, char const *args[] )
         vector_type tmp_y = { 0, 0, 0 };
         vec_space->assign_lin_comb( 2, tmp_x,
                                     tmp_y ); // y = 2 * {1, 2, 3} = {2, 4, 6}
-        const auto tmp_y_view = tmp_y.create_view( true );
-        if ( ( tmp_y_view( 0 ) - 2 ) < eps && ( tmp_y_view( 1 ) - 4 ) < eps && ( tmp_y_view( 2 ) - 6 ) < eps )
+        if ( ( tmp_y[0] - 2 ) < eps && ( tmp_y[1] - 4 ) < eps && ( tmp_y[2] - 6 ) < eps )
         {
             log.info( "✓ `assign_lin_comb(mul_x, x, y)` method test passed" );
             passed_counter++;
@@ -388,8 +377,7 @@ int main( int argc, char const *args[] )
             log.error(
                 "✗ `assign_lin_comb(mul_x, x, y)` method test failed. Expected "
                 "{2, 4, 6} but got {" +
-                std::to_string( tmp_y_view( 0 ) ) + ", " + std::to_string( tmp_y_view( 1 ) ) + ", " +
-                std::to_string( tmp_y_view( 2 ) ) + "}"
+                std::to_string( tmp_y[0] ) + ", " + std::to_string( tmp_y[1] ) + ", " + std::to_string( tmp_y[2] ) + "}"
             );
             failed_counter++;
         }
@@ -404,8 +392,7 @@ int main( int argc, char const *args[] )
             2, tmp_x, 3, tmp_y,
             tmp_z
         ); // z = 2*{1,2,3} + 3*{4,5,6} = {2,4,6} + {12,15,18} = {14,19,24}
-        const auto tmp_z_view = tmp_z.create_view( true );
-        if ( ( tmp_z_view( 0 ) - 14 ) < eps && ( tmp_z_view( 1 ) - 19 ) < eps && ( tmp_z_view( 2 ) - 24 ) < eps )
+        if ( ( tmp_z[0] - 14 ) < eps && ( tmp_z[1] - 19 ) < eps && ( tmp_z[2] - 24 ) < eps )
         {
             log.info( "✓ `assign_lin_comb(mul_x, x, mul_y, y, z)` method test passed" );
             passed_counter++;
@@ -415,8 +402,7 @@ int main( int argc, char const *args[] )
             log.error(
                 "✗ `assign_lin_comb(mul_x, x, mul_y, y, z)` method test "
                 "failed. Expected {14, 19, 24} but got {" +
-                std::to_string( tmp_z_view( 0 ) ) + ", " + std::to_string( tmp_z_view( 1 ) ) + ", " +
-                std::to_string( tmp_z_view( 2 ) ) + "}"
+                std::to_string( tmp_z[0] ) + ", " + std::to_string( tmp_z[1] ) + ", " + std::to_string( tmp_z[2] ) + "}"
             );
             failed_counter++;
         }
@@ -433,8 +419,7 @@ int main( int argc, char const *args[] )
         vector_type tmp_y = { 4, 5, 6 };
         vec_space->add_lin_comb( 2, tmp_x,
                                  tmp_y ); // y = {4,5,6} + 2*{1,2,3} = {4,5,6} + {2,4,6} = {6,9,12}
-        const auto tmp_y_view = tmp_y.create_view( true );
-        if ( ( tmp_y_view( 0 ) - 6 ) < eps && ( tmp_y_view( 1 ) - 9 ) < eps && ( tmp_y_view( 2 ) - 12 ) < eps )
+        if ( ( tmp_y[0] - 6 ) < eps && ( tmp_y[1] - 9 ) < eps && ( tmp_y[2] - 12 ) < eps )
         {
             log.info( "✓ `add_lin_comb(mul_x, x, y)` method test passed" );
             passed_counter++;
@@ -444,8 +429,7 @@ int main( int argc, char const *args[] )
             log.error(
                 "✗ `add_lin_comb(mul_x, x, y)` method test failed. Expected "
                 "{6, 9, 12} but got {" +
-                std::to_string( tmp_y_view( 0 ) ) + ", " + std::to_string( tmp_y_view( 1 ) ) + ", " +
-                std::to_string( tmp_y_view( 2 ) ) + "}"
+                std::to_string( tmp_y[0] ) + ", " + std::to_string( tmp_y[1] ) + ", " + std::to_string( tmp_y[2] ) + "}"
             );
             failed_counter++;
         }
@@ -457,8 +441,7 @@ int main( int argc, char const *args[] )
         vector_type tmp_y = { 4, 5, 6 };
         vec_space->add_lin_comb( 2, tmp_x, 3,
                                  tmp_y ); // y = 2*{1,2,3} + 3*{4,5,6} = {2,4,6} + {12,15,18} = {14,19,24}
-        const auto tmp_y_view = tmp_y.create_view( true );
-        if ( ( tmp_y_view( 0 ) - 14 ) < eps && ( tmp_y_view( 1 ) - 19 ) < eps && ( tmp_y_view( 2 ) - 24 ) < eps )
+        if ( ( tmp_y[0] - 14 ) < eps && ( tmp_y[1] - 19 ) < eps && ( tmp_y[2] - 24 ) < eps )
         {
             log.info( "✓ `add_lin_comb(mul_x, x, mul_y, y)` method test passed" );
             passed_counter++;
@@ -468,8 +451,7 @@ int main( int argc, char const *args[] )
             log.error(
                 "✗ `add_lin_comb(mul_x, x, mul_y, y)` method test failed. "
                 "Expected {14, 19, 24} but got {" +
-                std::to_string( tmp_y_view( 0 ) ) + ", " + std::to_string( tmp_y_view( 1 ) ) + ", " +
-                std::to_string( tmp_y_view( 2 ) ) + "}"
+                std::to_string( tmp_y[0] ) + ", " + std::to_string( tmp_y[1] ) + ", " + std::to_string( tmp_y[2] ) + "}"
             );
             failed_counter++;
         }
@@ -485,8 +467,7 @@ int main( int argc, char const *args[] )
             tmp_z
         ); // z = 2*{1,2,3} + 3*{4,5,6} + 4*{7,8,9} = {2,4,6} + {12,15,18}
             // + {28,32,36} = {42,51,60}
-        const auto tmp_z_view = tmp_z.create_view( true );
-        if ( ( tmp_z_view( 0 ) - 42 ) < eps && ( tmp_z_view( 1 ) - 51 ) < eps && ( tmp_z_view( 2 ) - 60 ) < eps )
+        if ( ( tmp_z[0] - 42 ) < eps && ( tmp_z[1] - 51 ) < eps && ( tmp_z[2] - 60 ) < eps )
         {
             log.info( "✓ `add_lin_comb(mul_x, x, mul_y, y, mul_z, z)` method test passed" );
             passed_counter++;
@@ -496,8 +477,7 @@ int main( int argc, char const *args[] )
             log.error(
                 "✗ `add_lin_comb(mul_x, x, mul_y, y, mul_z, z)` method test "
                 "failed. Expected {42, 51, 60} but got {" +
-                std::to_string( tmp_z_view( 0 ) ) + ", " + std::to_string( tmp_z_view( 1 ) ) + ", " +
-                std::to_string( tmp_z_view( 2 ) ) + "}"
+                std::to_string( tmp_z[0] ) + ", " + std::to_string( tmp_z[1] ) + ", " + std::to_string( tmp_z[2] ) + "}"
             );
             failed_counter++;
         }
@@ -513,8 +493,7 @@ int main( int argc, char const *args[] )
         vector_type tmp_x = { 1, -2, 3 };
         vector_type tmp_y = { 0, 0, 0 };
         vec_space->make_abs_copy( tmp_x, tmp_y );
-        const auto tmp_y_view = tmp_y.create_view( true );
-        if ( ( tmp_y_view( 0 ) - 1 ) < eps && ( tmp_y_view( 1 ) - 2 ) < eps && ( tmp_y_view( 2 ) - 3 ) < eps )
+        if ( ( tmp_y[0] - 1 ) < eps && ( tmp_y[1] - 2 ) < eps && ( tmp_y[2] - 3 ) < eps )
         {
             log.info( "✓ `make_abs_copy(x, y)` method test passed" );
             passed_counter++;
@@ -524,8 +503,7 @@ int main( int argc, char const *args[] )
             log.error(
                 "✗ `make_abs_copy(x, y)` method test failed. Expected {1, 2, "
                 "3} but got {" +
-                std::to_string( tmp_y_view( 0 ) ) + ", " + std::to_string( tmp_y_view( 1 ) ) + ", " +
-                std::to_string( tmp_y_view( 2 ) ) + "}"
+                std::to_string( tmp_y[0] ) + ", " + std::to_string( tmp_y[1] ) + ", " + std::to_string( tmp_y[2] ) + "}"
             );
             failed_counter++;
         }
@@ -535,8 +513,7 @@ int main( int argc, char const *args[] )
     {
         vector_type tmp_x = { 1, -2, 3 };
         vec_space->make_abs( tmp_x );
-        const auto tmp_x_view = tmp_x.create_view( true );
-        if ( ( tmp_x_view( 0 ) - 1 ) < eps && ( tmp_x_view( 1 ) - 2 ) < eps && ( tmp_x_view( 2 ) - 3 ) < eps )
+        if ( ( tmp_x[0] - 1 ) < eps && ( tmp_x[1] - 2 ) < eps && ( tmp_x[2] - 3 ) < eps )
         {
             log.info( "✓ `make_abs(x)` method test passed" );
             passed_counter++;
@@ -544,8 +521,8 @@ int main( int argc, char const *args[] )
         else
         {
             log.error(
-                "✗ `make_abs(x)` method test failed. Expected {1, 2, 3} but got {" + std::to_string( tmp_x_view( 0 ) ) +
-                ", " + std::to_string( tmp_x_view( 1 ) ) + ", " + std::to_string( tmp_x_view( 2 ) ) + "}"
+                "✗ `make_abs(x)` method test failed. Expected {1, 2, 3} but got {" + std::to_string( tmp_x[0] ) + ", " +
+                std::to_string( tmp_x[1] ) + ", " + std::to_string( tmp_x[2] ) + "}"
             );
             failed_counter++;
         }
@@ -565,8 +542,7 @@ int main( int argc, char const *args[] )
             tmp_y
         ); // y = max(2, {1,-2,3}, {4,5,-6}) = max(2, max({1,-2,3},
             // {4,5,-6})) = max(2, {4,5,3}) = {4,5,3}
-        const auto tmp_y_view = tmp_y.create_view( true );
-        if ( ( tmp_y_view( 0 ) - 4 ) < eps && ( tmp_y_view( 1 ) - 5 ) < eps && ( tmp_y_view( 2 ) - 3 ) < eps )
+        if ( ( tmp_y[0] - 4 ) < eps && ( tmp_y[1] - 5 ) < eps && ( tmp_y[2] - 3 ) < eps )
         {
             log.info( "✓ `max_pointwise(sc, x, y)` method test passed" );
             passed_counter++;
@@ -576,8 +552,7 @@ int main( int argc, char const *args[] )
             log.error(
                 "✗ `max_pointwise(sc, x, y)` method test failed. Expected {4, "
                 "5, 3} but got {" +
-                std::to_string( tmp_y_view( 0 ) ) + ", " + std::to_string( tmp_y_view( 1 ) ) + ", " +
-                std::to_string( tmp_y_view( 2 ) ) + "}"
+                std::to_string( tmp_y[0] ) + ", " + std::to_string( tmp_y[1] ) + ", " + std::to_string( tmp_y[2] ) + "}"
             );
             failed_counter++;
         }
@@ -587,8 +562,7 @@ int main( int argc, char const *args[] )
     {
         vector_type tmp_x = { 1, -2, 3 };
         vec_space->max_pointwise( 2, tmp_x ); // x = max(2, {1,-2,3}) = {2, 2, 3}
-        const auto tmp_x_view = tmp_x.create_view( true );
-        if ( ( tmp_x_view( 0 ) - 2 ) < eps && ( tmp_x_view( 1 ) - 2 ) < eps && ( tmp_x_view( 2 ) - 3 ) < eps )
+        if ( ( tmp_x[0] - 2 ) < eps && ( tmp_x[1] - 2 ) < eps && ( tmp_x[2] - 3 ) < eps )
         {
             log.info( "✓ `max_pointwise(sc, x)` method test passed" );
             passed_counter++;
@@ -598,8 +572,7 @@ int main( int argc, char const *args[] )
             log.error(
                 "✗ `max_pointwise(sc, x)` method test failed. Expected {2, 2, "
                 "3} but got {" +
-                std::to_string( tmp_x_view( 0 ) ) + ", " + std::to_string( tmp_x_view( 1 ) ) + ", " +
-                std::to_string( tmp_x_view( 2 ) ) + "}"
+                std::to_string( tmp_x[0] ) + ", " + std::to_string( tmp_x[1] ) + ", " + std::to_string( tmp_x[2] ) + "}"
             );
             failed_counter++;
         }
@@ -614,8 +587,7 @@ int main( int argc, char const *args[] )
             tmp_y
         ); // y = min(2, {1,-2,3}, {4,5,-6}) = min(2, min({1,-2,3},
             // {4,5,-6})) = min(2, {1,-2,-6}) = {1,-2,-6}
-        const auto tmp_y_view = tmp_y.create_view( true );
-        if ( ( tmp_y_view( 0 ) - 1 ) < eps && ( tmp_y_view( 1 ) + 2 ) < eps && ( tmp_y_view( 2 ) + 6 ) < eps )
+        if ( ( tmp_y[0] - 1 ) < eps && ( tmp_y[1] + 2 ) < eps && ( tmp_y[2] + 6 ) < eps )
         {
             log.info( "✓ `min_pointwise(sc, x, y)` method test passed" );
             passed_counter++;
@@ -625,8 +597,7 @@ int main( int argc, char const *args[] )
             log.error(
                 "✗ `min_pointwise(sc, x, y)` method test failed. Expected {1, "
                 "-2, -6} but got {" +
-                std::to_string( tmp_y_view( 0 ) ) + ", " + std::to_string( tmp_y_view( 1 ) ) + ", " +
-                std::to_string( tmp_y_view( 2 ) ) + "}"
+                std::to_string( tmp_y[0] ) + ", " + std::to_string( tmp_y[1] ) + ", " + std::to_string( tmp_y[2] ) + "}"
             );
             failed_counter++;
         }
@@ -636,8 +607,7 @@ int main( int argc, char const *args[] )
     {
         vector_type tmp_x = { 1, -2, 3 };
         vec_space->min_pointwise( 2, tmp_x ); // x = min(2, {1,-2,3}) = {1, -2, 2}
-        const auto tmp_x_view = tmp_x.create_view( true );
-        if ( ( tmp_x_view( 0 ) - 1 ) < eps && ( tmp_x_view( 1 ) + 2 ) < eps && ( tmp_x_view( 2 ) - 2 ) < eps )
+        if ( ( tmp_x[0] - 1 ) < eps && ( tmp_x[1] + 2 ) < eps && ( tmp_x[2] - 2 ) < eps )
         {
             log.info( "✓ `min_pointwise(sc, x)` method test passed" );
             passed_counter++;
@@ -647,8 +617,7 @@ int main( int argc, char const *args[] )
             log.error(
                 "✗ `min_pointwise(sc, x)` method test failed. Expected {1, -2, "
                 "2} but got {" +
-                std::to_string( tmp_x_view( 0 ) ) + ", " + std::to_string( tmp_x_view( 1 ) ) + ", " +
-                std::to_string( tmp_x_view( 2 ) ) + "}"
+                std::to_string( tmp_x[0] ) + ", " + std::to_string( tmp_x[1] ) + ", " + std::to_string( tmp_x[2] ) + "}"
             );
             failed_counter++;
         }
@@ -665,8 +634,7 @@ int main( int argc, char const *args[] )
         vector_type tmp_y = { 4, 5, 6 };
         vec_space->mul_pointwise( tmp_x, 2,
                                   tmp_y ); // x = {1,2,3} * (2 * {4,5,6}) = {1,2,3} * {8,10,12} = {8,20,36}
-        const auto tmp_x_view = tmp_x.create_view( true );
-        if ( ( tmp_x_view( 0 ) - 8 ) < eps && ( tmp_x_view( 1 ) - 20 ) < eps && ( tmp_x_view( 2 ) - 36 ) < eps )
+        if ( ( tmp_x[0] - 8 ) < eps && ( tmp_x[1] - 20 ) < eps && ( tmp_x[2] - 36 ) < eps )
         {
             log.info( "✓ `mul_pointwise(x, mul_y, y)` method test passed" );
             passed_counter++;
@@ -676,8 +644,7 @@ int main( int argc, char const *args[] )
             log.error(
                 "✗ `mul_pointwise(x, mul_y, y)` method test failed. Expected "
                 "{8, 20, 36} but got {" +
-                std::to_string( tmp_x_view( 0 ) ) + ", " + std::to_string( tmp_x_view( 1 ) ) + ", " +
-                std::to_string( tmp_x_view( 2 ) ) + "}"
+                std::to_string( tmp_x[0] ) + ", " + std::to_string( tmp_x[1] ) + ", " + std::to_string( tmp_x[2] ) + "}"
             );
             failed_counter++;
         }
@@ -693,8 +660,7 @@ int main( int argc, char const *args[] )
             tmp_z
         ); // z = (2*{1,2,3}) * (3*{4,5,6}) = {2,4,6}
             // * {12,15,18} = {24,60,108}
-        const auto tmp_z_view = tmp_z.create_view( true );
-        if ( ( tmp_z_view( 0 ) - 24 ) < eps && ( tmp_z_view( 1 ) - 60 ) < eps && ( tmp_z_view( 2 ) - 108 ) < eps )
+        if ( ( tmp_z[0] - 24 ) < eps && ( tmp_z[1] - 60 ) < eps && ( tmp_z[2] - 108 ) < eps )
         {
             log.info( "✓ `mul_pointwise(mul_x, x, mul_y, y, z)` method test passed" );
             passed_counter++;
@@ -704,8 +670,7 @@ int main( int argc, char const *args[] )
             log.error(
                 "✗ `mul_pointwise(mul_x, x, mul_y, y, z)` method test failed. "
                 "Expected {24, 60, 108} but got {" +
-                std::to_string( tmp_z_view( 0 ) ) + ", " + std::to_string( tmp_z_view( 1 ) ) + ", " +
-                std::to_string( tmp_z_view( 2 ) ) + "}"
+                std::to_string( tmp_z[0] ) + ", " + std::to_string( tmp_z[1] ) + ", " + std::to_string( tmp_z[2] ) + "}"
             );
             failed_counter++;
         }
@@ -721,9 +686,7 @@ int main( int argc, char const *args[] )
             tmp_z
         ); // z = (2*{1,2,3}) / (3*{4,5,6}) = {2,4,6}
             // / {12,15,18} = {2/12, 4/15, 6/18}
-        const auto tmp_z_view = tmp_z.create_view( true );
-        if ( ( 12 * tmp_z_view( 0 ) - 2 ) < eps && ( 15 * tmp_z_view( 1 ) - 4 ) < eps &&
-             ( 18 * tmp_z_view( 2 ) - 6 ) < eps )
+        if ( ( 12 * tmp_z[0] - 2 ) < eps && ( 15 * tmp_z[1] - 4 ) < eps && ( 18 * tmp_z[2] - 6 ) < eps )
         {
             log.info( "✓ `div_pointwise(mul_x, x, mul_y, y, z)` method test passed" );
             passed_counter++;
@@ -733,8 +696,7 @@ int main( int argc, char const *args[] )
             log.error(
                 "✗ `div_pointwise(mul_x, x, mul_y, y, z)` method test failed. "
                 "Expected {2/12, 4/15, 6/18} but got {" +
-                std::to_string( tmp_z_view( 0 ) ) + ", " + std::to_string( tmp_z_view( 1 ) ) + ", " +
-                std::to_string( tmp_z_view( 2 ) ) + "}"
+                std::to_string( tmp_z[0] ) + ", " + std::to_string( tmp_z[1] ) + ", " + std::to_string( tmp_z[2] ) + "}"
             );
             failed_counter++;
         }
@@ -749,9 +711,7 @@ int main( int argc, char const *args[] )
             tmp_y
         ); // x = {1,2,3} / (3 * {4,5,6}) = {1,2,3} /
             // {12,15,18} = {1/12, 2/15, 3/18}
-        const auto tmp_x_view = tmp_x.create_view( true );
-        if ( ( 12 * tmp_x_view( 0 ) - 1 ) < eps && ( 15 * tmp_x_view( 1 ) - 2 ) < eps &&
-             ( 18 * tmp_x_view( 2 ) - 3 ) < eps )
+        if ( ( 12 * tmp_x[0] - 1 ) < eps && ( 15 * tmp_x[1] - 2 ) < eps && ( 18 * tmp_x[2] - 3 ) < eps )
         {
             log.info( "✓ `div_pointwise(x, mul_y, y)` method test passed" );
             passed_counter++;
@@ -761,8 +721,7 @@ int main( int argc, char const *args[] )
             log.error(
                 "✗ `div_pointwise(x, mul_y, y)` method test failed. Expected "
                 "{1/12, 2/15, 3/18} but got {" +
-                std::to_string( tmp_x_view( 0 ) ) + ", " + std::to_string( tmp_x_view( 1 ) ) + ", " +
-                std::to_string( tmp_x_view( 2 ) ) + "}"
+                std::to_string( tmp_x[0] ) + ", " + std::to_string( tmp_x[1] ) + ", " + std::to_string( tmp_x[2] ) + "}"
             );
             failed_counter++;
         }
