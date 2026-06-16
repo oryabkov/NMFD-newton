@@ -19,6 +19,7 @@
 #include "jacobi_pre.h"
 
 #include <nmfd/solvers/gmres.h>
+#include <nmfd/solvers/iter_solver_base.h>
 #include <nmfd/solvers/jacobi.h>
 #include <nmfd/solvers/newton_iteration.h>
 #include <nmfd/solvers/nonlinear_solver.h>
@@ -29,6 +30,7 @@
 #include "error_monitor.h"
 #include "include/boundary.h"
 #include "kernels/phobic_energy.h"
+#include "kernels/mobility.h"
 #include "newton_convergence_monitor.h"
 #include "prolongator.h"
 #include "restrictor.h"
@@ -67,15 +69,16 @@ using monitor_funcs_ptr = default_monitor_t::custom_funcs_ptr;
 
 // Problem
 using phobic_energy = tests::double_well_potential<scalar>;
+using mobility_t    = tests::constant_mobility<scalar>;
 using rhs_t         = tests::trig_rhs<scalar, tensor_t, 3, 3, 1>;
 using time_derivative_t = tests::time_derivative<vec_ops_t, tensor_t>;
 
 // MG
 using prolongator_t = tests::prolongator<vec_ops_t, log_t>;
 using restrictor_t  = tests::restrictor<vec_ops_t, log_t>;
-using jacobi_op_t   = tests::jacobi_op<vec_ops_t, log_t, phobic_energy, time_derivative_t>;
+using jacobi_op_t   = tests::jacobi_op<vec_ops_t, log_t, phobic_energy, time_derivative_t, mobility_t>;
 using ident_op_t    = nmfd::preconditioners::dummy<vec_ops_t, jacobi_op_t>;
-using smoother_t    = tests::jacobi_pre<vec_ops_t, log_t, phobic_energy, time_derivative_t>;
+using smoother_t    = tests::jacobi_pre<vec_ops_t, log_t, phobic_energy, time_derivative_t, mobility_t>;
 using coarsening_t  = tests::coarsening<jacobi_op_t, log_t>;
 
 using precond_interface = nmfd::preconditioners::preconditioner_interface<vec_ops_t, jacobi_op_t>;
@@ -85,10 +88,14 @@ using mg_t =
 using mg_params_t = mg_t::params_hierarchy;
 using mg_utils_t  = mg_t::utils_hierarchy;
 
-using jacobi_solver = nmfd::solvers::jacobi<vec_ops_t, jacobi_op_t, precond_interface, default_monitor_t, log_t>;
+using jacobi_solver = nmfd::solvers::jacobi<vec_ops_t, jacobi_op_t, precond_interface, krylov_monitor_t, log_t>;
 using gmres_solver  = nmfd::solvers::gmres<vec_ops_t, krylov_monitor_t, log_t, jacobi_op_t, precond_interface>;
 
-using cahn_hilliard_op_t = tests::cahn_hilliard_op<vec_ops_t, jacobi_op_t, log_t, phobic_energy, rhs_t, time_derivative_t>;
+using cahn_hilliard_op_t = tests::cahn_hilliard_op<vec_ops_t, jacobi_op_t, log_t, phobic_energy, rhs_t, time_derivative_t, mobility_t>;
+using linsolver_base_t = nmfd::solvers::iter_solver_base<vec_ops_t, krylov_monitor_t, log_t, jacobi_op_t, precond_interface>;
+using newton_conv_monitor_t = tests::newton_convergence_monitor<vec_ops_t, log_t, cahn_hilliard_op_t, krylov_monitor_t, scalar>;
+using newton_iteration_t = nmfd::solvers::newton_iteration<vec_ops_t, cahn_hilliard_op_t, linsolver_base_t>;
+using newton_solver_t = nmfd::solvers::nonlinear_solver<vec_ops_t, log_t, cahn_hilliard_op_t, newton_iteration_t, newton_conv_monitor_t>;
 
 /**************************************/
 // Logging helpers
@@ -391,57 +398,17 @@ int main( int argc, char const *argv[] )
     double solve_time_ms;
     bool   converged;
 
+    std::shared_ptr<linsolver_base_t> lin_solver;
     if ( solver_type == "jacobi" )
     {
-        // Define types for jacobi solver
-        using newton_iteration_jacobi_t = nmfd::solvers::newton_iteration<vec_ops_t, cahn_hilliard_op_t, jacobi_solver>;
-        using newton_conv_monitor_jacobi_t = tests::newton_convergence_monitor<vec_ops_t, log_t, cahn_hilliard_op_t, default_monitor_t, scalar>;
-        using newton_solver_jacobi_t = nmfd::solvers::nonlinear_solver<vec_ops_t, log_t, cahn_hilliard_op_t, newton_iteration_jacobi_t, newton_conv_monitor_jacobi_t>;
-
         jacobi_solver::params solver_params;
         solver_params.monitor.rel_tol                  = tolerance;
         solver_params.monitor.max_iters_num            = max_iterations;
         solver_params.monitor.save_convergence_history = true;
-        auto jacobi_lin_solver = std::make_shared<jacobi_solver>( cahn_hilliard_jacobi_op, vspace, &log, solver_params, precond );
-
-        auto newton_iteration = std::make_shared<newton_iteration_jacobi_t>( vspace, jacobi_lin_solver );
-
-        // Create convergence monitor
-        auto get_monitor = [jacobi_lin_solver]() -> const default_monitor_t* {
-            return &(jacobi_lin_solver->monitor());
-        };
-        auto conv_monitor = std::make_shared<newton_conv_monitor_jacobi_t>(
-            vspace, cahn_hilliard_op, get_monitor, output_dir, solver_type, preconditioner_type, grid_size, &log );
-
-        auto error_monitor = std::make_shared<error_monitor_t>( vspace, exact_solution, &log );
-
-        auto newton_solver = std::make_shared<newton_solver_jacobi_t>( vspace, &log, newton_iteration );
-        newton_solver->convergence_strategy()->set_tolerance( newton_tol );
-
-        // Verify that F(exact_solution) is close to zero
-        vector_t F_exact( range );
-        cahn_hilliard_op->apply( exact_solution, F_exact );
-        scalar F_exact_norm = vspace->norm_l2( F_exact );
-        log.info_f( "Verification: ||F(exact_solution)||_2 = %le", static_cast<double>( F_exact_norm ) );
-
-        // Write initial residual (iteration 0) before Newton iterations start
-        conv_monitor->write_initial_residual( solution );
-
-        // Solve and measure time
-        {
-            Timer timer("Solve", false);
-            newton_solver->solve( cahn_hilliard_op.get(), conv_monitor.get(), nullptr, solution );
-            solve_time_ms = timer.stop_and_get_ms();
-            converged = true; // Newton solver doesn't return convergence status directly
-        }
+        lin_solver = std::make_shared<jacobi_solver>( cahn_hilliard_jacobi_op, vspace, &log, solver_params, precond );
     }
     else // gmres
     {
-        // Define types for gmres solver
-        using newton_iteration_gmres_t = nmfd::solvers::newton_iteration<vec_ops_t, cahn_hilliard_op_t, gmres_solver>;
-        using newton_conv_monitor_gmres_t = tests::newton_convergence_monitor<vec_ops_t, log_t, cahn_hilliard_op_t, krylov_monitor_t, scalar>;
-        using newton_solver_gmres_t = nmfd::solvers::nonlinear_solver<vec_ops_t, log_t, cahn_hilliard_op_t, newton_iteration_gmres_t, newton_conv_monitor_gmres_t>;
-
         gmres_solver::params params_gmres;
         params_gmres.monitor.rel_tol                      = tolerance;
         params_gmres.monitor.max_iters_num                = max_iterations;
@@ -450,38 +417,37 @@ int main( int argc, char const *argv[] )
         params_gmres.basis_size                           = gmres_basis;
         params_gmres.preconditioner_side                  = 'L';
         params_gmres.reorthogonalization                  = true;
-        auto gmres_lin_solver = std::make_shared<gmres_solver>( cahn_hilliard_jacobi_op, vspace, &log, params_gmres, precond );
+        lin_solver = std::make_shared<gmres_solver>( cahn_hilliard_jacobi_op, vspace, &log, params_gmres, precond );
+    }
 
-        auto newton_iteration = std::make_shared<newton_iteration_gmres_t>( vspace, gmres_lin_solver );
+    auto newton_iteration = std::make_shared<newton_iteration_t>( vspace, lin_solver );
 
-        // Create convergence monitor
-        auto get_monitor = [gmres_lin_solver]() -> const krylov_monitor_t* {
-            return &(gmres_lin_solver->monitor());
-        };
-        auto conv_monitor = std::make_shared<newton_conv_monitor_gmres_t>(
-            vspace, cahn_hilliard_op, get_monitor, output_dir, solver_type, preconditioner_type, grid_size, &log );
+    auto get_monitor = [lin_solver]() -> const krylov_monitor_t* {
+        return &(lin_solver->monitor());
+    };
+    auto conv_monitor = std::make_shared<newton_conv_monitor_t>(
+        vspace, cahn_hilliard_op, get_monitor, output_dir, solver_type, preconditioner_type, grid_size, &log );
 
-        auto error_monitor = std::make_shared<error_monitor_t>( vspace, exact_solution, &log );
+    auto error_monitor = std::make_shared<error_monitor_t>( vspace, exact_solution, &log );
 
-        auto newton_solver = std::make_shared<newton_solver_gmres_t>( vspace, &log, newton_iteration );
-        newton_solver->convergence_strategy()->set_tolerance( newton_tol );
+    auto newton_solver = std::make_shared<newton_solver_t>( vspace, &log, newton_iteration );
+    newton_solver->convergence_strategy()->set_tolerance( newton_tol );
 
-        // Verify that F(exact_solution) is close to zero
-        vector_t F_exact( range );
-        cahn_hilliard_op->apply( exact_solution, F_exact );
-        scalar F_exact_norm = vspace->norm_l2( F_exact );
-        log.info_f( "Verification: ||F(exact_solution)||_2 = %le", static_cast<double>( F_exact_norm ) );
+    // Verify that F(exact_solution) is close to zero
+    vector_t F_exact( range );
+    cahn_hilliard_op->apply( exact_solution, F_exact );
+    scalar F_exact_norm = vspace->norm_l2( F_exact );
+    log.info_f( "Verification: ||F(exact_solution)||_2 = %le", static_cast<double>( F_exact_norm ) );
 
-        // Write initial residual (iteration 0) before Newton iterations start
-        conv_monitor->write_initial_residual( solution );
+    // Write initial residual (iteration 0) before Newton iterations start
+    conv_monitor->write_initial_residual( solution );
 
-        // Solve and measure time
-        {
-            Timer timer("Solve", false);
-            newton_solver->solve( cahn_hilliard_op.get(), conv_monitor.get(), nullptr, solution );
-            solve_time_ms = timer.stop_and_get_ms();
-            converged = true; // Newton solver doesn't return convergence status directly
-        }
+    // Solve and measure time
+    {
+        Timer timer("Solve", false);
+        newton_solver->solve( cahn_hilliard_op.get(), conv_monitor.get(), nullptr, solution );
+        solve_time_ms = timer.stop_and_get_ms();
+        converged = true; // Newton solver doesn't return convergence status directly
     }
 
     // Final comparison

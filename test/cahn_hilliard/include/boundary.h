@@ -1,6 +1,7 @@
 #ifndef __BOUNDARY_H__
 #define __BOUNDARY_H__
 
+#include <iostream>
 #include <scfd/utils/device_tag.h>
 #include <scfd/utils/scalar_traits.h>
 #include <scfd/static_vec/vec.h>

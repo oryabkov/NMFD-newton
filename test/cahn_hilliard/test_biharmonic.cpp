@@ -5,6 +5,7 @@
 #include "coarsening.h"
 #include "include/boundary.h"
 #include "kernels/phobic_energy.h"
+#include "kernels/mobility.h"
 #include "prolongator.h"
 #include "restrictor.h"
 #include "time_derivative.h"
@@ -15,12 +16,14 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <iostream>
 #include <memory>
 #include <nmfd/operations/rect_vector_space.h>
 #include <nmfd/preconditioners/mg.h>
 #include <nmfd/preconditioners/dummy.h>
 #include <nmfd/solvers/default_monitor.h>
 #include <nmfd/solvers/gmres.h>
+#include <nmfd/solvers/iter_solver_base.h>
 #include <nmfd/solvers/jacobi.h>
 #include <nmfd/solvers/monitor_krylov.h>
 #include <scfd/backend/backend.h>
@@ -59,15 +62,16 @@ using monitor_funcs_t   = default_monitor_t::custom_funcs_type;
 using monitor_funcs_ptr = default_monitor_t::custom_funcs_ptr;
 
 using phobic_energy_t = tests::zero_potential<scalar>;
+using mobility_t      = tests::constant_mobility<scalar>;
 using zero_rhs_t      = tests::zero_rhs<scalar, tensor_t>;
 using rhs_t           = tests::trig_rhs<scalar, tensor_t>;
 using time_derivative_t = tests::time_derivative<vec_ops_t, tensor_t>;
 
 using prolongator_t = tests::prolongator<vec_ops_t, log_t>;
 using restrictor_t  = tests::restrictor<vec_ops_t, log_t>;
-using lin_op_t      = tests::jacobi_op<vec_ops_t, log_t, phobic_energy_t, time_derivative_t>;
+using lin_op_t      = tests::jacobi_op<vec_ops_t, log_t, phobic_energy_t, time_derivative_t, mobility_t>;
 using ident_op_t    = nmfd::preconditioners::dummy<vec_ops_t, lin_op_t>;
-using smoother_t    = tests::jacobi_pre<vec_ops_t, log_t, phobic_energy_t, time_derivative_t>;
+using smoother_t    = tests::jacobi_pre<vec_ops_t, log_t, phobic_energy_t, time_derivative_t, mobility_t>;
 using coarsening_t  = tests::coarsening<lin_op_t, log_t>;
 
 using precond_interface = nmfd::preconditioners::preconditioner_interface<vec_ops_t, lin_op_t>;
@@ -77,8 +81,9 @@ using mg_t =
 using mg_params_t = mg_t::params_hierarchy;
 using mg_utils_t  = mg_t::utils_hierarchy;
 
-using jacobi_solver = nmfd::solvers::jacobi<vec_ops_t, lin_op_t, precond_interface, default_monitor_t, log_t>;
+using jacobi_solver = nmfd::solvers::jacobi<vec_ops_t, lin_op_t, precond_interface, krylov_monitor_t, log_t>;
 using gmres_solver  = nmfd::solvers::gmres<vec_ops_t, krylov_monitor_t, log_t, lin_op_t, precond_interface>;
+using linsolver_base_t = nmfd::solvers::iter_solver_base<vec_ops_t, krylov_monitor_t, log_t, lin_op_t, precond_interface>;
 
 /**************************************/
 // Logging helpers
@@ -303,10 +308,10 @@ int main( int argc, char const *argv[] )
 
     auto range = idx_nd_type::make_ones() * grid_size;
     auto step  = grid_step_type::make_ones() / scalar( grid_size );
-    auto cond  = boundary_cond<vector_t, scalar, dim, tensor_dim>{
-        { { -1, -1 }, { -1, -1 }, { -1, -1 } }, // left: [x,y,z][psi,phi]
-        { { -1, -1 }, { -1, -1 }, { -1, -1 } }  // right: [x,y,z][psi,phi]
-    };
+    int left_bc[3][2]  = { { -1, -1 }, { -1, -1 }, { -1, -1 } }; // left:  [x,y,z][psi,phi]
+    int right_bc[3][2] = { { -1, -1 }, { -1, -1 }, { -1, -1 } }; // right: [x,y,z][psi,phi]
+
+    auto cond  = tests::boundary_cond<vec_ops_t>( left_bc, right_bc );
     // Boundary condition values:
     //   -1 = dirichlet (value = 0 at boundary)
     //   +1 = neumann (derivative = 0 at boundary)
@@ -369,28 +374,14 @@ int main( int argc, char const *argv[] )
     double solve_time_ms;
     bool   converged;
 
+    std::shared_ptr<linsolver_base_t> solver;
     if ( solver_type == "jacobi" )
     {
         jacobi_solver::params solver_params;
         solver_params.monitor.rel_tol                  = tolerance;
         solver_params.monitor.max_iters_num            = max_iterations;
         solver_params.monitor.save_convergence_history = true;
-        jacobi_solver solver{ l_op, vspace, &log, solver_params, precond };
-
-        {
-            Timer timer("Solve", false); // Don't print automatically, we'll print in Results section
-            converged     = solver.solve( rhs, solution );
-            solve_time_ms = timer.stop_and_get_ms();
-        }
-
-        // Save times.dat and convergence history
-        {
-            std::chrono::duration<double, std::milli> solve_time_duration(solve_time_ms);
-            save_times_dat<default_monitor_t, scalar>( solver.monitor(), solver_type, preconditioner_type,
-                                                        grid_size, solve_time_duration, output_dir );
-            save_convergence_history<default_monitor_t, scalar>( solver.monitor(), output_dir );
-        }
-
+        solver = std::make_shared<jacobi_solver>( l_op, vspace, &log, solver_params, precond );
     }
     else // gmres
     {
@@ -402,21 +393,21 @@ int main( int argc, char const *argv[] )
         params_gmres.basis_size                           = gmres_basis;
         params_gmres.preconditioner_side                  = 'L';
         params_gmres.reorthogonalization                  = true;
-        gmres_solver solver{ l_op, vspace, &log, params_gmres, precond };
+        solver = std::make_shared<gmres_solver>( l_op, vspace, &log, params_gmres, precond );
+    }
 
-        {
-            Timer timer("Solve", false); // Don't print automatically, we'll print in Results section
-            converged     = solver.solve( rhs, solution );
-            solve_time_ms = timer.stop_and_get_ms();
-        }
+    {
+        Timer timer("Solve", false); // Don't print automatically, we'll print in Results section
+        converged     = solver->solve( rhs, solution );
+        solve_time_ms = timer.stop_and_get_ms();
+    }
 
-        // Save times.dat and convergence history
-        {
-            std::chrono::duration<double, std::milli> solve_time_duration(solve_time_ms);
-            save_times_dat<krylov_monitor_t, scalar>( solver.monitor(), solver_type, preconditioner_type,
-                                                        grid_size, solve_time_duration, output_dir );
-            save_convergence_history<krylov_monitor_t, scalar>( solver.monitor(), output_dir );
-        }
+    // Save times.dat and convergence history
+    {
+        std::chrono::duration<double, std::milli> solve_time_duration(solve_time_ms);
+        save_times_dat<krylov_monitor_t, scalar>( solver->monitor(), solver_type, preconditioner_type,
+                                                    grid_size, solve_time_duration, output_dir );
+        save_convergence_history<krylov_monitor_t, scalar>( solver->monitor(), output_dir );
     }
 
     // Verify that L(exact_solution) - rhs is close to zero
