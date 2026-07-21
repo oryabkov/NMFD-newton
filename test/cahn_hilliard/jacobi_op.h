@@ -18,6 +18,7 @@ template <
     class PhobicEnergy,
     class TimeDerivative,
     class Mobility,
+    class Distributor,
     /**********************************************/
     class Backend = typename VectorSpace::backend_type>
 class jacobi_op
@@ -33,6 +34,8 @@ public:
     using grid_step_type     = scfd::static_vec::vec<scalar_type, dim>;
     using boundary_cond_type = boundary_cond<VectorSpace>;
     using ordinal_type       = typename VectorSpace::ordinal_type;
+    using dist_type          = Distributor;
+    using dist_ptr           = std::shared_ptr<const dist_type>;
 
     using Ord = ordinal_type;
 
@@ -55,35 +58,29 @@ public: // Especially for SYCL
         Mobility>;
 
 public:
-    jacobi_op( vector_space_ptr vspace, grid_step_type step, boundary_cond_type b_cond, time_derivative_ptr time_derivative )
+    jacobi_op( vector_space_ptr vspace, grid_step_type step, boundary_cond_type b_cond, dist_ptr dist, time_derivative_ptr time_derivative )
         : vspace_( std::move( vspace ) ), range_( vspace_->get_size() ), step_( step ), b_cond_( b_cond ),
-          lin_vector_wrap_( *vspace_ ), phobic_en_(), time_derivative_( std::move( time_derivative ) )
+          lin_vector_wrap_( *vspace_ ), phobic_en_(), dist_( std::move(dist) ), time_derivative_( std::move( time_derivative ) )
     {
         vspace_->assign_scalar( 0.0, *lin_vector_wrap_ );
     }
 
-    // Convenience ctor: create space (and time-derivative) from size, then delegate.
-    jacobi_op( idx_nd_type range, grid_step_type step, boundary_cond_type b_cond )
+    jacobi_op( idx_nd_type range, grid_step_type step, boundary_cond_type b_cond, dist_ptr dist )
         : jacobi_op(
-              std::make_shared<vector_space_type>( range ), step, b_cond, std::make_shared<TimeDerivative>( range )
+              std::make_shared<vector_space_type>( range ), step, b_cond, dist, std::make_shared<TimeDerivative>( range )
           )
     {
     }
 
-    jacobi_op( const vector_space_type &vspace, grid_step_type step, boundary_cond_type b_cond, vector_type vector_)
-        : jacobi_op( vspace.get_size(), step, b_cond, vector_ )
-    {
-    }
-
-    jacobi_op( idx_nd_type range, grid_step_type step, boundary_cond_type b_cond, time_derivative_ptr time_derivative )
+    jacobi_op( idx_nd_type range, grid_step_type step, boundary_cond_type b_cond, dist_ptr dist, time_derivative_ptr time_derivative )
         : jacobi_op(
-              std::make_shared<vector_space_type>( range ), step, b_cond, std::move( time_derivative )
+              std::make_shared<vector_space_type>( range ), step, b_cond, std::move( dist ), std::move( time_derivative )
           )
     {
     }
 
-    jacobi_op( const vector_space_type &vspace, grid_step_type step, boundary_cond_type b_cond, time_derivative_ptr time_derivative)
-        : jacobi_op( vspace.get_size(), step, b_cond, time_derivative )
+    jacobi_op( vector_space_ptr vspace, grid_step_type step, boundary_cond_type b_cond, dist_ptr dist )
+        : jacobi_op( vspace, step, b_cond, std::move( dist ), std::make_shared<TimeDerivative>( vspace ) )
     {
     }
 
@@ -122,6 +119,16 @@ public:
         gamma_ = gamma;
     }
 
+    void set_distributor( dist_ptr dist )
+    {
+        dist_ = std::move( dist );
+    }
+
+    const dist_ptr &get_distributor() const noexcept
+    {
+        return dist_;
+    }
+
     const vector_space_ptr &get_dom_space() const noexcept
     {
         return get_space();
@@ -148,6 +155,10 @@ public:
 
     void apply( const vector_type &in, vector_type &out ) const
     {
+        // Synchronized all data between processes between calling foreach
+        dist_->sync( in );
+        dist_->sync( *lin_vector_wrap_ );
+
         for_each_nd_type for_each_nd_inst;
         for_each_nd_inst(
             jacobi_op_kernel{
@@ -179,6 +190,8 @@ private:
     time_derivative_ptr time_derivative_;
 
     scalar_type gamma_ = scalar_type( 1 );
+
+    dist_ptr dist_;
 };
 
 } // namespace tests

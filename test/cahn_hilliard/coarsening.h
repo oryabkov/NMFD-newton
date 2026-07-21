@@ -73,8 +73,9 @@ public:
         auto b_cond = op.get_b_cond();
         b_cond.set_gamma( new_gamma );
 
-        auto coarse_op =
-            std::make_shared<operator_type>( coarse_size, coarse_h, b_cond, op.get_time_derivative() );
+        // TODO: Adapt corsening to the distributer on each level!!! Now mg doesn't work
+        auto coarse_op = std::make_shared<operator_type>(
+            coarse_size, coarse_h, b_cond, typename operator_type::dist_ptr{}, op.get_time_derivative() );
 
         coarse_op->set_mobility( op.get_mobility() );
         coarse_op->set_gamma( new_gamma );

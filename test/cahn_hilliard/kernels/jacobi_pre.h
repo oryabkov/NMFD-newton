@@ -29,8 +29,6 @@ struct jacobi_pre_kernel
     Scalar       alpha;
     Scalar gamma;
 
-    // using periodic_bc_vector = tests::periodic_bc_vector<IdxND, Scalar, TensorType, VectorType>;
-
     __DEVICE_TAG__ void operator()( const IdxND idx ) const
     {
         MatType mat{ Scalar(0), Scalar(0), Scalar(0), Scalar(0) };
@@ -39,7 +37,6 @@ struct jacobi_pre_kernel
         auto lin_curr = lin_vector.get_vec( idx ); // [psi_lin, phi_lin]
 
         TensorType diag_ghost{ Scalar(0), Scalar(0) };
-        TensorType lin_ghost{ Scalar(0), Scalar(0) };
 
 #pragma unroll
         for ( int j = 0; j < IdxND::dim; j++ )
@@ -55,16 +52,7 @@ struct jacobi_pre_kernel
             {
                 cond.get_ghost_coef_linearized( lin_vector, range, idx - ej, step, diag_ghost );
                 diag_j += diag_ghost;
-
-                // BC for CH problem
-                cond.get_ghost_tensor( lin_vector, range, idx - ej, step, lin_ghost );
-                const auto periodic_lin_vec = tests::periodic_bc_vector<IdxND, Scalar, TensorType, VectorType>( lin_vector, idx, j, N, true );
-
-                #pragma unroll
-                for ( int c = 0; c < TensorType::dim; ++c )
-                {
-                    prev_lin_vec[c] = ( cond.left[j][c] == 0 ) ? periodic_lin_vec[c] : lin_ghost[c];
-                }
+                cond.get_lin_neighbor( lin_vector, range, idx - ej, j, /*is_left*/ true, step, prev_lin_vec );
             }
             else
             {
@@ -76,16 +64,7 @@ struct jacobi_pre_kernel
             {
                 cond.get_ghost_coef_linearized( lin_vector, range, idx + ej, step, diag_ghost );
                 diag_j += diag_ghost;
-
-                // BC for CH problem
-                cond.get_ghost_tensor( lin_vector, range, idx + ej, step, lin_ghost );
-                const auto periodic_lin_vec = tests::periodic_bc_vector<IdxND, Scalar, TensorType, VectorType>( lin_vector, idx, j, N, false );
-
-                #pragma unroll
-                for ( int c = 0; c < TensorType::dim; ++c )
-                {
-                    next_lin_vec[c] = ( cond.right[j][c] == 0 ) ? periodic_lin_vec[c] : lin_ghost[c];
-                }
+                cond.get_lin_neighbor( lin_vector, range, idx + ej, j, /*is_left*/ false, step, next_lin_vec );
             }
             else
             {

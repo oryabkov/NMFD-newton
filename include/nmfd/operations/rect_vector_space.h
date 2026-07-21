@@ -73,19 +73,39 @@ public: // Especially for SYCL
 private:
     idx_nd_type                 range;
     ordinal_type                   sz;
-    array_nd_type mutable  helper;
+    ordinal_type              stencil;             // ghost width per side (0 => no padding)
+    int             max_stencil_order;   // highest coupled stencil order for the halo exchange
+
+    array_nd_type mutable      helper;
 
     for_each_nd_type for_each_nd_inst;
     reduce_type           reduce_inst;
 
 public:
-    rect_vector_space(idx_nd_type const r, bool use_high_precision = false):
-        parent_t(use_high_precision), range(r), sz(r.components_prod() * tensor_dim), helper(range) {};
+    rect_vector_space(idx_nd_type const r, bool use_high_precision = false, ordinal_type stencil = 0, int max_stencil_order = 0):
+        parent_t(use_high_precision), range(r), sz(r.components_prod() * tensor_dim),
+        stencil(stencil), max_stencil_order(max_stencil_order), helper(range) {};
     //sz is total size meanwhile range is vector space size
-    idx_nd_type get_size() const noexcept { return range; }
-    idx_nd_type size()     const noexcept { return range; }
+    idx_nd_type  get_size() const noexcept { return range; }
+    idx_nd_type  size()     const noexcept { return range; }
+    ordinal_type get_stencil()           const noexcept { return stencil; }
+    int          get_max_stencil_order() const noexcept { return max_stencil_order; }
 public:
-    void init_vector(vector_type& x) const override { x.init(range); }
+    // Local region with a ghost halo of width `stencil` on every side, built with the
+    // my_loc_rect / i1,i2 pattern from SCFD's test_mpi_two_rect: the interior stays
+    // [0,range) and the ghosts live at negative / >=range indices (filled by the halo
+    // exchange). With stencil==0, i1==0 and i2==range, so x.init(i2-i1, i1) is exactly
+    // equivalent to the historical x.init(range).
+    // TODO: the two-arg (index-shifted) init needs SCFD_ARRAYS_ENABLE_INDEX_SHIFT; decide
+    // whether to guard this again with `#ifdef SCFD_ARRAYS_ENABLE_INDEX_SHIFT` for
+    // consumers that build rect_vector_space without that flag.
+    void init_vector(vector_type& x) const override
+    {
+        idx_nd_type s  = idx_nd_type::make_ones() * stencil;
+        idx_nd_type i1 = idx_nd_type::make_zero() - s;
+        idx_nd_type i2 = range + s;
+        x.init(i2 - i1, i1);
+    }
     void free_vector(vector_type& x) const override { x.free();      }
 
     void start_use_vector(vector_type& x) const override {}

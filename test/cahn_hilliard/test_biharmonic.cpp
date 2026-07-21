@@ -27,6 +27,10 @@
 #include <nmfd/solvers/jacobi.h>
 #include <nmfd/solvers/monitor_krylov.h>
 #include <scfd/backend/backend.h>
+#include <scfd/communication/trivial_platform.h>
+#include <scfd/communication/trivial_comm.h>
+#include <scfd/communication/rect_partitioner.h>
+#include <scfd/communication/rect_distributor.h>
 #include <scfd/utils/log.h>
 #include <algorithm>
 #include <sstream>
@@ -37,8 +41,10 @@ using backend = scfd::backend::current;
 
 /**************************************/
 
-constexpr int dim        = 3;
-constexpr int tensor_dim = 2;
+constexpr int dim               = 3;
+constexpr int tensor_dim        = 2;
+constexpr int stencil           = 1; // ghost width per side; must match the distributor stencil
+constexpr int max_stencil_order = 1; // highest coupled stencil order for the halo exchange
 
 #ifndef USE_DOUBLE_PRECISION
 using scalar      = float;
@@ -56,6 +62,19 @@ using vector_t      = typename vec_ops_t::vector_type;
 using tensor_t      = scfd::static_vec::vec<scalar, tensor_dim>;
 using vector_view_t = typename vector_t::view_type;
 
+using ord_t           = int;
+using big_ord_t       = long int;
+using mem_t           = backend::memory_type;
+using comm_platform_t = scfd::communication::trivial_platform<mem_t>;
+using comm_info_t     = scfd::communication::trivial_comm<mem_t>;
+using part_t          = scfd::communication::rect_partitioner<dim, ord_t, big_ord_t, comm_info_t>;
+using dist_for_each_t = backend::for_each_nd_type<dim, ord_t>;
+using dist_t          = scfd::communication::rect_distributor<scalar, dim, mem_t, dist_for_each_t, ord_t, big_ord_t, comm_info_t>;
+using big_idx_t       = scfd::static_vec::vec<big_ord_t, dim>;
+using periodic_flags_t = scfd::static_vec::vec<bool, dim>;
+using rect_t          = scfd::static_vec::rect<ord_t, dim>;
+using big_rect_t      = scfd::static_vec::rect<big_ord_t, dim>;
+
 using krylov_monitor_t  = nmfd::solvers::monitor_krylov<vec_ops_t, log_t>;
 using default_monitor_t = nmfd::solvers::default_monitor<vec_ops_t, log_t>;
 using monitor_funcs_t   = default_monitor_t::custom_funcs_type;
@@ -69,9 +88,9 @@ using time_derivative_t = tests::time_derivative<vec_ops_t, tensor_t>;
 
 using prolongator_t = tests::prolongator<vec_ops_t, log_t>;
 using restrictor_t  = tests::restrictor<vec_ops_t, log_t>;
-using lin_op_t      = tests::jacobi_op<vec_ops_t, log_t, phobic_energy_t, time_derivative_t, mobility_t>;
+using lin_op_t      = tests::jacobi_op<vec_ops_t, log_t, phobic_energy_t, time_derivative_t, mobility_t, dist_t>;
 using ident_op_t    = nmfd::preconditioners::dummy<vec_ops_t, lin_op_t>;
-using smoother_t    = tests::jacobi_pre<vec_ops_t, log_t, phobic_energy_t, time_derivative_t, mobility_t>;
+using smoother_t    = tests::jacobi_pre<vec_ops_t, log_t, phobic_energy_t, time_derivative_t, mobility_t, dist_t>;
 using coarsening_t  = tests::coarsening<lin_op_t, log_t>;
 
 using precond_interface = nmfd::preconditioners::preconditioner_interface<vec_ops_t, lin_op_t>;
@@ -142,7 +161,7 @@ constexpr scalar DEFAULT_TOLERANCE      = std::is_same<float, scalar>::value ? 5
 
 /**************************************/
 
-int main( int argc, char const *argv[] )
+int main( int argc, char *argv[] )
 {
     // Parse CLI arguments
     bool        save_coords = false;
@@ -306,10 +325,9 @@ int main( int argc, char const *argv[] )
     std::cout << "========================================" << std::endl;
     std::cout << std::endl;
 
-    auto range = idx_nd_type::make_ones() * grid_size;
     auto step  = grid_step_type::make_ones() / scalar( grid_size );
-    int left_bc[3][2]  = { { -1, -1 }, { -1, -1 }, { -1, -1 } }; // left:  [x,y,z][psi,phi]
-    int right_bc[3][2] = { { -1, -1 }, { -1, -1 }, { -1, -1 } }; // right: [x,y,z][psi,phi]
+    int left_bc[3][2]  = { { -1, -1 }, { -1, -1 }, { -1, -1 } }; // left:  dirichlet [psi,phi]
+    int right_bc[3][2] = { {  0,  0 }, {  0,  0 }, {  0,  0 } }; // right: periodic  [psi,phi]
 
     auto cond  = tests::boundary_cond<vec_ops_t>( left_bc, right_bc );
     // Boundary condition values:
@@ -317,10 +335,32 @@ int main( int argc, char const *argv[] )
     //   +1 = neumann (derivative = 0 at boundary)
     //    0 = periodic (left boundary uses value from N-1, right boundary uses value from 0)
 
-    vector_t solution( range ), rhs( range ), exact_solution( range );
+    // --- periodic-BC communication ---
+    comm_platform_t comm( argc, argv );
+    comm_info_t     comm_world = comm.comm_world();
+    big_idx_t       dom_sz( grid_size, grid_size, grid_size );
+    part_t          part( comm_world, dom_sz );
+    part.proc_rects = { { { big_ord_t( 0 ), big_ord_t( 0 ), big_ord_t( 0 ) },
+                          { big_ord_t( grid_size ), big_ord_t( grid_size ), big_ord_t( grid_size ) } } };
+
+    // Global and local region owned by this process (in single proccess case are the same)
+    big_rect_t my_own_glob_rect = part.proc_rects[comm_world.myid];
+    rect_t     my_own_loc_rect  = rect_t( idx_nd_type::make_zero(), my_own_glob_rect.calc_size() );
+    auto       range            = my_own_loc_rect.calc_size();
+
+    // Distributor initialization
+    periodic_flags_t periodic_flags( true, true, true );
+    auto dist = std::make_shared<dist_t>();
+    dist->init_for_tensors( tensor_dim, part, periodic_flags, stencil, max_stencil_order );
+
     rhs_t    rhs_function;
 
-    auto vspace = std::make_shared<vec_ops_t>( range );
+    auto vspace = std::make_shared<vec_ops_t>( range, false, stencil, max_stencil_order );
+
+    vector_t solution, rhs, exact_solution;
+    vspace->init_vector( solution );
+    vspace->init_vector( rhs );
+    vspace->init_vector( exact_solution );
     {
         vspace->assign_scalar( 0.0, solution ); // Initialize solution to zero
         vector_view_t rhs_view( rhs, false ), exact_view( exact_solution, false );
@@ -350,12 +390,13 @@ int main( int argc, char const *argv[] )
         exact_view.release();
     }
 
-    auto l_op = std::make_shared<lin_op_t>( range, step, cond );
+    auto l_op = std::make_shared<lin_op_t>( vspace, step, cond, dist );
 
     std::shared_ptr<precond_interface> precond;
     if ( preconditioner_type == "diag" )
     {
-        precond = std::make_shared<smoother_t>( l_op );
+        auto smoother = std::make_shared<smoother_t>( l_op, dist );
+        precond = smoother;
     }
     else if ( preconditioner_type == "mg" )
     {
@@ -411,15 +452,18 @@ int main( int argc, char const *argv[] )
     }
 
     // Verify that L(exact_solution) - rhs is close to zero
-    vector_t L_exact( range );
+    vector_t L_exact;
+    vspace->init_vector( L_exact );
     l_op->apply( exact_solution, L_exact );
-    vector_t residual_exact( range );
+    vector_t residual_exact;
+    vspace->init_vector( residual_exact );
     vspace->assign_lin_comb( scalar( 1 ), L_exact, scalar( -1 ), rhs, residual_exact );
     scalar residual_exact_norm = vspace->norm_l2( residual_exact );
     log.info_f( "Verification: ||L(exact_solution) - rhs||_2 = %le", static_cast<double>( residual_exact_norm ) );
 
     // Compute error between numerical and exact solutions
-    vector_t error( range );
+    vector_t error;
+    vspace->init_vector( error );
     vspace->assign_lin_comb( scalar( 1 ), solution, scalar( -1 ), exact_solution, error );
     scalar error_norm = vspace->norm_l2( error );
     scalar exact_norm = vspace->norm_l2( exact_solution );
