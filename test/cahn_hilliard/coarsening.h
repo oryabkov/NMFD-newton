@@ -6,6 +6,10 @@
 #include "restrictor.h"
 #include "prolongator.h"
 
+#include <scfd/communication/trivial_comm.h>
+#include <scfd/communication/rect_partitioner.h>
+#include <scfd/communication/rect_distributor.h>
+
 namespace tests
 {
 
@@ -24,6 +28,17 @@ public:
     using scalar_type  = typename vector_space_type::scalar_type;
     using grid_step_type = typename restrictor_type::grid_step_type;
 
+    static const int dim        = operator_type::dim;
+    static const int tensor_dim = operator_type::tensor_dim;
+
+    using dist_type      = typename operator_type::dist_type;
+    using dist_ptr       = typename operator_type::dist_ptr;
+    using part_type      = typename dist_type::rect_partitioner_t;
+    using comm_type      = typename dist_type::comm_type;
+    using bool_vec_t     = typename dist_type::bool_vec_t;
+    using big_ord_vec_t  = typename part_type::big_ord_vec_t;
+    using big_ord_rect_t = typename part_type::big_ord_rect_t;
+
 public:
     struct params
     {
@@ -31,10 +46,14 @@ public:
     using params_hierarchy = params;
     struct utils
     {
+        comm_type      comm_info;
+        bool_vec_t     periodic_flags;
+        ordinal_type   stencil           = ordinal_type( 1 );
+        int            max_stencil_order = 1;
     };
     using utils_hierarchy = utils;
 
-    coarsening( const utils_hierarchy &u, const params_hierarchy &p )
+    coarsening( const utils_hierarchy &u, const params_hierarchy &p ) : utils_( u )
     {
     }
 
@@ -73,9 +92,22 @@ public:
         auto b_cond = op.get_b_cond();
         b_cond.set_gamma( new_gamma );
 
-        // TODO: Adapt corsening to the distributer on each level!!! Now mg doesn't work
+        // Build a per-level distributor sized to the coarse grid (single process owns the whole domain).
+        big_ord_vec_t coarse_dom_sz = coarse_size;
+
+        part_type coarse_part( utils_.comm_info, coarse_dom_sz );
+        coarse_part.proc_rects = { big_ord_rect_t( big_ord_vec_t::make_zero(), coarse_dom_sz ) };
+
+        auto coarse_dist = std::make_shared<dist_type>();
+        coarse_dist->init_for_tensors(
+            tensor_dim, coarse_part, utils_.periodic_flags, utils_.stencil, utils_.max_stencil_order );
+
+        // Coarse vector space must carry the same stencil as the fine one
+        auto coarse_vspace = std::make_shared<vector_space_type>(
+            coarse_size, false, utils_.stencil, utils_.max_stencil_order );
+
         auto coarse_op = std::make_shared<operator_type>(
-            coarse_size, coarse_h, b_cond, typename operator_type::dist_ptr{}, op.get_time_derivative() );
+            coarse_vspace, coarse_h, b_cond, coarse_dist, op.get_time_derivative() );
 
         coarse_op->set_mobility( op.get_mobility() );
         coarse_op->set_gamma( new_gamma );
@@ -101,6 +133,9 @@ public:
                 return true;
         return false;
     }
+
+private:
+    utils utils_;
 };
 
 } // namespace tests

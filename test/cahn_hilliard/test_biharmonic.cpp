@@ -340,8 +340,7 @@ int main( int argc, char *argv[] )
     comm_info_t     comm_world = comm.comm_world();
     big_idx_t       dom_sz( grid_size, grid_size, grid_size );
     part_t          part( comm_world, dom_sz );
-    part.proc_rects = { { { big_ord_t( 0 ), big_ord_t( 0 ), big_ord_t( 0 ) },
-                          { big_ord_t( grid_size ), big_ord_t( grid_size ), big_ord_t( grid_size ) } } };
+    part.proc_rects = { big_rect_t( big_idx_t::make_zero(), dom_sz ) };
 
     // Global and local region owned by this process (in single proccess case are the same)
     big_rect_t my_own_glob_rect = part.proc_rects[comm_world.myid];
@@ -407,6 +406,11 @@ int main( int argc, char *argv[] )
         mg_params.direct_coarse   = false;
         mg_params.num_sweeps_pre  = mg_sweeps_pre;
         mg_params.num_sweeps_post = mg_sweeps_post;
+
+        mg_utils.coarsening.comm_info         = comm_world;
+        mg_utils.coarsening.periodic_flags    = periodic_flags;
+        mg_utils.coarsening.stencil           = stencil;
+        mg_utils.coarsening.max_stencil_order = max_stencil_order;
 
         precond = std::make_shared<mg_t>( mg_utils, mg_params );
     }

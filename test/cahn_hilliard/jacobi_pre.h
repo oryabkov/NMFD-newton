@@ -102,6 +102,7 @@ public:
         vspace_->assign( op->get_lin_vector(), **lin_vector_wrap_ );
 
         time_derivative_ = op->get_time_derivative();
+        set_distributor( op->get_distributor() );
     }
 
 public:
