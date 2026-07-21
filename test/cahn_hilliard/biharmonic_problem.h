@@ -26,19 +26,21 @@ class trig_rhs
 public:
     __DEVICE_TAG__ TensorType operator()( Scalar x, Scalar y, Scalar z ) const
     {
-        Scalar g = st::sin( st::pi() * x ) * st::sin( st::pi() * y ) * st::sin( st::pi() * z );
+        Scalar k = 2 * st::pi(); // periodic on the unit cube (g = 0 and g' matched at walls)
+        Scalar g = st::sin( k * x ) * st::sin( k * y ) * st::sin( k * z );
 
         return TensorType{
-            3 * st::pi() * st::pi() * g,
+            3 * k * k * g,
             g,
         };
     }
 
     __DEVICE_TAG__ TensorType get_exact_solution( Scalar x, Scalar y, Scalar z ) const
     {
-        Scalar g = st::sin( st::pi() * x ) * st::sin( st::pi() * y ) * st::sin( st::pi() * z );
+        Scalar k = 2 * st::pi();
+        Scalar g = st::sin( k * x ) * st::sin( k * y ) * st::sin( k * z );
 
-        return TensorType{ -9 * st::pow( st::pi(), 4 ) * g, 0.0 };
+        return TensorType{ -9 * st::pow( k, 4 ) * g, 0.0 };
     }
 };
 
