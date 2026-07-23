@@ -1,5 +1,5 @@
-#ifndef __NMFD_RECT_VECTOR_SPACE_H__
-#define __NMFD_RECT_VECTOR_SPACE_H__
+#ifndef __NMFD_RECT_VECTOR_SPACE_MPI_H__
+#define __NMFD_RECT_VECTOR_SPACE_MPI_H__
 
 #include <algorithm>
 #include <cmath>
@@ -11,6 +11,7 @@
 #include <scfd/arrays/array_nd.h>
 #include <scfd/static_vec/vec.h>
 #include <scfd/arrays/tensorN_array_nd.h>
+#include <scfd/communication/mpi_comm_info.h>
 
 #include "kernels/rect_vector_space.h"
 
@@ -23,21 +24,22 @@ template
     int   Dim,
     int   TensorDim,
     class Backend,
+    class Comm = scfd::communication::mpi_comm_info,
     class Ordinal=std::ptrdiff_t,
     /***********************************************************/
     class VectorType=scfd::arrays::tensor1_array_nd<Type, Dim, typename Backend::memory_type, TensorDim>,
     class IdxType=scfd::static_vec::vec<Ordinal, Dim>
 >
-class rect_vector_space :
+class rect_vector_space_mpi :
     public nmfd::operations::default_multivector_space_base
     <
-        rect_vector_space<Type, Dim, TensorDim, Backend, Ordinal>,
+        rect_vector_space_mpi<Type, Dim, TensorDim, Backend, Comm, Ordinal>,
         Type, VectorType, Ordinal
     >
 {
     using parent_t = nmfd::operations::default_multivector_space_base
     <
-        rect_vector_space<Type, Dim, TensorDim, Backend, Ordinal>,
+        rect_vector_space_mpi<Type, Dim, TensorDim, Backend, Comm, Ordinal>,
         Type, VectorType, Ordinal
     >;
 
@@ -49,6 +51,7 @@ public:
     using ordinal_type           = Ordinal;
 
     using backend_type           = Backend;
+    using comm_type              = Comm;
 
     using for_each_nd_type       = typename Backend::template for_each_nd_type<Dim, Ordinal>;
     using reduce_type            = typename Backend::reduce_type;
@@ -81,10 +84,14 @@ private:
     for_each_nd_type for_each_nd_inst;
     reduce_type           reduce_inst;
 
+    comm_type          comm_;
+    ordinal_type       sz_global_;
+
 public:
-    rect_vector_space(idx_nd_type const r, bool use_high_precision = false, ordinal_type stencil = 0, int max_stencil_order = 0):
+    rect_vector_space_mpi(idx_nd_type const r, comm_type comm, bool use_high_precision = false, ordinal_type stencil = 0, int max_stencil_order = 0):
         parent_t(use_high_precision), range(r), sz(r.components_prod() * tensor_dim),
-        stencil(stencil), max_stencil_order(max_stencil_order), helper(range) {};
+        stencil(stencil), max_stencil_order(max_stencil_order), helper(range),
+        comm_(comm), sz_global_(comm_.all_reduce_sum(r.components_prod() * tensor_dim)) {};
     //sz is total size meanwhile range is vector space size
     idx_nd_type  get_size() const noexcept { return range; }
     idx_nd_type  size()     const noexcept { return range; }
@@ -118,7 +125,8 @@ public: // Implementing Vector_Operations interface
     [[nodiscard]] scalar_type scalar_prod(const vector_type &x, const vector_type &y) const override
     {
         for_each_nd_inst(shur_prod_kernel{x, y, helper}, range);
-        return reduce_inst(range.components_prod(), helper.raw_ptr(), scalar_type{0});
+        scalar_type local = reduce_inst(range.components_prod(), helper.raw_ptr(), scalar_type{0});
+        return comm_.all_reduce_sum(local);
     }
 
     [[nodiscard]] scalar_type scalar_prod_l2(const vector_type &x, const vector_type &y) const override
@@ -135,12 +143,13 @@ public: // Implementing Vector_Operations interface
     [[nodiscard]] scalar_type sum(const vector_type &x) const override
     {
         for_each_nd_inst(sum_kernel{x, helper}, range);
-        return reduce_inst(range.components_prod(), helper.raw_ptr(), scalar_type{0});
+        scalar_type local = reduce_inst(range.components_prod(), helper.raw_ptr(), scalar_type{0});
+        return comm_.all_reduce_sum(local);
     }
 
     [[nodiscard]] scalar_type asum(const vector_type &x) const override
     {
-        throw std::logic_error("rect_vector_space: multivector.asum not implemented yet");
+        throw std::logic_error("rect_vector_space_mpi: multivector.asum not implemented yet");
         return 0; //TODO
     }
 
@@ -148,28 +157,32 @@ public: // Implementing Vector_Operations interface
     [[nodiscard]] scalar_type norm(const vector_type &x) const override
     {
         for_each_nd_inst(shur_prod_kernel{x, x, helper}, range);
-        return std::sqrt(reduce_inst(range.components_prod(), helper.raw_ptr(), scalar_type{0}));
+        scalar_type local = reduce_inst(range.components_prod(), helper.raw_ptr(), scalar_type{0});
+        return std::sqrt(comm_.all_reduce_sum(local));
     }
 
     //L2 emulation for the vector norm2:=sqrt(sum(x^2)/sz_)
     [[nodiscard]] scalar_type norm_l2(const vector_type &x) const override
     {
         for_each_nd_inst(shur_prod_kernel{x, x, helper}, range);
-        return std::sqrt(reduce_inst(range.components_prod(), helper.raw_ptr(), scalar_type{0}) / sz);
+        scalar_type local = reduce_inst(range.components_prod(), helper.raw_ptr(), scalar_type{0});
+        return std::sqrt(comm_.all_reduce_sum(local) / sz_global_);
     }
 
     //standard vector norm_sq:=sum(x^2)
     [[nodiscard]] scalar_type norm_sq(const vector_type &x) const override
     {
         for_each_nd_inst(shur_prod_kernel{x, x, helper}, range);
-        return reduce_inst(range.components_prod(), helper.raw_ptr(), scalar_type{0});
+        scalar_type local = reduce_inst(range.components_prod(), helper.raw_ptr(), scalar_type{0});
+        return comm_.all_reduce_sum(local);
     }
 
     //L2 emulation for the vector norm2_sq:=sum(x^2)/sz_
     [[nodiscard]] scalar_type norm2_sq(const vector_type &x) const override
     {
         for_each_nd_inst(shur_prod_kernel{x, x, helper}, range);
-        return reduce_inst(range.components_prod(), helper.raw_ptr(), scalar_type{0}) / sz;
+        scalar_type local = reduce_inst(range.components_prod(), helper.raw_ptr(), scalar_type{0});
+        return comm_.all_reduce_sum(local) / sz_global_;
     }
 
 public:
