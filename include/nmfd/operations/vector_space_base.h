@@ -10,7 +10,7 @@ namespace operations
 {
 
 template<class Type, class VectorType, class MultiVectorType, class Ordinal = std::ptrdiff_t>
-class vector_space_base : 
+class vector_space_base :
     public vector_factory_base<Type,VectorType,MultiVectorType,Ordinal>,
     public vector_operations_base<Type,VectorType,MultiVectorType,Ordinal>
 {
@@ -19,10 +19,10 @@ public:
     using vector_type = VectorType;
     using multivector_type = MultiVectorType;
     using scalar_type = Type;
-    using Ord = Ordinal;    
+    using Ord = Ordinal;
     using ordinal_type = Ord;
 
-    vector_space_base(bool use_high_precision = false) : 
+    vector_space_base(bool use_high_precision = false) :
       vector_operations_base<Type,VectorType,MultiVectorType,Ordinal>(use_high_precision)
     {
     }

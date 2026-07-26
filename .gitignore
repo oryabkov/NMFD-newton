@@ -2,3 +2,10 @@
 *.swp
 *.dat
 .vscode
+*.gif
+.DS_Store
+**/data
+.venv
+.clangd
+.clang-format
+**/#*#

@@ -1,12 +1,13 @@
 -include ../common.mk
 
-all: test_gmres.bin test_gmres_mg.bin test_nonlinear_solver.bin test_dense1_extended_solver.bin
+all: test_gmres.bin test_gmres_mg.bin test_nonlinear_solver.bin test_dense1_extended_solver.bin test_nonlinear_solver_сircle.bin
 
 test:
 	./test_gmres.bin
 	./test_gmres_mg.bin
 	./test_nonlinear_solver.bin
 	./test_dense1_extended_solver.bin
+	./test_nonlinear_solver_сircle.bin
 
 test_gmres.bin: test_gmres.cpp
 	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_ROOT) $(INCLUDE_LOCAL) $(INCLUDE_CONTRIB) test_gmres.cpp -o test_gmres.bin
@@ -16,3 +17,5 @@ test_nonlinear_solver.bin: test_nonlinear_solver.cpp
 	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_ROOT) $(INCLUDE_LOCAL) $(INCLUDE_CONTRIB) test_nonlinear_solver.cpp -o test_nonlinear_solver.bin
 test_dense1_extended_solver.bin: test_dense1_extended_solver.cpp
 	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_ROOT) $(INCLUDE_LOCAL) $(INCLUDE_CONTRIB) test_dense1_extended_solver.cpp -o test_dense1_extended_solver.bin
+test_nonlinear_solver_сircle.bin: test_nonlinear_solver_сircle.cpp
+	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_ROOT) $(INCLUDE_LOCAL) $(INCLUDE_CONTRIB) test_nonlinear_solver_сircle.cpp -o test_nonlinear_solver_сircle.bin

@@ -29,7 +29,7 @@
 
 namespace nmfd
 {
-namespace preconditioners 
+namespace preconditioners
 {
 
 /// SystemOperator is OperatorWithSpaces.
@@ -48,7 +48,7 @@ template
     class Coarsening,
     class Log
 >
-class mg : 
+class mg :
     public preconditioner_interface<typename SystemOperator::vector_space_type,SystemOperator>,
     public scfd::utils::logged_obj_base<Log>
 {
@@ -66,7 +66,7 @@ public:
     using T = scalar_type;
     using logged_obj_t = scfd::utils::logged_obj_base<Log>;
     using logged_obj_params_t = typename logged_obj_t::params;
-    
+
     struct params : public logged_obj_params_t
     {
         std::size_t max_levels, cycle_type, num_sweeps_pre, num_sweeps_post;
@@ -76,7 +76,7 @@ public:
         bool set_direct_coarse_matrix_defect;
         bool regularize_after_direct_coarse;
 
-        params(const std::string &log_prefix = "", const std::string &log_name = "mg::") : 
+        params(const std::string &log_prefix = "", const std::string &log_name = "mg::") :
             logged_obj_params_t(0, log_prefix+log_name),
             max_levels(25), cycle_type(1), num_sweeps_pre(1), num_sweeps_post(1),
             direct_coarse(true), out_prefix("mg_"),
@@ -103,13 +103,13 @@ public:
         coarsening_params_hierarchy_type coarsening;
 
         //TODO add prefix for other subalgorithms
-        params_hierarchy(const std::string &log_prefix = "", const std::string &log_name = "mg::") : 
+        params_hierarchy(const std::string &log_prefix = "", const std::string &log_name = "mg::") :
             params(log_prefix, log_name),
             smoother(this->log_msg_prefix)
         {
         }
         params_hierarchy(
-            const params &prm_, 
+            const params &prm_,
             const smoother_params_hierarchy_type &smoother_,
             const coarse_solver_params_hierarchy_type &coarse_solver_,
             const coarsening_params_hierarchy_type &coarsening_
@@ -141,7 +141,7 @@ public:
     using coarse_solver_utils_hierarchy_type = typename nmfd::detail::algo_utils_hierarchy<coarse_solver_type>::type;
     using coarsening_utils_hierarchy_type = typename nmfd::detail::algo_utils_hierarchy<coarsening_type>::type;
     struct utils
-    { 
+    {
         Log *log;
         utils(Log *log_ = nullptr) : log(log_)
         {
@@ -154,7 +154,7 @@ public:
         coarsening_utils_hierarchy_type coarsening;
     };
 
-    mg(const utils_hierarchy &u, const params_hierarchy &p) : 
+    mg(const utils_hierarchy &u, const params_hierarchy &p) :
         logged_obj_t(u.log, p), utils_(u), prm_(p)
     {
     }
@@ -164,10 +164,11 @@ public:
 
     void set_operator(std::shared_ptr<const operator_type> op)
     {
+        levs_.clear();
         build(op);
     }
 
-    void apply(const vector_type &rhs, vector_type &x) const 
+    void apply(const vector_type &rhs, vector_type &x) const
     {
         if (levs_.empty())
             throw std::logic_error("mg::apply: levels are empty");
@@ -178,7 +179,7 @@ public:
     }
 
     /// inplace version for preconditioner interface
-    void apply(vector_type &x) const 
+    void apply(vector_type &x) const
     {
         if (levs_.empty())
             throw std::logic_error("mg::apply: levels are empty");
@@ -203,7 +204,7 @@ private:
         std::shared_ptr<vector_space_type> vec_sp;
         buf_arr_t x,residual,rhs;
 
-        level_t(std::shared_ptr<const operator_type> op, const utils_hierarchy &utils, const params_hierarchy &prm, bool create_coarse_solver = false) : 
+        level_t(std::shared_ptr<const operator_type> op, const utils_hierarchy &utils, const params_hierarchy &prm, bool create_coarse_solver = false) :
             sys_operator(std::move(op)),
             vec_sp(sys_operator->get_dom_space()),
             x(*vec_sp), residual(*vec_sp), rhs(*vec_sp)
@@ -254,18 +255,18 @@ private:
     {
         if (!levs_.empty())
             throw std::logic_error("mg::build: levels are alredy built!");
-        
+
         auto c = algo_hierarchy_creator<coarsening_type>::get(utils_.coarsening,prm_.coarsening);
 
         int lev_i = 0;
         auto curr_op = op;
-        while( !c->coarse_enough(*curr_op) ) 
+        while( !c->coarse_enough(*curr_op) )
         {
             levs_.emplace_back( curr_op, utils_, prm_ );
 
             if (levs_.size() >= prm_.max_levels) return;
 
-            if (prm_.out_prefix != "") 
+            if (prm_.out_prefix != "")
             {
                 //TODO output to file
             }
@@ -274,12 +275,12 @@ private:
             if (!curr_op) return;
         }
 
-        if (prm_.out_prefix != "") 
+        if (prm_.out_prefix != "")
         {
             //TODO output to file
         }
 
-        if (prm_.direct_coarse) 
+        if (prm_.direct_coarse)
         {
             //int direct_coarse_matrix_defect = 0;
             if (prm_.set_direct_coarse_matrix_defect)
@@ -287,12 +288,12 @@ private:
                 //TODO
             }
             levs_.emplace_back( curr_op, utils_, prm_, true );
-            if (prm_.regularize_after_direct_coarse) 
+            if (prm_.regularize_after_direct_coarse)
             {
                 //TODO
             }
-        } 
-        else 
+        }
+        else
         {
             levs_.emplace_back( curr_op, utils_, prm_ );
         }
@@ -307,35 +308,35 @@ private:
         curr.vec_sp->assign_scalar(T(0), *curr.x);
         curr.vec_sp->assign(*curr.rhs, *curr.residual);
 
-        if (levi+1 == levs_.size()) 
+        if (levi+1 == levs_.size())
         {
-            if (curr.coarse_solver) 
+            if (curr.coarse_solver)
             {
                 curr.coarse_solver->apply(*curr.residual, *curr.x);
                 /*if (lvl->level_regularization) {
                     lvl->level_regularization->apply(x);
                 }*/
-            } 
-            else 
+            }
+            else
             {
-                for (size_t i = 0; i < prm_.num_sweeps_pre;  ++i) 
+                for (size_t i = 0; i < prm_.num_sweeps_pre;  ++i)
                 {
                     curr.make_iter();
                     curr.calc_residual();
                 }
-                for (size_t i = 0; i < prm_.num_sweeps_post; ++i) 
+                for (size_t i = 0; i < prm_.num_sweeps_post; ++i)
                 {
                     curr.make_iter();
                     ///TODO can remove last call but not very important for the last level
                     curr.calc_residual();
                 }
             }
-        } 
-        else 
+        }
+        else
         {
             auto &next = levs_[levi+1];
 
-            for (size_t j = 0; j < prm_.cycle_type; ++j) 
+            for (size_t j = 0; j < prm_.cycle_type; ++j)
             {
                 if (j > 0)
                 {
