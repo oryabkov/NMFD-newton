@@ -17,7 +17,7 @@ test_rect_vector_space: test_rect_vector_space.cpp
 	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) test_rect_vector_space.cpp -o test_rect_vector_space.bin
 
 test_rect_vector_space_mpi: test_rect_vector_space_mpi.cpp
-	$(MPICXX) -std=c++17 $(INCLUDE_CONTRIB) test_rect_vector_space_mpi.cpp -o test_rect_vector_space_mpi.bin
+	$(MPICXX) $(HOSTFLAGS) $(INCLUDE_CONTRIB) test_rect_vector_space_mpi.cpp -o test_rect_vector_space_mpi.bin
 
 # test_dense_vector_space
 

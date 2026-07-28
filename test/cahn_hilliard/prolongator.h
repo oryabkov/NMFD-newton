@@ -14,6 +14,7 @@ namespace tests
 template <
     class VectorSpace, class Log,
     /**********************************************/
+    class Comm    = typename VectorSpace::comm_type,
     class Backend = typename VectorSpace::backend_type>
 class prolongator
 {
@@ -23,6 +24,7 @@ public:
     using scalar_type           = typename VectorSpace::scalar_type;
     using vector_type           = typename VectorSpace::vector_type;
     using vector_space_type     = VectorSpace;
+    using comm_type             = Comm;
     using ordinal_type          = typename VectorSpace::ordinal_type;
     using grid_step_type        = scfd::static_vec::vec<scalar_type, dim>;
 
@@ -40,9 +42,9 @@ public: // Especially for SYCL
         kernels::prolongator_kernel<idx_nd_type, ordinal_type, vector_type, tensor_dim, boundary_cond_type, grid_step_type>;
 
 public:
-    prolongator( idx_nd_type range, grid_step_type step, boundary_cond_type b_cond )
+    prolongator( idx_nd_type range, grid_step_type step, boundary_cond_type b_cond, const comm_type &comm )
         : range_( range ), step_( step ), b_cond_( b_cond ),
-          vspace_( std::make_shared<vector_space_type>( range / Ord{ 2u } ) ),
+          vspace_( std::make_shared<vector_space_type>( range / Ord{ 2u }, comm, false, ordinal_type( 0 ), 0 ) ),
           lin_vector_wrap_( *vspace_ )
     {
         for ( int i = 0; i < idx_nd_type::dim; ++i )
