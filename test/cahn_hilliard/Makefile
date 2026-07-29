@@ -16,6 +16,9 @@ test_biharmonic_cuda: test_biharmonic.cpp
 test_biharmonic_mpi_cpu: test_biharmonic_mpi.cpp
 	$(MPICXX) $(HOSTFLAGS) $(INCLUDE_CONTRIB) -DPLATFORM_SERIAL_CPU $(PRECISION_DEFINE) test_biharmonic_mpi.cpp -o test_biharmonic_mpi_cpu_$(PRECISION_SUFFIX).bin
 
+test_biharmonic_mpi_omp: test_biharmonic_mpi.cpp
+	$(MPICXX) $(OMP_FLAGS) $(HOSTFLAGS) $(INCLUDE_CONTRIB) -DPLATFORM_OMP $(PRECISION_DEFINE) test_biharmonic_mpi.cpp -o test_biharmonic_mpi_omp_$(PRECISION_SUFFIX).bin
+
 test_biharmonic_all: test_biharmonic_cpu test_biharmonic_omp test_biharmonic_cuda
 
 

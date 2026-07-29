@@ -21,8 +21,8 @@ public:
     using operator_type     = LinearOperator;
     using vector_space_type = typename operator_type::vector_space_type;
     using vector_type       = typename vector_space_type::vector_type;
-    using restrictor_type   = restrictor<vector_space_type, Log>;
-    using prolongator_type  = prolongator<vector_space_type, Log>;
+    using restrictor_type   = restrictor<vector_space_type, Log, typename LinearOperator::dist_type>;
+    using prolongator_type  = prolongator<vector_space_type, Log, typename LinearOperator::dist_type>;
 
     using ordinal_type = typename vector_space_type::ordinal_type;
     using idx_nd_type  = typename vector_space_type::idx_nd_type;
@@ -64,8 +64,15 @@ public:
         auto fine_step   = op.get_h();
         auto coarse_step = fine_step * scalar_type( 2 );
 
-        auto res = std::make_shared<restrictor_type>( op.get_size(), fine_step, op.get_b_cond(), utils_.part.comm_info );
-        auto pro = std::make_shared<prolongator_type>( op.get_size(), coarse_step, op.get_b_cond(), utils_.part.comm_info );
+        // The restrictor reads the fine vectors, so it exchanges halos with the current level's
+        // distributor. The prolongator reads the coarse ones and gets its distributor later, from
+        // coarse_operator, once the coarse level exists.
+        auto res = std::make_shared<restrictor_type>(
+            op.get_size(), fine_step, op.get_b_cond(), utils_.part.comm_info, op.get_distributor(), utils_.stencil,
+            utils_.max_stencil_order );
+        auto pro = std::make_shared<prolongator_type>(
+            op.get_size(), coarse_step, op.get_b_cond(), utils_.part.comm_info, utils_.stencil,
+            utils_.max_stencil_order );
 
         auto fine_lin = op.get_lin_vector();
         res->set_linearization_point( fine_lin );
@@ -96,30 +103,7 @@ public:
         b_cond.set_gamma( new_gamma );
 
 
-        const part_type &finest_part  = utils_.part;
-        auto             finest_block = finest_part.get_own_rect().calc_size();
-
-        // Compute current level of mg
-        big_ord_vec_t scale;
-        for ( int j = 0; j < dim; ++j )
-        {
-            scale[j] = finest_block[j] / big_ordinal_type( coarse_size[j] );
-        }
-
-        // Cut the rects of the partitioner for the next level
-        part_type coarse_part = finest_part;
-        for ( int j = 0; j < dim; ++j )
-        {
-            coarse_part.dom_size[j] = finest_part.dom_size[j] / scale[j];
-        }
-        for ( auto &r : coarse_part.proc_rects )
-        {
-            for ( int j = 0; j < dim; ++j )
-            {
-                r.i1[j] /= scale[j];
-                r.i2[j] /= scale[j];
-            }
-        }
+        part_type coarse_part = level_partitioner( coarse_size );
 
         auto coarse_dist = std::make_shared<dist_type>();
         coarse_dist->init_for_tensors(
@@ -127,7 +111,7 @@ public:
 
         // Coarse vector space must carry the same stencil as the fine one
         auto coarse_vspace = std::make_shared<vector_space_type>(
-            coarse_size, finest_part.comm_info, false, utils_.stencil, utils_.max_stencil_order );
+            coarse_size, utils_.part.comm_info, false, utils_.stencil, utils_.max_stencil_order );
 
         auto coarse_op = std::make_shared<operator_type>(
             coarse_vspace, coarse_h, b_cond, coarse_dist, op.get_time_derivative() );
@@ -141,7 +125,8 @@ public:
         restrictor.apply( fine_vector, coarse_vector, false );
         coarse_op->set_linearization_point( coarse_vector );
 
-        // Set the prolongator's b_cond and linearization point (both coarse-level)
+        // Set the prolongator's distributor, b_cond and linearization point (all coarse-level)
+        prolongator.set_distributor( coarse_dist );
         prolongator.set_b_cond( b_cond );
         prolongator.set_linearization_point( coarse_vector );
 
@@ -150,14 +135,46 @@ public:
 
     bool coarse_enough( const operator_type &op ) const
     {
-        auto range = op.get_size();
-        for ( int i = 0; i < range.dim; ++i )
-            if ( range[i] <= 2 )
-                return true;
+        part_type level_part = level_partitioner( op.get_size() );
+        for ( const auto &r : level_part.proc_rects )
+        {
+            for ( int j = 0; j < dim; ++j )
+            {
+                if ( r.i2[j] - r.i1[j] <= big_ordinal_type( 2 ) )
+                    return true;
+            }
+        }
         return false;
     }
 
 private:
+    // The finest decomposition scaled down to a level whose local block is `level_size`
+    part_type level_partitioner( const idx_nd_type &level_size ) const
+    {
+        auto finest_block = utils_.part.get_own_rect().calc_size();
+
+        big_ord_vec_t scale;
+        for ( int j = 0; j < dim; ++j )
+        {
+            scale[j] = finest_block[j] / big_ordinal_type( level_size[j] );
+        }
+
+        part_type level_part = utils_.part;
+        for ( int j = 0; j < dim; ++j )
+        {
+            level_part.dom_size[j] = utils_.part.dom_size[j] / scale[j];
+        }
+        for ( auto &r : level_part.proc_rects )
+        {
+            for ( int j = 0; j < dim; ++j )
+            {
+                r.i1[j] /= scale[j];
+                r.i2[j] /= scale[j];
+            }
+        }
+        return level_part;
+    }
+
     utils utils_;
 };
 

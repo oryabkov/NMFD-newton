@@ -43,8 +43,10 @@ using backend = scfd::backend::current;
 
 constexpr int dim               = 3;
 constexpr int tensor_dim        = 2;
-constexpr int stencil           = 1; // ghost width per side; must match the distributor stencil
-constexpr int max_stencil_order = 1; // highest coupled stencil order for the halo exchange
+// The multigrid restriction stencil reaches two cells past the block and spans the full diagonal,
+// so the halo has to be two cells wide and exchanged with the corner neighbours as well.
+constexpr int stencil           = 2;   // ghost width per side; must match the distributor stencil
+constexpr int max_stencil_order = dim; // highest coupled stencil order for the halo exchange
 
 #ifndef USE_DOUBLE_PRECISION
 using scalar      = float;
@@ -89,8 +91,8 @@ using time_derivative_t = tests::time_derivative<vec_ops_t, tensor_t>;
 using lin_op_t      = tests::jacobi_op<vec_ops_t, log_t, phobic_energy_t, time_derivative_t, mobility_t, dist_t>;
 using smoother_t    = tests::jacobi_pre<vec_ops_t, log_t, phobic_energy_t, time_derivative_t, mobility_t, dist_t>;
 
-using prolongator_t = tests::prolongator<vec_ops_t, log_t>;
-using restrictor_t  = tests::restrictor<vec_ops_t, log_t>;
+using prolongator_t = tests::prolongator<vec_ops_t, log_t, dist_t>;
+using restrictor_t  = tests::restrictor<vec_ops_t, log_t, dist_t>;
 using ident_op_t    = nmfd::preconditioners::dummy<vec_ops_t, lin_op_t>;
 using coarsening_t  = tests::coarsening<lin_op_t, log_t>;
 
@@ -218,6 +220,14 @@ int main( int argc, char *argv[] )
     solver_type         = argv[1];
     preconditioner_type = argv[2];
     grid_size           = std::stoi( argv[3] );
+
+    // Multigrid halves the grid down to two cells, so every extent must stay even all the way down.
+    if ( grid_size < 2 || ( grid_size & ( grid_size - 1 ) ) != 0 )
+    {
+        if ( is_root )
+            std::cerr << "ERROR: grid_size must be a power of two, got " << grid_size << "." << std::endl;
+        return 1;
+    }
 
     // Validate solver and preconditioner types
     if ( solver_type != "jacobi" && solver_type != "gmres" )

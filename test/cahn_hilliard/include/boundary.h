@@ -177,6 +177,10 @@ public:
                 #pragma unroll
                 for ( int jj = 0; jj < tensor_dim; ++jj )
                 {
+                    if ( left[j][jj] == 0 )
+                    {
+                        continue; // halo value, already correct
+                    }
                     if ( left[j][jj] == 2 )
                     {
                         res[jj] = nonlinear_ghost( res[jj], compute_A( scaled_step[j], delta_ ) );
@@ -192,6 +196,10 @@ public:
                 #pragma unroll
                 for ( int jj = 0; jj < tensor_dim; ++jj )
                 {
+                    if ( right[j][jj] == 0 )
+                    {
+                        continue; // halo value, already correct
+                    }
                     if ( right[j][jj] == 2 )
                     {
                         res[jj] = nonlinear_ghost( res[jj], compute_A( scaled_step[j], delta_ ) );
@@ -258,6 +266,10 @@ public:
                 #pragma unroll
                 for ( int jj = 0; jj < tensor_dim; ++jj )
                 {
+                    if ( left[j][jj] == 0 )
+                    {
+                        continue; // halo value, already correct
+                    }
                     if ( left[j][jj] == 2 )
                     {
                         mul[jj] *= nonlinear_ghost_coef_linearized( lin_res[jj], compute_A( scaled_step[j], delta_ ) );
@@ -274,6 +286,10 @@ public:
                 #pragma unroll
                 for ( int jj = 0; jj < tensor_dim; ++jj )
                 {
+                    if ( right[j][jj] == 0 )
+                    {
+                        continue; // halo value, already correct
+                    }
                     if ( right[j][jj] == 2 )
                     {
                         mul[jj] *= nonlinear_ghost_coef_linearized( lin_res[jj], compute_A( scaled_step[j], delta_ ) );
@@ -326,12 +342,16 @@ public:
         #pragma unroll
         for ( int j = 0; j < dim; ++j )
         {
-            if ( ghost_idx[j] < 0 )
+            // Condition 0 means there is no physical boundary on this axis: the cell belongs to a
+            // neighbouring rank, or wraps around periodically, and the distributor has already put
+            // it in the halo. Leave the index alone so the halo value is read. Periodicity is a
+            // property of the axis, so component 0 decides, as it does for the distributor's flags.
+            if ( ghost_idx[j] < 0 && left[j][0] != 0 )
             {
                 internal_idx[j] = -ghost_idx[j] - 1;
                 scaled_step[j] = (internal_idx[j] - ghost_idx[j]) * step[j];
             }
-            else if ( ghost_idx[j] >= dom_sz[j] )
+            else if ( ghost_idx[j] >= dom_sz[j] && right[j][0] != 0 )
             {
                 internal_idx[j] = 2 * dom_sz[j] - ghost_idx[j] - 1;
                 scaled_step[j] = (ghost_idx[j] - internal_idx[j]) * step[j];
