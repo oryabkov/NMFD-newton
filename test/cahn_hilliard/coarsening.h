@@ -25,7 +25,6 @@ public:
     using prolongator_type  = prolongator<vector_space_type, Log, typename LinearOperator::dist_type>;
 
     using ordinal_type = typename vector_space_type::ordinal_type;
-    using idx_nd_type  = typename vector_space_type::idx_nd_type;
     using scalar_type  = typename vector_space_type::scalar_type;
     using grid_step_type = typename restrictor_type::grid_step_type;
 
@@ -37,8 +36,6 @@ public:
     using part_type      = typename dist_type::rect_partitioner_t;
     using comm_type      = typename dist_type::comm_type;
     using bool_vec_t     = typename dist_type::bool_vec_t;
-    using big_ord_vec_t    = typename part_type::big_ord_vec_t;
-    using big_ord_rect_t   = typename part_type::big_ord_rect_t;
     using big_ordinal_type = typename part_type::big_ordinal;
 
 public:
@@ -55,7 +52,7 @@ public:
     };
     using utils_hierarchy = utils;
 
-    coarsening( const utils_hierarchy &u, const params_hierarchy &p ) : utils_( u )
+    coarsening( const utils_hierarchy &u, const params_hierarchy &p ) : utils_( u ), cur_part_( u.part )
     {
     }
 
@@ -68,10 +65,10 @@ public:
         // distributor. The prolongator reads the coarse ones and gets its distributor later, from
         // coarse_operator, once the coarse level exists.
         auto res = std::make_shared<restrictor_type>(
-            op.get_size(), fine_step, op.get_b_cond(), utils_.part.comm_info, op.get_distributor(), utils_.stencil,
+            op.get_size(), fine_step, op.get_b_cond(), cur_part_.comm_info, op.get_distributor(), utils_.stencil,
             utils_.max_stencil_order );
         auto pro = std::make_shared<prolongator_type>(
-            op.get_size(), coarse_step, op.get_b_cond(), utils_.part.comm_info, utils_.stencil,
+            op.get_size(), coarse_step, op.get_b_cond(), cur_part_.comm_info, utils_.stencil,
             utils_.max_stencil_order );
 
         auto fine_lin = op.get_lin_vector();
@@ -102,16 +99,27 @@ public:
         auto b_cond = op.get_b_cond();
         b_cond.set_gamma( new_gamma );
 
-
-        part_type coarse_part = level_partitioner( coarse_size );
+        // Go to the next level. Half the cur_part_
+        for ( int j = 0; j < dim; ++j )
+        {
+            cur_part_.dom_size[j] /= big_ordinal_type( 2 );
+        }
+        for ( auto &r : cur_part_.proc_rects )
+        {
+            for ( int j = 0; j < dim; ++j )
+            {
+                r.i1[j] /= big_ordinal_type( 2 );
+                r.i2[j] /= big_ordinal_type( 2 );
+            }
+        }
 
         auto coarse_dist = std::make_shared<dist_type>();
         coarse_dist->init_for_tensors(
-            tensor_dim, coarse_part, utils_.periodic_flags, utils_.stencil, utils_.max_stencil_order );
+            tensor_dim, cur_part_, utils_.periodic_flags, utils_.stencil, utils_.max_stencil_order );
 
         // Coarse vector space must carry the same stencil as the fine one
         auto coarse_vspace = std::make_shared<vector_space_type>(
-            coarse_size, utils_.part.comm_info, false, utils_.stencil, utils_.max_stencil_order );
+            coarse_size, cur_part_.comm_info, false, utils_.stencil, utils_.max_stencil_order );
 
         auto coarse_op = std::make_shared<operator_type>(
             coarse_vspace, coarse_h, b_cond, coarse_dist, op.get_time_derivative() );
@@ -133,10 +141,9 @@ public:
         return coarse_op;
     }
 
-    bool coarse_enough( const operator_type &op ) const
+    bool coarse_enough( const operator_type & ) const
     {
-        part_type level_part = level_partitioner( op.get_size() );
-        for ( const auto &r : level_part.proc_rects )
+        for ( const auto &r : cur_part_.proc_rects )
         {
             for ( int j = 0; j < dim; ++j )
             {
@@ -148,34 +155,8 @@ public:
     }
 
 private:
-    // The finest decomposition scaled down to a level whose local block is `level_size`
-    part_type level_partitioner( const idx_nd_type &level_size ) const
-    {
-        auto finest_block = utils_.part.get_own_rect().calc_size();
-
-        big_ord_vec_t scale;
-        for ( int j = 0; j < dim; ++j )
-        {
-            scale[j] = finest_block[j] / big_ordinal_type( level_size[j] );
-        }
-
-        part_type level_part = utils_.part;
-        for ( int j = 0; j < dim; ++j )
-        {
-            level_part.dom_size[j] = utils_.part.dom_size[j] / scale[j];
-        }
-        for ( auto &r : level_part.proc_rects )
-        {
-            for ( int j = 0; j < dim; ++j )
-            {
-                r.i1[j] /= scale[j];
-                r.i2[j] /= scale[j];
-            }
-        }
-        return level_part;
-    }
-
     utils utils_;
+    part_type cur_part_;
 };
 
 } // namespace tests
