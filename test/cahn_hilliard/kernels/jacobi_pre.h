@@ -50,7 +50,7 @@ struct jacobi_pre_kernel
             TensorType prev_lin_vec;
             if ( idx[j] == 0 )
             {
-                cond.get_ghost_coef_linearized( lin_vector, range, idx - ej, step, diag_ghost );
+                cond.get_diag_ghost_coef_linearized( lin_vector, range, idx - ej, j, /*is_left*/ true, step, diag_ghost );
                 diag_j += diag_ghost;
                 cond.get_lin_neighbor( lin_vector, range, idx - ej, j, /*is_left*/ true, step, prev_lin_vec );
             }
@@ -62,7 +62,7 @@ struct jacobi_pre_kernel
             TensorType next_lin_vec;
             if ( idx[j] == N - 1 )
             {
-                cond.get_ghost_coef_linearized( lin_vector, range, idx + ej, step, diag_ghost );
+                cond.get_diag_ghost_coef_linearized( lin_vector, range, idx + ej, j, /*is_left*/ false, step, diag_ghost );
                 diag_j += diag_ghost;
                 cond.get_lin_neighbor( lin_vector, range, idx + ej, j, /*is_left*/ false, step, next_lin_vec );
             }

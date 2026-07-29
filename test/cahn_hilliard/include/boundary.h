@@ -303,6 +303,23 @@ public:
         }
     }
 
+    __DEVICE_TAG__ void get_diag_ghost_coef_linearized(
+        const vector_type &lin_vector, const idx_nd_type &dom_sz, const idx_nd_type &ghost_idx,
+        int axis, bool is_left, const grid_step_type &step, tensor_type &mul
+    ) const
+    {
+        get_ghost_coef_linearized( lin_vector, dom_sz, ghost_idx, step, mul );
+
+        #pragma unroll
+        for ( int c = 0; c < tensor_dim; ++c )
+        {
+            if ( ( is_left ? left[axis][c] : right[axis][c] ) == 0 )
+            {
+                mul[c] = 0;
+            }
+        }
+    }
+
     __DEVICE_TAG__ void get_lin_neighbor(
         const vector_type &lin_vector, const idx_nd_type &dom_sz, const idx_nd_type &ghost_idx,
         int axis, bool is_left, const grid_step_type &step, tensor_type &res
@@ -342,10 +359,6 @@ public:
         #pragma unroll
         for ( int j = 0; j < dim; ++j )
         {
-            // Condition 0 means there is no physical boundary on this axis: the cell belongs to a
-            // neighbouring rank, or wraps around periodically, and the distributor has already put
-            // it in the halo. Leave the index alone so the halo value is read. Periodicity is a
-            // property of the axis, so component 0 decides, as it does for the distributor's flags.
             if ( ghost_idx[j] < 0 && left[j][0] != 0 )
             {
                 internal_idx[j] = -ghost_idx[j] - 1;

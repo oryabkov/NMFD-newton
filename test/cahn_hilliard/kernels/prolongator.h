@@ -50,8 +50,9 @@ struct prolongator_kernel
         using Scalar = typename VectorType::value_type;
         using Tensor = typename scfd::static_vec::vec<Scalar, TensorDim>;
 
-        const IdxND begin0 = ( idx - IdxND::make_ones() * ( stencil_1d_half_sz - 1 ) ) / Ord{ 2 };
-        const IdxND end0   = ( idx + IdxND::make_ones() * ( stencil_1d_half_sz - 1 ) ) / Ord{ 2 } + IdxND::make_ones();
+        const IdxND h      = IdxND::make_ones() * ( stencil_1d_half_sz - 1 );
+        const IdxND begin0 = ( idx + h ) / Ord{ 2 } - h;
+        const IdxND end0   = ( idx + h ) / Ord{ 2 } + IdxND::make_ones();
 
         Rect r{ begin0, end0 };
         //TODO use dom_r as external parameter (important for mgpu)
