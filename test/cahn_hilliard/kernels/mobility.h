@@ -39,7 +39,7 @@ class parabolic_mobility
     using st = scfd::utils::scalar_traits<Scalar>;
 
 public:
-    parabolic_mobility(Scalar D = 1.0, Scalar offset=0.5): D_(1), offset_(0.8)
+    parabolic_mobility(Scalar D = 1.0, Scalar offset=0.5): D_(1), offset_(1e-5)
     {
         A_ = D_*D_ - offset_*offset_;
         // B_ = offset_*offset_ / A_;

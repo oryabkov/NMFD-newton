@@ -3,9 +3,14 @@
 *.dat
 .vscode
 *.gif
+*.csv
+*.out
+*.txt
 .DS_Store
 **/data
 .venv
 .clangd
 .clang-format
 **/#*#
+.serena/
+.claude/

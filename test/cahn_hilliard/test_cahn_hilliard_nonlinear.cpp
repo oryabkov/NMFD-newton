@@ -20,6 +20,7 @@
 #include "jacobi_pre.h"
 
 #include <nmfd/solvers/gmres.h>
+#include <nmfd/solvers/iter_solver_base.h>
 #include <nmfd/solvers/jacobi.h>
 #include <nmfd/solvers/newton_iteration.h>
 #include <nmfd/solvers/nonlinear_solver.h>
@@ -69,6 +70,7 @@ using monitor_funcs_ptr = default_monitor_t::custom_funcs_ptr;
 // Problem
 // using phobic_energy_t = tests::double_well_potential<scalar>;
 using phobic_energy_t   = tests::logarithmic_potential<scalar>;
+// using mobility_t        = tests::constant_mobility<scalar>;
 using mobility_t        = tests::parabolic_mobility<scalar>;
 using rhs_t             = tests::zero_rhs<scalar, tensor_t>;
 using time_derivative_t = tests::time_derivative<vec_ops_t, tensor_t>;
@@ -88,11 +90,16 @@ using mg_t =
 using mg_params_t = mg_t::params_hierarchy;
 using mg_utils_t  = mg_t::utils_hierarchy;
 
-using jacobi_solver = nmfd::solvers::jacobi<vec_ops_t, jacobi_op_t, precond_interface, default_monitor_t, log_t>;
+using jacobi_solver = nmfd::solvers::jacobi<vec_ops_t, jacobi_op_t, precond_interface, krylov_monitor_t, log_t>;
 using gmres_solver  = nmfd::solvers::gmres<vec_ops_t, krylov_monitor_t, log_t, jacobi_op_t, precond_interface>;
 
 using cahn_hilliard_op_t =
     tests::cahn_hilliard_op<vec_ops_t, jacobi_op_t, log_t, phobic_energy_t, rhs_t, time_derivative_t, mobility_t>;
+
+using linsolver_base_t = nmfd::solvers::iter_solver_base<vec_ops_t, krylov_monitor_t, log_t, jacobi_op_t, precond_interface>;
+using newton_conv_monitor_t = tests::newton_convergence_monitor<vec_ops_t, log_t, cahn_hilliard_op_t, krylov_monitor_t, scalar>;
+using newton_iteration_t = nmfd::solvers::newton_iteration<vec_ops_t, cahn_hilliard_op_t, linsolver_base_t>;
+using newton_solver_t = nmfd::solvers::nonlinear_solver<vec_ops_t, log_t, cahn_hilliard_op_t, newton_iteration_t, newton_conv_monitor_t>;
 
 /**************************************/
 // Logging helpers
@@ -414,11 +421,11 @@ int main( int argc, char const *argv[] )
     // int left_bc[3][2]  = { { 0, 0 }, { 0, 0 }, { 0, 0 } }; // left:  [x,y,z][psi=Neumann, phi=nonlinear]
     // int right_bc[3][2] = { { 0, 0 }, { 0, 0 }, { 0, 0 } };  // right: [x,y,z][psi=Neumann, phi=nonlinear]
 
-    int left_bc[3][2]  = { { +1, +1 }, { +1, +1 }, { +1, +1 } }; // left:  [x,y,z][psi=Neumann, phi=nonlinear]
-    int right_bc[3][2] = { { +1, +1 }, { +1, +1 }, { +1, +1 } };  // right: [x,y,z][psi=Neumann, phi=nonlinear]
+    // int left_bc[3][2]  = { { +1, +1 }, { +1, +1 }, { +1, +1 } }; // left:  [x,y,z][psi=Neumann, phi=nonlinear]
+    // int right_bc[3][2] = { { +1, +1 }, { +1, +1 }, { +1, +1 } };  // right: [x,y,z][psi=Neumann, phi=nonlinear]
 
-    // int left_bc[3][2]  = { { 0, 0 }, { 0, 0 }, { +1, 2 } }; // left:  [x,y,z][psi=Neumann, phi=nonlinear]
-    // int right_bc[3][2] = { { 0, 0 }, { 0, 0 }, { +1, +1 } };  // right: [x,y,z][psi=Neumann, phi=nonlinear]
+    int left_bc[3][2]  = { { 0, 0 }, { 0, 0 }, { +1, 2 } }; // left:  [x,y,z][psi=Neumann, phi=nonlinear]
+    int right_bc[3][2] = { { 0, 0 }, { 0, 0 }, { +1, +1 } };  // right: [x,y,z][psi=Neumann, phi=nonlinear]
 
     auto cond  = tests::boundary_cond<vec_ops_t>(
         left_bc, right_bc, gamma, cos_theta
@@ -454,8 +461,8 @@ int main( int argc, char const *argv[] )
     {
         vector_view_t solution_view( solution, false );
 
-        // scalar d = 1.0 / 4.0;
-        scalar d = 0.1;
+        scalar d = 1.0 / 4.0;
+        // scalar d = 0.1;
         for ( int i = 0; i < range[0]; i++ )
         {
             for ( int j = 0; j < range[1]; j++ )
@@ -469,8 +476,8 @@ int main( int argc, char const *argv[] )
 
                     solution_view( i, j, k, 0 ) = 0.0;
 
-                    // if ( x > 0.5 - d && x < 0.5 + d && y > 0.5 - d && y < 0.5 + d && z < 2 * d)
-                    if ( x > 0.5 - d && x < 0.5 + d && y > 0.5 - d && y < 0.5 + d && z > 0.5 - d && z < 0.5 + d)
+                    if ( x > 0.5 - d && x < 0.5 + d && y > 0.5 - d && y < 0.5 + d && z < 2 * d)
+                    // if ( x > 0.5 - d && x < 0.5 + d && y > 0.5 - d && y < 0.5 + d && z > 0.5 - d && z < 0.5 + d)
                     {
                         solution_view( i, j, k, 1 ) = 0.9;
                     }
@@ -579,154 +586,17 @@ int main( int argc, char const *argv[] )
     // Solve and measure time for each time step
     double              total_time_ms = 0.0;
 
+    std::shared_ptr<linsolver_base_t> lin_solver;
     if ( solver_type == "jacobi" )
     {
-        using newton_iteration_jacobi_t = nmfd::solvers::newton_iteration<vec_ops_t, cahn_hilliard_op_t, jacobi_solver>;
-        using newton_conv_monitor_jacobi_t = tests::newton_convergence_monitor<vec_ops_t, log_t, cahn_hilliard_op_t, default_monitor_t, scalar>;
-        using newton_solver_jacobi_t = nmfd::solvers::nonlinear_solver<vec_ops_t, log_t, cahn_hilliard_op_t, newton_iteration_jacobi_t, newton_conv_monitor_jacobi_t>;
-
         jacobi_solver::params solver_params;
         solver_params.monitor.rel_tol                  = tolerance;
         solver_params.monitor.max_iters_num            = max_iterations;
         solver_params.monitor.save_convergence_history = true;
-        auto jacobi_lin_solver = std::make_shared<jacobi_solver>( cahn_hilliard_jacobi_op, vspace, &log, solver_params, precond );
-
-        auto newton_iteration = std::make_shared<newton_iteration_jacobi_t>( vspace, jacobi_lin_solver );
-
-        auto get_monitor = [jacobi_lin_solver]() -> const default_monitor_t* {
-            return &(jacobi_lin_solver->monitor());
-        };
-
-        auto newton_solver = std::make_shared<newton_solver_jacobi_t>( vspace, &log, newton_iteration );
-        newton_solver->convergence_strategy()->set_tolerance( newton_tol );
-        newton_solver->convergence_strategy()->set_convergence_constants(
-            /*tolerance_*/ newton_tol,
-            /*maximum_iterations_*/ 10,
-            /*relax_tolerance_factor_*/ scalar( 1 ),
-            /*relax_tolerance_steps_*/ 0
-        );
-
-        int ts = 0;
-        while ( ts < max_time_steps )
-        {
-            std::cout << std::endl;
-            std::cout << "Time iteration #" << ( ts + 1 ) << " has started" << std::endl;
-            std::cout << std::endl;
-
-            // Create step-specific output directory
-            std::string step_dir = output_dir + "/step_" + std::to_string( ts + 1 );
-            std::filesystem::create_directories( step_dir );
-
-            const vector_t backup_solution = solution;
-            bool           step_accepted   = false;
-            double         accepted_step_time = 0.0;
-            scalar         accepted_dt_inf = scalar( 0 );
-            int            attempt_idx     = 0;
-            for ( attempt_idx = 1; attempt_idx <= DEFAULT_MAX_RETRIES + 1; ++attempt_idx )
-            {
-                const scalar current_dt_inf = dt_scheduler.get_dt_inf();
-                time_derivative->set_dt_inf( current_dt_inf );
-
-                std::cout << "  dt_inf attempt " << attempt_idx << ": "
-                          << std::scientific << static_cast<double>( current_dt_inf ) << std::defaultfloat << std::endl;
-
-                std::string attempt_dir = step_dir + "/attempt_" + std::to_string( attempt_idx );
-                std::filesystem::create_directories( attempt_dir );
-
-                // Create convergence monitor for this attempt
-                auto conv_monitor = std::make_shared<newton_conv_monitor_jacobi_t>(
-                    vspace, cahn_hilliard_op, get_monitor, attempt_dir, solver_type, preconditioner_type, grid_size, &log );
-
-                // Write initial residual (iteration 0) before Newton iterations start
-                conv_monitor->write_initial_residual( solution );
-
-                Timer timer( "Solve", false );
-                const bool converged = newton_solver->solve( cahn_hilliard_op.get(), conv_monitor.get(), nullptr, solution );
-                const double attempt_time = timer.stop_and_get_ms();
-
-                dt_scheduler.step( converged );
-
-                if ( converged )
-                {
-                    accepted_step_time = attempt_time;
-                    accepted_dt_inf    = current_dt_inf;
-                    step_accepted      = true;
-                    break;
-                }
-
-                // rollback state for the next attempt
-                solution = backup_solution;
-            }
-
-            if ( !step_accepted )
-            {
-                std::cerr << "ERROR: Failed to take time step after " << ( DEFAULT_MAX_RETRIES + 1 )
-                          << " attempts. Aborting." << std::endl;
-                break;
-            }
-
-            total_time_ms += accepted_step_time;
-
-            // Record dt_inf that this step converged with
-            dt_history_file << ( ts + 1 ) << " " << std::scientific << std::setprecision(15)
-                            << static_cast<double>( accepted_dt_inf ) << std::defaultfloat << "\n";
-            dt_history_file.flush();
-
-            // Compute stationary residual (to check time convergence)
-            vector_t F_x( range );
-            cahn_hilliard_op_stationary->apply( solution, F_x );
-            scalar F_x_norm = vspace->norm_l2( F_x );
-            log.info_f( "||F_stationary(solution)||_2 = %le", static_cast<double>( F_x_norm ) );
-
-            // Track total amount of each component after this step
-            write_component_sums( ts + 1, solution );
-
-            // Write to time convergence history file
-            time_conv_file << ( ts + 1 ) << " " << std::scientific << std::setprecision(15)
-                          << static_cast<double>( F_x_norm ) << std::endl;
-            time_conv_file.flush();
-
-            // Check for early termination based on F(x) norm
-            if ( F_x_norm < time_tol )
-            {
-                log.info_f( "Early termination: ||F_stationary(solution)||_2 = %le < %le (tolerance)",
-                           static_cast<double>( F_x_norm ), static_cast<double>( time_tol ) );
-                time_derivative->set_previous_state( solution );
-                break;
-            }
-
-            // Compute norm of difference between solution and previous state
-            vector_t previous_state = time_derivative->get_previous_state();
-            vector_t diff_prev( range );
-            vspace->assign_lin_comb( scalar( 1 ), solution, scalar( -1 ), previous_state, diff_prev );
-            scalar diff_prev_norm = vspace->norm_l2( diff_prev );
-            log.info_f( "||solution - previous_state||_2 = %le", static_cast<double>( diff_prev_norm ) );
-
-            // Update previous state before the next step
-            time_derivative->set_previous_state( solution );
-
-            // Save numerical solution at each step if requested
-            if ( save_coords )
-            {
-                std::string numerical_file = output_dir + "/numerical_" + std::to_string( ts + 1 ) + ".bin";
-                tests::save_solution_binary<vector_t, idx_nd_type>( solution, numerical_file, grid_size, tensor_dim );
-            }
-
-            // Separate iterations with empty line
-            if ( ts < max_time_steps - 1 )
-            {
-                std::cout << std::endl;
-            }
-
-            ++ts;
-        }
+        lin_solver = std::make_shared<jacobi_solver>( cahn_hilliard_jacobi_op, vspace, &log, solver_params, precond );
     }
     else // gmres
     {
-        using newton_iteration_gmres_t = nmfd::solvers::newton_iteration<vec_ops_t, cahn_hilliard_op_t, gmres_solver>;
-        using newton_conv_monitor_gmres_t = tests::newton_convergence_monitor<vec_ops_t, log_t, cahn_hilliard_op_t, krylov_monitor_t, scalar>;
-        using newton_solver_gmres_t = nmfd::solvers::nonlinear_solver<vec_ops_t, log_t, cahn_hilliard_op_t, newton_iteration_gmres_t, newton_conv_monitor_gmres_t>;
-
         gmres_solver::params params_gmres;
         params_gmres.monitor.rel_tol                      = tolerance;
         params_gmres.monitor.max_iters_num                = max_iterations;
@@ -735,136 +605,136 @@ int main( int argc, char const *argv[] )
         params_gmres.basis_size                           = gmres_basis;
         params_gmres.preconditioner_side                  = 'L';
         params_gmres.reorthogonalization                  = true;
-        auto gmres_lin_solver = std::make_shared<gmres_solver>( cahn_hilliard_jacobi_op, vspace, &log, params_gmres, precond );
+        lin_solver = std::make_shared<gmres_solver>( cahn_hilliard_jacobi_op, vspace, &log, params_gmres, precond );
+    }
 
-        auto newton_iteration = std::make_shared<newton_iteration_gmres_t>( vspace, gmres_lin_solver );
+    auto newton_iteration = std::make_shared<newton_iteration_t>( vspace, lin_solver );
 
-        auto get_monitor = [gmres_lin_solver]() -> const krylov_monitor_t* {
-            return &(gmres_lin_solver->monitor());
-        };
+    auto get_monitor = [lin_solver]() -> const krylov_monitor_t* {
+        return &(lin_solver->monitor());
+    };
 
-        auto newton_solver = std::make_shared<newton_solver_gmres_t>( vspace, &log, newton_iteration );
-        newton_solver->convergence_strategy()->set_tolerance( newton_tol );
-        newton_solver->convergence_strategy()->set_convergence_constants(
-            /*tolerance_*/ newton_tol,
-            /*maximum_iterations_*/ 10,
-            /*relax_tolerance_factor_*/ scalar( 1 ),
-            /*relax_tolerance_steps_*/ 0
-        );
+    auto newton_solver = std::make_shared<newton_solver_t>( vspace, &log, newton_iteration );
+    newton_solver->convergence_strategy()->set_tolerance( newton_tol );
+    newton_solver->convergence_strategy()->set_convergence_constants(
+        /*tolerance_*/ newton_tol,
+        /*maximum_iterations_*/ 10,
+        /*relax_tolerance_factor_*/ scalar( 1 ),
+        /*relax_tolerance_steps_*/ 0
+    );
 
-        int ts = 0;
-        while ( ts < max_time_steps )
+    int ts = 0;
+    while ( ts < max_time_steps )
+    {
+        std::cout << std::endl;
+        std::cout << "Time iteration #" << ( ts + 1 ) << " has started" << std::endl;
+        std::cout << std::endl;
+
+        // Create step-specific output directory
+        std::string step_dir = output_dir + "/step_" + std::to_string( ts + 1 );
+        std::filesystem::create_directories( step_dir );
+
+        const vector_t backup_solution = solution;
+        bool           step_accepted   = false;
+        double         accepted_step_time = 0.0;
+        scalar         accepted_dt_inf = scalar( 0 );
+        int            attempt_idx     = 0;
+        for ( attempt_idx = 1; attempt_idx <= DEFAULT_MAX_RETRIES + 1; ++attempt_idx )
+        {
+            const scalar current_dt_inf = dt_scheduler.get_dt_inf();
+            time_derivative->set_dt_inf( current_dt_inf );
+
+            std::cout << "  dt_inf attempt " << attempt_idx << ": "
+                      << std::scientific << static_cast<double>( current_dt_inf ) << std::defaultfloat << std::endl;
+
+            std::string attempt_dir = step_dir + "/attempt_" + std::to_string( attempt_idx );
+            std::filesystem::create_directories( attempt_dir );
+
+            // Create convergence monitor for this attempt
+            auto conv_monitor = std::make_shared<newton_conv_monitor_t>(
+                vspace, cahn_hilliard_op, get_monitor, attempt_dir, solver_type, preconditioner_type, grid_size, &log );
+
+            // Write initial residual (iteration 0) before Newton iterations start
+            conv_monitor->write_initial_residual( solution );
+
+            Timer timer( "Solve", false );
+            const bool converged = newton_solver->solve( cahn_hilliard_op.get(), conv_monitor.get(), nullptr, solution );
+            const double attempt_time = timer.stop_and_get_ms();
+
+            dt_scheduler.step( converged );
+
+            if ( converged )
+            {
+                accepted_step_time = attempt_time;
+                accepted_dt_inf    = current_dt_inf;
+                step_accepted      = true;
+                break;
+            }
+
+            // rollback state for the next attempt
+            solution = backup_solution;
+        }
+
+        if ( !step_accepted )
+        {
+            std::cerr << "ERROR: Failed to take time step after " << ( DEFAULT_MAX_RETRIES + 1 )
+                      << " attempts. Aborting." << std::endl;
+            break;
+        }
+
+        total_time_ms += accepted_step_time;
+
+        // Record dt_inf that this step converged with
+        dt_history_file << ( ts + 1 ) << " " << std::scientific << std::setprecision(15)
+                        << static_cast<double>( accepted_dt_inf ) << std::defaultfloat << "\n";
+        dt_history_file.flush();
+
+        // Compute stationary residual (to check time convergence)
+        vector_t F_x( range );
+        cahn_hilliard_op_stationary->apply( solution, F_x );
+        scalar F_x_norm = vspace->norm_l2( F_x );
+        log.info_f( "||F_stationary(solution)||_2 = %le", static_cast<double>( F_x_norm ) );
+
+        // Track total amount of each component after this step
+        write_component_sums( ts + 1, solution );
+
+        // Write to time convergence history file
+        time_conv_file << ( ts + 1 ) << " " << std::scientific << std::setprecision(15)
+                      << static_cast<double>( F_x_norm ) << std::endl;
+        time_conv_file.flush();
+
+        // Compute norm of difference between solution and previous state
+        vector_t previous_state = time_derivative->get_previous_state();
+        vector_t diff_prev( range );
+        vspace->assign_lin_comb( scalar( 1 ), solution, scalar( -1 ), previous_state, diff_prev );
+        scalar diff_prev_norm = vspace->norm_l2( diff_prev );
+        log.info_f( "||solution - previous_state||_2 = %le", static_cast<double>( diff_prev_norm ) );
+
+        // Update previous state before the next step
+        time_derivative->set_previous_state( solution );
+
+        // Save numerical solution at each step if requested
+        if ( save_coords )
+        {
+            std::string numerical_file = output_dir + "/numerical_" + std::to_string( ts + 1 ) + ".bin";
+            tests::save_solution_binary<vector_t, idx_nd_type>( solution, numerical_file, grid_size, tensor_dim );
+        }
+
+        // Separate iterations with empty line
+        if ( ts < max_time_steps - 1 )
         {
             std::cout << std::endl;
-            std::cout << "Time iteration #" << ( ts + 1 ) << " has started" << std::endl;
-            std::cout << std::endl;
+        }
 
-            // Create step-specific output directory
-            std::string step_dir = output_dir + "/step_" + std::to_string( ts + 1 );
-            std::filesystem::create_directories( step_dir );
+        ++ts;
 
-            const vector_t backup_solution = solution;
-            bool           step_accepted   = false;
-            double         accepted_step_time = 0.0;
-            scalar         accepted_dt_inf = scalar( 0 );
-            int            attempt_idx     = 0;
-            for ( attempt_idx = 1; attempt_idx <= DEFAULT_MAX_RETRIES + 1; ++attempt_idx )
-            {
-                const scalar current_dt_inf = dt_scheduler.get_dt_inf();
-                time_derivative->set_dt_inf( current_dt_inf );
-
-                std::cout << "  dt_inf attempt " << attempt_idx << ": "
-                          << std::scientific << static_cast<double>( current_dt_inf ) << std::defaultfloat << std::endl;
-
-                std::string attempt_dir = step_dir + "/attempt_" + std::to_string( attempt_idx );
-                std::filesystem::create_directories( attempt_dir );
-
-                // Create convergence monitor for this attempt
-                auto conv_monitor = std::make_shared<newton_conv_monitor_gmres_t>(
-                    vspace, cahn_hilliard_op, get_monitor, attempt_dir, solver_type, preconditioner_type, grid_size, &log );
-
-                // Write initial residual (iteration 0) before Newton iterations start
-                conv_monitor->write_initial_residual( solution );
-
-                Timer timer( "Solve", false );
-                const bool converged = newton_solver->solve( cahn_hilliard_op.get(), conv_monitor.get(), nullptr, solution );
-                const double attempt_time = timer.stop_and_get_ms();
-
-                dt_scheduler.step( converged );
-
-                if ( converged )
-                {
-                    accepted_step_time = attempt_time;
-                    accepted_dt_inf    = current_dt_inf;
-                    step_accepted      = true;
-                    break;
-                }
-
-                // rollback state for the next attempt
-                solution = backup_solution;
-            }
-
-            if ( !step_accepted )
-            {
-                std::cerr << "ERROR: Failed to take time step after " << ( DEFAULT_MAX_RETRIES + 1 )
-                          << " attempts. Aborting." << std::endl;
-                break;
-            }
-
-            total_time_ms += accepted_step_time;
-
-            // Record dt_inf that this step converged with
-            dt_history_file << ( ts + 1 ) << " " << std::scientific << std::setprecision(15)
-                            << static_cast<double>( accepted_dt_inf ) << std::defaultfloat << "\n";
-            dt_history_file.flush();
-
-            // Compute stationary residual (to check time convergence)
-            vector_t F_x( range );
-            cahn_hilliard_op_stationary->apply( solution, F_x );
-            scalar F_x_norm = vspace->norm_l2( F_x );
-            log.info_f( "||F_stationary(solution)||_2 = %le", static_cast<double>( F_x_norm ) );
-
-            // Track total amount of each component after this step
-            write_component_sums( ts + 1, solution );
-
-            // Write to time convergence history file
-            time_conv_file << ( ts + 1 ) << " " << std::scientific << std::setprecision(15)
-                          << static_cast<double>( F_x_norm ) << std::endl;
-            time_conv_file.flush();
-
-            // Compute norm of difference between solution and previous state
-            vector_t previous_state = time_derivative->get_previous_state();
-            vector_t diff_prev( range );
-            vspace->assign_lin_comb( scalar( 1 ), solution, scalar( -1 ), previous_state, diff_prev );
-            scalar diff_prev_norm = vspace->norm_l2( diff_prev );
-            log.info_f( "||solution - previous_state||_2 = %le", static_cast<double>( diff_prev_norm ) );
-
-            // Update previous state before the next step
+        // Check for early termination based on F(x) norm
+        if ( diff_prev_norm < time_tol )
+        {
+            log.info_f( "Early termination: ||solution - previous_state||_2 = %le < %le (tolerance)",
+                       static_cast<double>( diff_prev_norm ), static_cast<double>( time_tol ) );
             time_derivative->set_previous_state( solution );
-
-            // Save numerical solution at each step if requested
-            if ( save_coords )
-            {
-                std::string numerical_file = output_dir + "/numerical_" + std::to_string( ts + 1 ) + ".bin";
-                tests::save_solution_binary<vector_t, idx_nd_type>( solution, numerical_file, grid_size, tensor_dim );
-            }
-
-            // Separate iterations with empty line
-            if ( ts < max_time_steps - 1 )
-            {
-                std::cout << std::endl;
-            }
-
-            ++ts;
-
-            // Check for early termination based on F(x) norm
-            if ( diff_prev_norm < time_tol )
-            {
-                log.info_f( "Early termination: ||solution - previous_state||_2 = %le < %le (tolerance)",
-                           static_cast<double>( diff_prev_norm ), static_cast<double>( time_tol ) );
-                time_derivative->set_previous_state( solution );
-                break;
-            }
+            break;
         }
     }
 

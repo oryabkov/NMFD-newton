@@ -1,6 +1,7 @@
 #ifndef __BOUNDARY_H__
 #define __BOUNDARY_H__
 
+#include <iostream>
 #include <scfd/utils/device_tag.h>
 #include <scfd/utils/scalar_traits.h>
 #include <scfd/static_vec/vec.h>
@@ -176,6 +177,10 @@ public:
                 #pragma unroll
                 for ( int jj = 0; jj < tensor_dim; ++jj )
                 {
+                    if ( left[j][jj] == 0 )
+                    {
+                        continue; // halo value, already correct
+                    }
                     if ( left[j][jj] == 2 )
                     {
                         res[jj] = nonlinear_ghost( res[jj], compute_A( scaled_step[j], delta_ ) );
@@ -191,6 +196,10 @@ public:
                 #pragma unroll
                 for ( int jj = 0; jj < tensor_dim; ++jj )
                 {
+                    if ( right[j][jj] == 0 )
+                    {
+                        continue; // halo value, already correct
+                    }
                     if ( right[j][jj] == 2 )
                     {
                         res[jj] = nonlinear_ghost( res[jj], compute_A( scaled_step[j], delta_ ) );
@@ -217,39 +226,6 @@ public:
         get_internal_idx( ghost_idx, dom_sz, step, internal_idx, scaled_step );
 
         vector.get_vec( res, internal_idx );
-
-        // vector.get_vec( res, internal_idx );
-        // auto lin_res = lin_vector.get_vec( internal_idx );
-
-        // // auto delta_  = delta_wrap_.get_vec( internal_idx );
-        // auto delta_ = 1;
-
-        // #pragma unroll
-        // for ( int j = 0; j < dim; ++j )
-        // {
-        //     if ( ghost_idx[j] < 0 )
-        //     {
-        //         #pragma unroll
-        //         for ( int jj = 0; jj < tensor_dim; ++jj )
-        //         {
-        //             if ( left[j][jj] == 2 )
-        //                 res[jj] = nonlinear_ghost_coef( lin_res[jj], compute_A( scaled_step[j], delta_ ) ) * res[jj];
-        //             else
-        //                 res[jj] *= left[j][jj];
-        //         }
-        //     }
-        //     else if ( ghost_idx[j] >= dom_sz[j] )
-        //     {
-        //         #pragma unroll
-        //         for ( int jj = 0; jj < tensor_dim; ++jj )
-        //         {
-        //             if ( right[j][jj] == 2 )
-        //                 res[jj] = nonlinear_ghost_coef( lin_res[jj], compute_A( scaled_step[j], delta_ ) ) * res[jj];
-        //             else
-        //                 res[jj] *= right[j][jj];
-        //         }
-        //     }
-        // }
 
         tensor_type mul = tensor_type::make_ones();
         get_ghost_coef_linearized( lin_vector, dom_sz, ghost_idx, step, mul );
@@ -290,6 +266,10 @@ public:
                 #pragma unroll
                 for ( int jj = 0; jj < tensor_dim; ++jj )
                 {
+                    if ( left[j][jj] == 0 )
+                    {
+                        continue; // halo value, already correct
+                    }
                     if ( left[j][jj] == 2 )
                     {
                         mul[jj] *= nonlinear_ghost_coef_linearized( lin_res[jj], compute_A( scaled_step[j], delta_ ) );
@@ -306,6 +286,10 @@ public:
                 #pragma unroll
                 for ( int jj = 0; jj < tensor_dim; ++jj )
                 {
+                    if ( right[j][jj] == 0 )
+                    {
+                        continue; // halo value, already correct
+                    }
                     if ( right[j][jj] == 2 )
                     {
                         mul[jj] *= nonlinear_ghost_coef_linearized( lin_res[jj], compute_A( scaled_step[j], delta_ ) );
@@ -319,17 +303,68 @@ public:
         }
     }
 
+    __DEVICE_TAG__ void get_diag_ghost_coef_linearized(
+        const vector_type &lin_vector, const idx_nd_type &dom_sz, const idx_nd_type &ghost_idx,
+        int axis, bool is_left, const grid_step_type &step, tensor_type &mul
+    ) const
+    {
+        get_ghost_coef_linearized( lin_vector, dom_sz, ghost_idx, step, mul );
+
+        #pragma unroll
+        for ( int c = 0; c < tensor_dim; ++c )
+        {
+            if ( ( is_left ? left[axis][c] : right[axis][c] ) == 0 )
+            {
+                mul[c] = 0;
+            }
+        }
+    }
+
+    __DEVICE_TAG__ void get_lin_neighbor(
+        const vector_type &lin_vector, const idx_nd_type &dom_sz, const idx_nd_type &ghost_idx,
+        int axis, bool is_left, const grid_step_type &step, tensor_type &res
+    ) const
+    {
+        tensor_type reflect{};
+        get_ghost_tensor( lin_vector, dom_sz, ghost_idx, step, reflect );
+
+        tensor_type halo{};
+        lin_vector.get_vec( halo, ghost_idx );
+
+        #pragma unroll
+        for ( int c = 0; c < tensor_dim; ++c )
+        {
+            res[c] = ( ( is_left ? left[axis][c] : right[axis][c] ) == 0 ) ? halo[c] : reflect[c];
+        }
+    }
+
+    __DEVICE_TAG__ void get_vec_neighbor(
+        const vector_type &lin_vector, const vector_type &vector, const idx_nd_type &dom_sz,
+        const idx_nd_type &ghost_idx, int axis, bool is_left, const grid_step_type &step, tensor_type &res
+    ) const
+    {
+        tensor_type reflect{};
+        get_ghost_tensor_linearized( lin_vector, vector, dom_sz, ghost_idx, step, reflect );
+
+        tensor_type halo{};
+        vector.get_vec( halo, ghost_idx );
+
+        #pragma unroll
+        for ( int c = 0; c < tensor_dim; ++c )
+            res[c] = ( ( is_left ? left[axis][c] : right[axis][c] ) == 0 ) ? halo[c] : reflect[c];
+    }
+
     __DEVICE_TAG__ void get_internal_idx( const idx_nd_type &ghost_idx, const idx_nd_type &dom_sz, const grid_step_type &step, idx_nd_type &internal_idx, grid_step_type &scaled_step) const
     {
         #pragma unroll
         for ( int j = 0; j < dim; ++j )
         {
-            if ( ghost_idx[j] < 0 )
+            if ( ghost_idx[j] < 0 && left[j][0] != 0 )
             {
                 internal_idx[j] = -ghost_idx[j] - 1;
                 scaled_step[j] = (internal_idx[j] - ghost_idx[j]) * step[j];
             }
-            else if ( ghost_idx[j] >= dom_sz[j] )
+            else if ( ghost_idx[j] >= dom_sz[j] && right[j][0] != 0 )
             {
                 internal_idx[j] = 2 * dom_sz[j] - ghost_idx[j] - 1;
                 scaled_step[j] = (ghost_idx[j] - internal_idx[j]) * step[j];

@@ -4,18 +4,18 @@
 
 #include <nmfd/operations/dense_operations_base.h>
 
+const double eps = 1e-10;
+
 #ifndef USE_DOUBLE_PRECISION
-using scalar                = float;
-inline constexpr scalar eps = 1e-5f;
+using scalar = float;
 #else
-using scalar                = double;
-inline constexpr scalar eps = 1e-10;
+using scalar = double;
 #endif
 
 int main( int argc, char const *args[] )
 {
     using log_t        = scfd::utils::log_std;
-    using T            = scalar;
+    using T            = double;
     using backend_type = scfd::backend::current;
     using memory_type  = backend_type::memory_type;
     using dense_ops_t  = nmfd::operations::dense_operations<T, backend_type>;

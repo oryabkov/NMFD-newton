@@ -1,11 +1,19 @@
 #ifndef __NMFD_DENSE_VECTOR_OPERATIONS_H__
 #define __NMFD_DENSE_VECTOR_OPERATIONS_H__
 
+<<<<<<< HEAD
 #include <scfd/utils/todo.h>
 
 #include <nmfd/operations/kernels/dense_vector_space.h>
 #include <nmfd/operations/vector_operations_base.h>
 #include <nmfd/operations/default_multivector_operations_base.h>
+=======
+#include <vector>
+
+#include <scfd/utils/todo.h>
+
+#include <nmfd/operations/kernels/dense_vector_space.h>
+>>>>>>> origin/semenchuk
 
 namespace nmfd
 {
@@ -13,6 +21,7 @@ namespace operations
 {
 
 template <class VectorTraits, class Backend, class Ordinal = std::ptrdiff_t>
+<<<<<<< HEAD
 class dense_vector_operations : public default_multivector_operations_base<
                                     dense_vector_operations<VectorTraits, Backend, Ordinal>,
                                     typename VectorTraits::scalar_type, typename VectorTraits::vector_type, Ordinal>
@@ -30,6 +39,16 @@ public:
     using for_each_type    = typename Backend::template for_each_type<Ordinal>;
     using reduce_type      = typename Backend::reduce_type;
     using memory_type      = typename Backend::memory_type;
+=======
+class dense_vector_operations
+{
+public:
+    using scalar_type   = typename VectorTraits::scalar_type;
+    using vector_type   = typename VectorTraits::vector_type;
+    using for_each_type = typename Backend::template for_each_type<Ordinal>;
+    using reduce_type   = typename Backend::reduce_type;
+    using memory_type   = typename Backend::memory_type;
+>>>>>>> origin/semenchuk
 
 public:
     using scalar_prod_kernel       = kernels::scalar_prod<scalar_type, vector_type>;
@@ -53,12 +72,15 @@ public:
     using assign_random_kernel     = kernels::assign_random<scalar_type>;
 
 public:
+<<<<<<< HEAD
     using multivector_operations_base::add_lin_comb;
     using multivector_operations_base::assign;
     using multivector_operations_base::scalar_prod;
     using multivector_operations_base::scalar_prod_l2;
 
 public:
+=======
+>>>>>>> origin/semenchuk
     dense_vector_operations() = default;
 
     template <typename... Args>
@@ -67,17 +89,24 @@ public:
         vt_.alloc( vt_.loc_size(), helper_ );
     }
 
+<<<<<<< HEAD
     void init_vector( Ordinal loc_sz, vector_type &v ) const
     {
         vt_.alloc( loc_sz, v );
     }
 
+=======
+>>>>>>> origin/semenchuk
     [[nodiscard]] Ordinal get_loc_size( const vector_type &x ) const
     {
         return vt_.get_loc_size( x );
     }
 
+<<<<<<< HEAD
     bool is_valid_number( const vector_type &x ) const
+=======
+    bool check_is_valid_number( const vector_type &x ) const
+>>>>>>> origin/semenchuk
     {
         return std::isfinite( norm2_sq( x ) );
     }

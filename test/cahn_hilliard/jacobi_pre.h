@@ -20,8 +20,9 @@ template <
     class PhobicEnergy,
     class TimeDerivative,
     class Mobility,
+    class Distributor,
     /**********************************************/
-    class LinOp   = jacobi_op<VectorSpace, Log, PhobicEnergy, TimeDerivative, Mobility>,
+    class LinOp   = jacobi_op<VectorSpace, Log, PhobicEnergy, TimeDerivative, Mobility, Distributor>,
     class Backend = typename VectorSpace::backend_type>
 class jacobi_pre : public nmfd::preconditioners::preconditioner_interface<VectorSpace, LinOp>
 {
@@ -38,6 +39,8 @@ public:
     using tensor_type  = scfd::static_vec::vec<scalar_type, tensor_dim>;
     using vector_type = typename VectorSpace::vector_type;
     using idx_nd_type = typename VectorSpace::idx_nd_type;
+    using dist_type   = Distributor;
+    using dist_ptr    = std::shared_ptr<const dist_type>;
 
     using for_each_nd_type = typename Backend::template for_each_nd_type<dim>;
 
@@ -79,25 +82,10 @@ public:
     {
     }
 
-    jacobi_pre( vector_space_ptr vspace, grid_step_type step, boundary_cond_type b_cond)
-        : vspace_( std::move(vspace) ), range_( vspace_->get_size() ), step_( step ), b_cond_( std::make_unique<boundary_cond_type>( b_cond ) ),
-          lin_vector_wrap_( std::make_unique<vector_wrap_t>( *vspace_ ) ), phobic_en_(), time_derivative_( std::make_shared<TimeDerivative>(vspace_) )
-    {
-        vspace_->assign_scalar( 0.0, *lin_vector_wrap_ );
-    }
-
-    jacobi_pre(
-        vector_space_ptr vspace, grid_step_type step, boundary_cond_type b_cond, time_derivative_ptr time_derivative
-    )
-        : vspace_( std::move(vspace) ), range_( vspace_->get_size() ), step_( step ), b_cond_( std::make_unique<boundary_cond_type>( b_cond ) ),
-          lin_vector_wrap_( std::make_unique<vector_wrap_t>( *vspace_ ) ), phobic_en_(), time_derivative_( std::move(time_derivative) )
-    {
-        vspace_->assign_scalar( 0.0, *lin_vector_wrap_ );
-    }
-
-    jacobi_pre( std::shared_ptr<const lin_op_t> op )
+    jacobi_pre( std::shared_ptr<const lin_op_t> op, dist_ptr dist )
     {
         set_operator( op );
+        set_distributor( std::move( dist ) );
     }
 
     void set_operator( std::shared_ptr<const lin_op_t> op )
@@ -114,6 +102,7 @@ public:
         vspace_->assign( op->get_lin_vector(), **lin_vector_wrap_ );
 
         time_derivative_ = op->get_time_derivative();
+        set_distributor( op->get_distributor() );
     }
 
 public:
@@ -148,6 +137,16 @@ public:
         gamma_ = gamma;
     }
 
+    void set_distributor( dist_ptr dist )
+    {
+        dist_ = std::move( dist );
+    }
+
+    const dist_ptr &get_distributor() const noexcept
+    {
+        return dist_;
+    }
+
     const vector_space_ptr &get_dom_space() const noexcept
     {
         return get_space();
@@ -159,6 +158,10 @@ public:
 
     void apply( vector_type &vector ) const
     {
+        // Synchronized all data between processes between calling foreach
+        dist_->sync( vector );
+        dist_->sync( **lin_vector_wrap_ );
+
         for_each_nd_type for_each_nd_inst;
         for_each_nd_inst(
             preconditioner_kernel{
@@ -198,6 +201,8 @@ private:
     scalar_type gamma_ = scalar_type( 1 );
 
     params_hierarchy params_;
+
+    dist_ptr dist_;
 };
 
 } // namespace tests

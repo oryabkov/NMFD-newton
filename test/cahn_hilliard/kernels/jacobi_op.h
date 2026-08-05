@@ -26,13 +26,9 @@ struct jacobi_op_kernel
     Scalar       dt_inf;
     Scalar gamma;
 
-    // using periodic_bc_vector = tests::periodic_bc_vector<IdxND, Scalar, TensorType, VectorType>;
-
     __DEVICE_TAG__ void operator()( const IdxND idx ) const
     {
         TensorType state{ Scalar(0), Scalar(0) };
-        TensorType ghost{ Scalar(0), Scalar(0) };
-        TensorType lin_ghost{ Scalar(0), Scalar(0) };
 
         auto curr = in.get_vec( idx ); // [d_psi, d_phi]
         auto lin_curr = lin_vector.get_vec( idx ); // [psi_lin, phi_lin]
@@ -53,20 +49,8 @@ struct jacobi_op_kernel
             TensorType prev_lin_vec;
             if ( idx[j] == 0 )
             {
-                // BC for linearized problem
-                cond.get_ghost_tensor_linearized( lin_vector, in, range, idx - ej, step, ghost );
-                const auto periodic_vec = tests::periodic_bc_vector<IdxND, Scalar, TensorType, VectorType>( in, idx, j, N, true );
-
-                // BC for CH problem
-                cond.get_ghost_tensor( lin_vector, range, idx - ej, step, lin_ghost );
-                const auto periodic_lin_vec = tests::periodic_bc_vector<IdxND, Scalar, TensorType, VectorType>( lin_vector, idx, j, N, true );
-
-                #pragma unroll
-                for ( int c = 0; c < TensorType::dim; ++c )
-                {
-                    prev_vec[c]     = ( cond.left[j][c] == 0 ) ? periodic_vec[c]     : ghost[c];
-                    prev_lin_vec[c] = ( cond.left[j][c] == 0 ) ? periodic_lin_vec[c] : lin_ghost[c];
-                }
+                cond.get_vec_neighbor( lin_vector, in, range, idx - ej, j, /*is_left*/ true, step, prev_vec );
+                cond.get_lin_neighbor( lin_vector, range, idx - ej, j, /*is_left*/ true, step, prev_lin_vec );
             }
             else
             {
@@ -78,20 +62,8 @@ struct jacobi_op_kernel
             TensorType next_lin_vec;
             if ( idx[j] == N - 1 )
             {
-                // BC for linearized problem
-                cond.get_ghost_tensor_linearized( lin_vector, in, range, idx + ej, step, ghost );
-                const auto periodic_vec = tests::periodic_bc_vector<IdxND, Scalar, TensorType, VectorType>( in, idx, j, N, false );
-
-                // BC for CH problem
-                cond.get_ghost_tensor( lin_vector, range, idx + ej, step, lin_ghost );
-                const auto periodic_lin_vec = tests::periodic_bc_vector<IdxND, Scalar, TensorType, VectorType>( lin_vector, idx, j, N, false );
-
-                #pragma unroll
-                for ( int c = 0; c < TensorType::dim; ++c )
-                {
-                    next_vec[c]     = ( cond.right[j][c] == 0 ) ? periodic_vec[c]     : ghost[c];
-                    next_lin_vec[c] = ( cond.right[j][c] == 0 ) ? periodic_lin_vec[c] : lin_ghost[c];
-                }
+                cond.get_vec_neighbor( lin_vector, in, range, idx + ej, j, /*is_left*/ false, step, next_vec );
+                cond.get_lin_neighbor( lin_vector, range, idx + ej, j, /*is_left*/ false, step, next_lin_vec );
             }
             else
             {
@@ -113,11 +85,39 @@ struct jacobi_op_kernel
             ) / Scalar( hj * hj );
 
             // [eq.1] div(M'(phi_lin) grad(psi)) * d_phi
-            state[0] += (
-                mobility_deriv_plus_half * next_lin_vec[0] +
+            // ============ VARIANT 1: continuous linearization ============
+            // div(M'(phi_lin) grad(psi)) * d_phi  +  M'(phi_lin) * (grad(d_phi) . grad(psi))
+            // state[0] += (
+            //     mobility_deriv_plus_half  * next_lin_vec[0] +
+            //     mobility_deriv_minus_half * prev_lin_vec[0] -
+            //     ( mobility_deriv_plus_half + mobility_deriv_minus_half ) * lin_curr[0]
+            // ) / Scalar( hj * hj ) * curr[1];
+
+            // // M'_i = (M'_{i+1/2} + M'_{i-1/2}) / 2
+            // // d(d_phi)/dx_j = ( d_phi_{i+1} - d_phi_{i-1} ) / (2 h_j)
+            // // d(psi)/dx_j   = ( psi_{i+1}   - psi_{i-1}   ) / (2 h_j)
+            // state[0] += ( mobility_deriv_plus_half + mobility_deriv_minus_half )
+            //         * ( next_vec[1]     - prev_vec[1]     )
+            //         * ( next_lin_vec[0] - prev_lin_vec[0] )
+            //         / Scalar( 8 * hj * hj );
+
+            // ============ VARIANT 2: discrete linearization ============
+            // 1/2 * div(M'(phi_lin) grad(psi)) * d_phi_i
+            state[0] += Scalar( 0.5 ) * (
+                mobility_deriv_plus_half  * next_lin_vec[0] +
                 mobility_deriv_minus_half * prev_lin_vec[0] -
                 ( mobility_deriv_plus_half + mobility_deriv_minus_half ) * lin_curr[0]
             ) / Scalar( hj * hj ) * curr[1];
+
+            // + M'_{i+1/2} * (psi_{i+1} - psi_i) / (2 h^2) * d_phi_{i+1}
+            state[0] += mobility_deriv_plus_half
+                      * ( next_lin_vec[0] - lin_curr[0] )
+                      / Scalar( 2 * hj * hj ) * next_vec[1];
+
+            // - M'_{i-1/2} * (psi_i - psi_{i-1}) / (2 h^2) * d_phi_{i-1}
+            state[0] -= mobility_deriv_minus_half
+                      * ( lin_curr[0] - prev_lin_vec[0] )
+                      / Scalar( 2 * hj * hj ) * prev_vec[1];
 
             // [eq.2] gamma * laplace(d_phi)
             state[1] += gamma * ( next_vec[1] + prev_vec[1] - Scalar(2) * curr[1] ) / Scalar(hj * hj);

@@ -5,7 +5,6 @@
 
 #include <nmfd/operations/kernels/dense_vector_space.h>
 #include <nmfd/operations/dense_vector_operations.h>
-#include <nmfd/operations/default_multivector_space_base.h>
 
 namespace nmfd
 {
@@ -14,25 +13,13 @@ namespace operations
 
 
 template <class VectorTraits, class Backend, class Ordinal = std::ptrdiff_t>
-class dense_vector_space : public dense_vector_operations<VectorTraits, Backend, Ordinal>,
-                           public default_multivector_factory_base<
-                               dense_vector_space<VectorTraits, Backend, Ordinal>, typename VectorTraits::scalar_type,
-                               typename VectorTraits::vector_type, Ordinal>
+class dense_vector_space : public dense_vector_operations<VectorTraits, Backend, Ordinal>
 {
 public:
-    using vector_type      = typename VectorTraits::vector_type;
-    using parent_t         = dense_vector_operations<VectorTraits, Backend, Ordinal>;
-    using scalar_type      = typename VectorTraits::scalar_type;
-    using Ord              = Ordinal;
-    using ordinal_type     = Ordinal;
-    using multivector_type = typename parent_t::multivector_type;
+    using vector_type = typename VectorTraits::vector_type;
+    using parent_t    = dense_vector_operations<VectorTraits, Backend, Ordinal>;
 
 public:
-    using parent_t::add_lin_comb;
-    using parent_t::assign;
-    using parent_t::scalar_prod;
-    using parent_t::scalar_prod_l2;
-
     dense_vector_space() = default;
 
     template <typename... Args>

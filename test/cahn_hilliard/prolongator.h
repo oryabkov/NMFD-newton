@@ -12,8 +12,9 @@ namespace tests
 {
 
 template <
-    class VectorSpace, class Log,
+    class VectorSpace, class Log, class Distributor,
     /**********************************************/
+    class Comm    = typename VectorSpace::comm_type,
     class Backend = typename VectorSpace::backend_type>
 class prolongator
 {
@@ -23,6 +24,9 @@ public:
     using scalar_type           = typename VectorSpace::scalar_type;
     using vector_type           = typename VectorSpace::vector_type;
     using vector_space_type     = VectorSpace;
+    using comm_type             = Comm;
+    using dist_type             = Distributor;
+    using dist_ptr              = std::shared_ptr<const dist_type>;
     using ordinal_type          = typename VectorSpace::ordinal_type;
     using grid_step_type        = scfd::static_vec::vec<scalar_type, dim>;
 
@@ -38,11 +42,14 @@ public:
 public: // Especially for SYCL
     using prolongator_kernel =
         kernels::prolongator_kernel<idx_nd_type, ordinal_type, vector_type, tensor_dim, boundary_cond_type, grid_step_type>;
+    using rect_type = typename prolongator_kernel::Rect;
 
 public:
-    prolongator( idx_nd_type range, grid_step_type step, boundary_cond_type b_cond )
+    prolongator(
+        idx_nd_type range, grid_step_type step, boundary_cond_type b_cond, const comm_type &comm, ordinal_type stencil,
+        int max_stencil_order )
         : range_( range ), step_( step ), b_cond_( b_cond ),
-          vspace_( std::make_shared<vector_space_type>( range / Ord{ 2u } ) ),
+          vspace_( std::make_shared<vector_space_type>( range / Ord{ 2u }, comm, false, stencil, max_stencil_order ) ),
           lin_vector_wrap_( *vspace_ )
     {
         for ( int i = 0; i < idx_nd_type::dim; ++i )
@@ -90,17 +97,30 @@ public:
         b_cond_ = b_cond;
     }
 
+    // The coarse level does not exist yet when the prolongator is built, so its distributor arrives
+    // together with the coarse operator.
+    void set_distributor( dist_ptr dist )
+    {
+        dist_ = std::move( dist );
+    }
+
     // domain (coarse) -> (prolongate) -> image (fine)
     void apply( vector_type &from, vector_type &to ) const
     {
+        dist_->sync( from );
+        dist_->sync( *lin_vector_wrap_ );
+
+        // `dom_r` is physical region
+        rect_type        dom_r{ idx_nd_type::make_zero(), range_ / Ord{ 2u } };
         for_each_nd_type for_each_nd_inst;
-        for_each_nd_inst( prolongator_kernel{ from, to, *lin_vector_wrap_, b_cond_, step_, from.rect_nd() }, range_ );
+        for_each_nd_inst( prolongator_kernel{ from, to, *lin_vector_wrap_, b_cond_, step_, dom_r }, range_ );
     };
 
 private:
     idx_nd_type        range_; // in im space
     grid_step_type     step_;
     boundary_cond_type b_cond_;
+    dist_ptr           dist_;
 
     vector_space_ptr vspace_;
     using vector_wrap_t = nmfd::detail::vector_wrap<VectorSpace, true, true>;

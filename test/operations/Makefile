@@ -1,5 +1,7 @@
 -include ../common.mk
 
+MPICXX ?= mpic++
+
 all: test_static_vector_space test_pair_vector_space test_dense1_extended_operator
 
 test_static_vector_space: test_static_vector_space.cpp
@@ -10,6 +12,12 @@ test_pair_vector_space: test_pair_vector_space.cpp
 
 test_dense1_extended_operator: test_dense1_extended_operator.cpp
 	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) test_dense1_extended_operator.cpp -o test_dense1_extended_operator.bin
+
+test_rect_vector_space: test_rect_vector_space.cpp
+	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) test_rect_vector_space.cpp -o test_rect_vector_space.bin
+
+test_rect_vector_space_mpi: test_rect_vector_space_mpi.cpp
+	$(MPICXX) $(HOSTFLAGS) $(INCLUDE_CONTRIB) test_rect_vector_space_mpi.cpp -o test_rect_vector_space_mpi.bin
 
 # test_dense_vector_space
 
