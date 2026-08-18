@@ -9,29 +9,32 @@ endif
 
 -include $(CONFIG_FILE)
 
-ifndef TARGET_GCC
-TARGET_GCC =
-endif
 
-ifndef TARGET_NVCC
-TARGET_NVCC =
-endif
+# ----- Config defaults -----
 
-ifndef CUDA_ROOT_PATH
-CUDA_ROOT_PATH =
-endif
+TARGET_GCC ?=
+TARGET_NVCC ?=
+CUDA_ROOT_PATH ?=
+BOOST_INCLUDE ?=
+AMGCL_INCLUDE ?=
+FLOAT_TYPE ?= float
+USE_APPLE_OMP ?= False
+PLATFORM ?= omp
+PLATFORM_MPI ?= 0
 
-ifndef BOOST_INCLUDE
-BOOST_INCLUDE =
-endif
 
-ifndef AMGCL_INCLUDE
-AMGCL_INCLUDE =
-endif
+# ----- Paths -----
 
-ifndef FLOAT_TYPE
-FLOAT_TYPE = float
-endif
+PROJECT_ROOT_PATH = ../..
+SCFD_INCLUDE = $(PROJECT_ROOT_PATH)/contrib/SCFD/include
+NMFD_INCLUDE = $(PROJECT_ROOT_PATH)/include
+INCLUDE_CONTRIB = -I$(SCFD_INCLUDE) -I$(NMFD_INCLUDE)
+
+# Required by nmfd/operations/rect_vector_space.h (it allocates its vectors index-shifted)
+ARRAYS_FLAGS = -DSCFD_ARRAYS_ENABLE_INDEX_SHIFT=1
+
+
+# ----- Precision -----
 
 ifeq ($(FLOAT_TYPE),double)
 PRECISION_SUFFIX = d
@@ -41,45 +44,81 @@ PRECISION_SUFFIX = f
 PRECISION_DEFINE =
 endif
 
-ifndef USE_APPLE_OMP
-USE_APPLE_OMP = False
-endif
 
-PROJECT_ROOT_PATH = ../..
-SCFD_INCLUDE = $(PROJECT_ROOT_PATH)/contrib/SCFD/include
-NMFD_INCLUDE = $(PROJECT_ROOT_PATH)/include
-#INCLUDE_ROOT = -I$(PROJECT_ROOT_PATH)/sourse
-#INCLUDE_LOCAL = -I$(PROJECT_ROOT_PATH)/sourse/solver
-INCLUDE_CONTRIB = -I$(SCFD_INCLUDE) -I$(NMFD_INCLUDE)
+# ----- Host -----
+
+HOSTCOMPILER = g++
+HOSTFLAGS = $(TARGET_GCC) -std=c++17 $(ARRAYS_FLAGS)
 
 ifeq ($(USE_APPLE_OMP),True)
-	OMP_FLAGS = -Xpreprocessor -fopenmp -lomp -I/opt/homebrew/opt/libomp/include -L/opt/homebrew/opt/libomp/lib
+OMP_FLAGS = -Xpreprocessor -fopenmp -lomp -I/opt/homebrew/opt/libomp/include -L/opt/homebrew/opt/libomp/lib
 else
-	OMP_FLAGS = -fopenmp
+OMP_FLAGS = -fopenmp
 endif
 
-# Required by nmfd/operations/rect_vector_space.h (it allocates its vectors index-shifted)
-ARRAYS_FLAGS = -DSCFD_ARRAYS_ENABLE_INDEX_SHIFT=1
 
-HOSTFLAGS = $(TARGET_GCC) -std=c++17 $(ARRAYS_FLAGS)
-HOSTCOMPILER = g++
+# ----- CUDA -----
 
 ifneq ($(strip $(CUDA_ARCH)),)
 CUDA_ARCH_FLAG = -arch=$(CUDA_ARCH)
 endif
 CUDAFLAGS = $(TARGET_NVCC) -std=c++17 $(CUDA_ARCH_FLAG) $(ARRAYS_FLAGS)
+
 ifneq ($(strip $(CUDA_ROOT_PATH)),)
-CUDACOMPILER = $(CUDA_ROOT_PATH)bin/nvcc
+CUDACOMPILER = $(CUDA_ROOT_PATH)/bin/nvcc
+CUDA_LIB_PATH = -L$(CUDA_ROOT_PATH)/lib64
 else
 CUDACOMPILER = nvcc
+CUDA_LIB_PATH =
 endif
 
-MPICXX ?= mpic++
 
-#MPICOMPILER = $(MPI_ROOT_PATH)/bin/mpic++
-#SM = $(CUDA_ARCH)
-#MPI = $(MPI_ROOT_PATH)
-#HYPRELIBRARY = -lHYPRE
-#CUDALIBRARIES = -lcudart -lcurand -lcusparse -lcublas
-IPROJECT = ${INCLUDE_CONTRIB}
-LPROJECT = -ldl
+# ----- MPI -----
+
+MPICXX ?= mpic++
+INCLUDE_MPI := $(filter -I%,$(shell $(MPICXX) -show 2>/dev/null))
+
+
+# ----- Platform -----
+
+ifeq ($(PLATFORM),cpu)
+PLATFORMCXX = $(HOSTCOMPILER)
+PLATFORMCXX_FLAGS = $(HOSTFLAGS)
+PLATFORMCXX_LINK_FLAGS =
+PLATFORM_DEFINE = -DPLATFORM_SERIAL_CPU
+PLATFORM_SUFFIX = _cpu
+MPICXX_FLAGS =
+else ifeq ($(PLATFORM),omp)
+PLATFORMCXX = $(HOSTCOMPILER)
+PLATFORMCXX_FLAGS = $(HOSTFLAGS) $(OMP_FLAGS)
+PLATFORMCXX_LINK_FLAGS = $(OMP_FLAGS)
+PLATFORM_DEFINE = -DPLATFORM_OMP
+PLATFORM_SUFFIX = _omp
+MPICXX_FLAGS = $(OMP_FLAGS)
+else ifeq ($(PLATFORM),cuda)
+PLATFORMCXX = $(CUDACOMPILER)
+PLATFORMCXX_FLAGS = $(CUDAFLAGS) -x cu
+PLATFORMCXX_LINK_FLAGS =
+PLATFORM_DEFINE = -DPLATFORM_CUDA
+PLATFORM_SUFFIX = _cuda
+MPICXX_FLAGS = $(CUDA_LIB_PATH) -lcudart
+else
+$(error Unknown PLATFORM '$(PLATFORM)'. Supported values: cpu, omp, cuda)
+endif
+
+
+# ----- Platform linker -----
+
+ifeq ($(PLATFORM_MPI),1)
+PLATFORMLINKER = $(MPICXX)
+PLATFORMLINKER_FLAGS = $(MPICXX_FLAGS)
+PLATFORM_MPI_INCLUDE = $(INCLUDE_MPI)
+PLATFORM_MPI_DEFINE = -DSCFD_BACKEND_ENABLE_MPI
+MPI_SUFFIX = _mpi
+else
+PLATFORMLINKER = $(PLATFORMCXX)
+PLATFORMLINKER_FLAGS = $(PLATFORMCXX_LINK_FLAGS)
+PLATFORM_MPI_INCLUDE =
+PLATFORM_MPI_DEFINE =
+MPI_SUFFIX =
+endif

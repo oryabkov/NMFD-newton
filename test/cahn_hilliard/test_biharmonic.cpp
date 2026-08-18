@@ -1,13 +1,14 @@
+#include "balancer.h"
 #include "biharmonic_problem.h"
+#include "coarsening.h"
 #include "convergence_history_io.h"
 #include "jacobi_op.h"
 #include "jacobi_pre.h"
-#include "coarsening.h"
+#include "prolongator.h"
+#include "restrictor.h"
 #include "include/boundary.h"
 #include "kernels/phobic_energy.h"
 #include "kernels/mobility.h"
-#include "prolongator.h"
-#include "restrictor.h"
 #include "time_derivative.h"
 #include "solution_io.h"
 #include "timers.h"
@@ -19,18 +20,25 @@
 #include <iostream>
 #include <memory>
 #include <nmfd/operations/rect_vector_space.h>
-#include <nmfd/preconditioners/mg.h>
 #include <nmfd/preconditioners/dummy.h>
+#include <nmfd/preconditioners/mg.h>
 #include <nmfd/solvers/default_monitor.h>
 #include <nmfd/solvers/gmres.h>
 #include <nmfd/solvers/iter_solver_base.h>
 #include <nmfd/solvers/jacobi.h>
 #include <nmfd/solvers/monitor_krylov.h>
 #include <scfd/backend/backend.h>
+
+#ifdef SCFD_BACKEND_ENABLE_MPI
+#include <scfd/communication/mpi_wrap.h>
+#include <scfd/communication/mpi_rect_distributor.h>
+#else
 #include <scfd/communication/trivial_platform.h>
 #include <scfd/communication/trivial_comm.h>
-#include <scfd/communication/rect_partitioner.h>
 #include <scfd/communication/rect_distributor.h>
+#endif
+
+#include <scfd/communication/rect_partitioner.h>
 #include <scfd/utils/log.h>
 #include <algorithm>
 #include <sstream>
@@ -62,17 +70,25 @@ using log_t = scfd::utils::log_std;
 using ord_t           = int;
 using big_ord_t       = long int;
 using mem_t           = backend::memory_type;
+using dist_for_each_t = backend::for_each_nd_type<dim, ord_t>;
+
+#ifdef SCFD_BACKEND_ENABLE_MPI
+using comm_platform_t = scfd::communication::mpi_wrap;
+using comm_info_t     = scfd::communication::mpi_comm_info;
+using dist_t          = scfd::communication::mpi_rect_distributor<scalar, dim, mem_t, dist_for_each_t, ord_t, big_ord_t, comm_info_t>;
+#else
 using comm_platform_t = scfd::communication::trivial_platform<mem_t>;
 using comm_info_t     = scfd::communication::trivial_comm<mem_t>;
-using part_t          = scfd::communication::rect_partitioner<dim, ord_t, big_ord_t, comm_info_t>;
-using dist_for_each_t = backend::for_each_nd_type<dim, ord_t>;
 using dist_t          = scfd::communication::rect_distributor<scalar, dim, mem_t, dist_for_each_t, ord_t, big_ord_t, comm_info_t>;
+#endif
+
+using part_t          = scfd::communication::rect_partitioner<dim, ord_t, big_ord_t, comm_info_t>;
+
 using big_idx_t       = scfd::static_vec::vec<big_ord_t, dim>;
 using periodic_flags_t = scfd::static_vec::vec<bool, dim>;
 using rect_t          = scfd::static_vec::rect<ord_t, dim>;
 using big_rect_t      = scfd::static_vec::rect<big_ord_t, dim>;
 
-// Single-rank run: comm_info_t is the default communicator, so reductions stay local.
 using vec_ops_t     = nmfd::rect_vector_space<scalar, /*dim=*/dim, /*tensor_dim=*/tensor_dim, backend, comm_info_t>;
 using vector_t      = typename vec_ops_t::vector_type;
 using tensor_t      = scfd::static_vec::vec<scalar, tensor_dim>;
@@ -89,19 +105,20 @@ using zero_rhs_t      = tests::zero_rhs<scalar, tensor_t>;
 using rhs_t           = tests::trig_rhs<scalar, tensor_t>;
 using time_derivative_t = tests::time_derivative<vec_ops_t, tensor_t>;
 
+using lin_op_t      = tests::jacobi_op<vec_ops_t, log_t, phobic_energy_t, time_derivative_t, mobility_t, dist_t>;
+using smoother_t    = tests::jacobi_pre<vec_ops_t, log_t, phobic_energy_t, time_derivative_t, mobility_t, dist_t>;
+
 using prolongator_t = tests::prolongator<vec_ops_t, log_t, dist_t>;
 using restrictor_t  = tests::restrictor<vec_ops_t, log_t, dist_t>;
-using lin_op_t      = tests::jacobi_op<vec_ops_t, log_t, phobic_energy_t, time_derivative_t, mobility_t, dist_t>;
 using ident_op_t    = nmfd::preconditioners::dummy<vec_ops_t, lin_op_t>;
-using smoother_t    = tests::jacobi_pre<vec_ops_t, log_t, phobic_energy_t, time_derivative_t, mobility_t, dist_t>;
 using coarsening_t  = tests::coarsening<lin_op_t, log_t>;
-
-using precond_interface = nmfd::preconditioners::preconditioner_interface<vec_ops_t, lin_op_t>;
 
 using mg_t =
     nmfd::preconditioners::mg<lin_op_t, restrictor_t, prolongator_t, smoother_t, ident_op_t, coarsening_t, log_t>;
 using mg_params_t = mg_t::params_hierarchy;
 using mg_utils_t  = mg_t::utils_hierarchy;
+
+using precond_interface = nmfd::preconditioners::preconditioner_interface<vec_ops_t, lin_op_t>;
 
 using jacobi_solver = nmfd::solvers::jacobi<vec_ops_t, lin_op_t, precond_interface, krylov_monitor_t, log_t>;
 using gmres_solver  = nmfd::solvers::gmres<vec_ops_t, krylov_monitor_t, log_t, lin_op_t, precond_interface>;
@@ -166,6 +183,10 @@ constexpr scalar DEFAULT_TOLERANCE      = std::is_same<float, scalar>::value ? 5
 
 int main( int argc, char *argv[] )
 {
+    comm_platform_t comm( argc, argv );        // mpi_wrap calls MPI_Init; trivial_platform is a single-rank stand-in
+    comm_info_t     comm_world = comm.comm_world();
+    const bool      is_root = ( comm_world.myid == 0 );
+
     // Parse CLI arguments
     bool        save_coords = false;
     bool        verbose     = false;
@@ -183,30 +204,33 @@ int main( int argc, char *argv[] )
 
     if ( argc < 4 )
     {
-        std::cout << "USAGE: " << argv[0] << " <solver> <preconditioner> <grid_size> [prefix] [options...]"
-                  << std::endl;
-        std::cout << std::endl;
-        std::cout << "Required arguments:" << std::endl;
-        std::cout << "    solver               Solver type: 'jacobi' or 'gmres'" << std::endl;
-        std::cout << "    preconditioner       Preconditioner type: 'diag' (diagonal/Jacobi) or 'mg' (multigrid)"
-                  << std::endl;
-        std::cout << "    grid_size            Number of grid points per dimension (e.g., 32)" << std::endl;
-        std::cout << std::endl;
-        std::cout << "Optional arguments:" << std::endl;
-        std::cout << "    prefix               Output prefix (default: 'run')" << std::endl;
-        std::cout << std::endl;
-        std::cout << "Options:" << std::endl;
-        std::cout << "    --save-coords        Save numerical and exact solutions to binary files" << std::endl;
-        std::cout << "    --verbose            Save convergence history to conv_history.dat" << std::endl;
-        std::cout << "    --max-iterations N   Maximum solver iterations (default: " << DEFAULT_MAX_ITERATIONS << ")"
-                  << std::endl;
-        std::cout << "    --gmres-basis N      GMRES basis size (default: " << DEFAULT_GMRES_BASIS << ")" << std::endl;
-        std::cout << "    --mg-sweeps-pre N    Multigrid pre-sweeps (default: " << DEFAULT_MG_SWEEPS_PRE << ")"
-                  << std::endl;
-        std::cout << "    --mg-sweeps-post N   Multigrid post-sweeps (default: " << DEFAULT_MG_SWEEPS_POST << ")"
-                  << std::endl;
-        std::cout << "    --tolerance T        Solver tolerance (default: " << std::scientific << DEFAULT_TOLERANCE
-                  << std::defaultfloat << ")" << std::endl;
+        if ( is_root )
+        {
+            std::cout << "USAGE: " << argv[0] << " <solver> <preconditioner> <grid_size> [prefix] [options...]"
+                      << std::endl;
+            std::cout << std::endl;
+            std::cout << "Required arguments:" << std::endl;
+            std::cout << "    solver               Solver type: 'jacobi' or 'gmres'" << std::endl;
+            std::cout << "    preconditioner       Preconditioner type: 'diag' (diagonal/Jacobi) or 'mg' (multigrid)"
+                      << std::endl;
+            std::cout << "    grid_size            Number of grid points per dimension (e.g., 32)" << std::endl;
+            std::cout << std::endl;
+            std::cout << "Optional arguments:" << std::endl;
+            std::cout << "    prefix               Output prefix (default: 'run')" << std::endl;
+            std::cout << std::endl;
+            std::cout << "Options:" << std::endl;
+            std::cout << "    --save-coords        Save numerical and exact solutions to binary files" << std::endl;
+            std::cout << "    --verbose            Save convergence history to conv_history.dat" << std::endl;
+            std::cout << "    --max-iterations N   Maximum solver iterations (default: " << DEFAULT_MAX_ITERATIONS << ")"
+                      << std::endl;
+            std::cout << "    --gmres-basis N      GMRES basis size (default: " << DEFAULT_GMRES_BASIS << ")" << std::endl;
+            std::cout << "    --mg-sweeps-pre N    Multigrid pre-sweeps (default: " << DEFAULT_MG_SWEEPS_PRE << ")"
+                      << std::endl;
+            std::cout << "    --mg-sweeps-post N   Multigrid post-sweeps (default: " << DEFAULT_MG_SWEEPS_POST << ")"
+                      << std::endl;
+            std::cout << "    --tolerance T        Solver tolerance (default: " << std::scientific << DEFAULT_TOLERANCE
+                      << std::defaultfloat << ")" << std::endl;
+        }
         return 1;
     }
 
@@ -217,21 +241,24 @@ int main( int argc, char *argv[] )
     // Multigrid halves the grid down to two cells, so every extent must stay even all the way down.
     if ( grid_size < 2 || ( grid_size & ( grid_size - 1 ) ) != 0 )
     {
-        std::cerr << "ERROR: grid_size must be a power of two, got " << grid_size << "." << std::endl;
+        if ( is_root )
+            std::cerr << "ERROR: grid_size must be a power of two, got " << grid_size << "." << std::endl;
         return 1;
     }
 
     // Validate solver and preconditioner types
     if ( solver_type != "jacobi" && solver_type != "gmres" )
     {
-        std::cerr << "ERROR: Unknown solver type '" << solver_type << "'. Use 'jacobi' or 'gmres'." << std::endl;
+        if ( is_root )
+            std::cerr << "ERROR: Unknown solver type '" << solver_type << "'. Use 'jacobi' or 'gmres'." << std::endl;
         return 1;
     }
 
     if ( preconditioner_type != "diag" && preconditioner_type != "mg" )
     {
-        std::cerr << "ERROR: Unknown preconditioner type '" << preconditioner_type << "'. Use 'diag' or 'mg'."
-                  << std::endl;
+        if ( is_root )
+            std::cerr << "ERROR: Unknown preconditioner type '" << preconditioner_type << "'. Use 'diag' or 'mg'."
+                      << std::endl;
         return 1;
     }
 
@@ -269,7 +296,8 @@ int main( int argc, char *argv[] )
         }
         else if ( arg.find( "--" ) == 0 )
         {
-            std::cerr << "Unknown option: " << arg << std::endl;
+            if ( is_root )
+                std::cerr << "Unknown option: " << arg << std::endl;
             return 1;
         }
         else
@@ -278,87 +306,124 @@ int main( int argc, char *argv[] )
         }
     }
 
-    // Create output directory with timestamp
-    std::string output_dir = "data/" + prefix + "_" + get_timestamp_string();
-    std::filesystem::create_directories( output_dir );
+    // Variables hoisted so they remain in scope for the lifetime of the redirect
+    std::string output_dir;
+    std::ofstream log_file;
+    std::streambuf* old_cout_buf = nullptr;
+    // tee_buf must outlive the redirect of std::cout, so it is declared here
+    // (unique_ptr so it can be conditionally constructed on root only)
+    std::unique_ptr<tee_streambuf> tee_buf_ptr;
 
-    // Open log file and set up tee output
-    std::ofstream log_file( output_dir + "/log.txt" );
-    tee_streambuf tee_buf( std::cout.rdbuf(), log_file.rdbuf() );
-    std::ostream  tee_out( &tee_buf );
+    if ( is_root )
+    {
+        // Create output directory with timestamp
+        output_dir = "data/" + prefix + "_" + get_timestamp_string();
+        std::filesystem::create_directories( output_dir );
 
-    // Redirect std::cout to tee
-    auto *old_cout_buf = std::cout.rdbuf( &tee_buf );
+        // Open log file and set up tee output
+        log_file.open( output_dir + "/log.txt" );
+        tee_buf_ptr.reset( new tee_streambuf( std::cout.rdbuf(), log_file.rdbuf() ) );
+
+        // Redirect std::cout to tee
+        old_cout_buf = std::cout.rdbuf( tee_buf_ptr.get() );
+    }
 
     // Solver configuration
     const std::string scalar_label = std::is_same<float, scalar>::value ? "float" : "double";
 
     log_t log;
     // Set log verbosity: 0 suppresses INFO messages, 1 allows them
-    log.set_verbosity( verbose ? 1 : 0 );
+    log.set_verbosity( ( verbose && is_root ) ? 1 : 0 );
 
-    // Write configuration header to log
-    std::cout << "========================================" << std::endl;
-    std::cout << "Biharmonic Solver Configuration" << std::endl;
-    std::cout << "========================================" << std::endl;
-    std::cout << std::endl;
-    std::cout << "Problem Settings:" << std::endl;
-    std::cout << "  Grid size:     " << grid_size << " x " << grid_size << " x " << grid_size << std::endl;
-    std::cout << "  Tensor dim:    " << tensor_dim << std::endl;
-    std::cout << "  Scalar type:   " << scalar_label << std::endl;
-    std::cout << "  DOFs:          " << static_cast<long long>( grid_size ) * grid_size * grid_size * tensor_dim
-              << std::endl;
-    std::cout << std::endl;
-    std::cout << "Solver:" << std::endl;
-    std::cout << "  Type:          " << solver_type << std::endl;
-    std::cout << "  Tolerance:     " << std::scientific << tolerance << std::endl;
-    std::cout << "  Max iters:     " << max_iterations << std::endl;
-    if ( solver_type == "gmres" )
+    if ( is_root )
     {
-        std::cout << "  Basis size:    " << gmres_basis << std::endl;
-        std::cout << "  Precond side:  L" << std::endl;
-        std::cout << "  Reorthogon.:   true" << std::endl;
+        // Write configuration header to log
+        std::cout << "========================================" << std::endl;
+#ifdef SCFD_BACKEND_ENABLE_MPI
+        std::cout << "Biharmonic Solver Configuration (MPI)" << std::endl;
+#else
+        std::cout << "Biharmonic Solver Configuration" << std::endl;
+#endif
+        std::cout << "========================================" << std::endl;
+        std::cout << std::endl;
+        std::cout << "Problem Settings:" << std::endl;
+        std::cout << "  Grid size:     " << grid_size << " x " << grid_size << " x " << grid_size << std::endl;
+        std::cout << "  Tensor dim:    " << tensor_dim << std::endl;
+        std::cout << "  Scalar type:   " << scalar_label << std::endl;
+        std::cout << "  DOFs:          " << static_cast<long long>( grid_size ) * grid_size * grid_size * tensor_dim
+                  << std::endl;
+        std::cout << "  Processes:     " << comm_world.num_procs << std::endl;
+        std::cout << std::endl;
+        std::cout << "Solver:" << std::endl;
+        std::cout << "  Type:          " << solver_type << std::endl;
+        std::cout << "  Tolerance:     " << std::scientific << tolerance << std::endl;
+        std::cout << "  Max iters:     " << max_iterations << std::endl;
+        if ( solver_type == "gmres" )
+        {
+            std::cout << "  Basis size:    " << gmres_basis << std::endl;
+            std::cout << "  Precond side:  L" << std::endl;
+            std::cout << "  Reorthogon.:   true" << std::endl;
+        }
+        std::cout << std::endl;
+        std::cout << "Preconditioner:" << std::endl;
+        std::cout << "  Type:          " << preconditioner_type << std::endl;
+        std::cout << std::endl;
+        std::cout << "Output:" << std::endl;
+        std::cout << "  Directory:     " << output_dir << std::endl;
+        std::cout << "  Save coords:   " << ( save_coords ? "yes" : "no" ) << std::endl;
+        std::cout << "========================================" << std::endl;
+        std::cout << std::endl;
     }
-    std::cout << std::endl;
-    std::cout << "Preconditioner:" << std::endl;
-    std::cout << "  Type:          " << preconditioner_type << std::endl;
-    if ( preconditioner_type == "mg" )
-    {
-        std::cout << "  Pre-sweeps:    " << mg_sweeps_pre << std::endl;
-        std::cout << "  Post-sweeps:   " << mg_sweeps_post << std::endl;
-        std::cout << "  Direct coarse: false" << std::endl;
-    }
-    std::cout << std::endl;
-    std::cout << "Output:" << std::endl;
-    std::cout << "  Directory:     " << output_dir << std::endl;
-    std::cout << "  Save coords:   " << ( save_coords ? "yes" : "no" ) << std::endl;
-    std::cout << "========================================" << std::endl;
-    std::cout << std::endl;
 
     auto step  = grid_step_type::make_ones() / scalar( grid_size );
-    int left_bc[3][2]  = { { -1, -1 }, { -1, -1 }, { -1, -1 } }; // left:  x periodic, y,z dirichlet [psi,phi]
-    int right_bc[3][2] = { { 0, 0 }, { 0, 0 }, { 0, 0 } }; // right: periodic  [psi,phi]
 
-    auto cond  = tests::boundary_cond<vec_ops_t>( left_bc, right_bc );
-    // Boundary condition values:
-    //   -1 = dirichlet (value = 0 at boundary)
-    //   +1 = neumann (derivative = 0 at boundary)
-    //    0 = periodic (left boundary uses value from N-1, right boundary uses value from 0)
+    // Automatic balanced decomposition for any power-of-two process count.
+    if ( comm_world.num_procs < 1 || ( comm_world.num_procs & ( comm_world.num_procs - 1 ) ) != 0 )
+    {
+        if ( is_root )
+            std::cerr << "ERROR: process count must be a power of two." << std::endl;
+        return 1;
+    }
 
-    // --- periodic-BC communication ---
-    comm_platform_t comm( argc, argv );
-    comm_info_t     comm_world = comm.comm_world();
-    big_idx_t       dom_sz( grid_size, grid_size, grid_size );
-    part_t          part( comm_world, dom_sz );
-    part.proc_rects = { big_rect_t( big_idx_t::make_zero(), dom_sz ) };
+    // Boundary conditions of the WHOLE computational domain (same as the serial test):
+    //   left  = dirichlet (-1) on every axis, right = periodic (0) on every axis  [psi, phi].
+    //   -1 = dirichlet (value 0), +1 = neumann (derivative 0), 0 = periodic (reads opposite side).
+    int global_left_bc[3][2]  = { { -1, -1 }, { -1, -1 }, { -1, -1 } };
+    int global_right_bc[3][2] = { {  0,  0 }, {  0,  0 }, {  0,  0 } };
 
-    // Global and local region owned by this process (in single proccess case are the same)
-    big_rect_t my_own_glob_rect = part.proc_rects[comm_world.myid];
-    rect_t     my_own_loc_rect  = rect_t( idx_nd_type::make_zero(), my_own_glob_rect.calc_size() );
-    auto       range            = my_own_loc_rect.calc_size();
+    big_idx_t dom_sz( grid_size, grid_size, grid_size );
+    part_t    part( comm_world, dom_sz );
 
-    // Distributor initialization
-    periodic_flags_t periodic_flags( true, true, true );
+    // The balancer splits the global domain into congruent
+    // power-of-two blocks and derives this rank's local BCs
+    tests::balancer<dim, ord_t, big_ord_t, tensor_dim> bal;
+
+    std::vector<big_rect_t> proc_rects;
+    big_rect_t              my_own_glob_rect;
+    int                     left_bc[3][2];
+    int                     right_bc[3][2];
+    periodic_flags_t        periodic_flags;
+    try
+    {
+        bal.balance(
+            dom_sz, comm_world.num_procs, comm_world.myid, global_left_bc, global_right_bc, proc_rects,
+            my_own_glob_rect, left_bc, right_bc, periodic_flags );
+    }
+    catch ( const std::exception &e )
+    {
+        if ( is_root )
+            std::cerr << "ERROR: domain decomposition failed: " << e.what() << std::endl;
+        return 1;
+    }
+    part.proc_rects = proc_rects;
+
+    rect_t my_own_loc_rect = rect_t( idx_nd_type::make_zero(), my_own_glob_rect.calc_size() );
+    auto   range           = my_own_loc_rect.calc_size();
+
+    auto cond = tests::boundary_cond<vec_ops_t>( left_bc, right_bc );
+
+    // Distributor initialization: fills interior-interface halos and wraps the physical periodic
+    // walls; halos at dirichlet walls are filled but ignored by the kernel.
     auto dist = std::make_shared<dist_t>();
     dist->init_for_tensors( tensor_dim, part, periodic_flags, stencil, max_stencil_order );
 
@@ -380,9 +445,9 @@ int main( int argc, char *argv[] )
             {
                 for ( int k = 0; k < range[2]; k++ )
                 {
-                    scalar x = step[0] * ( 0.5 + i );
-                    scalar y = step[1] * ( 0.5 + j );
-                    scalar z = step[2] * ( 0.5 + k );
+                    scalar x = step[0] * ( 0.5 + i + my_own_glob_rect.i1[0] );
+                    scalar y = step[1] * ( 0.5 + j + my_own_glob_rect.i1[1] );
+                    scalar z = step[2] * ( 0.5 + k + my_own_glob_rect.i1[2] );
 
                     auto rhs_val   = rhs_function.get_exact_solution( x, y, z );
                     auto exact_val = rhs_function( x, y, z );
@@ -407,7 +472,7 @@ int main( int argc, char *argv[] )
         auto smoother = std::make_shared<smoother_t>( l_op, dist );
         precond = smoother;
     }
-    else if ( preconditioner_type == "mg" )
+    else // mg
     {
         mg_utils_t  mg_utils;
         mg_params_t mg_params;
@@ -417,6 +482,7 @@ int main( int argc, char *argv[] )
         mg_params.num_sweeps_pre  = mg_sweeps_pre;
         mg_params.num_sweeps_post = mg_sweeps_post;
 
+        // Coarse levels reuse this decomposition with every block halved
         mg_utils.coarsening.part              = part;
         mg_utils.coarsening.periodic_flags    = periodic_flags;
         mg_utils.coarsening.stencil           = stencil;
@@ -457,12 +523,15 @@ int main( int argc, char *argv[] )
         solve_time_ms = timer.stop_and_get_ms();
     }
 
-    // Save times.dat and convergence history
+    if ( is_root )
     {
-        std::chrono::duration<double, std::milli> solve_time_duration(solve_time_ms);
-        save_times_dat<krylov_monitor_t, scalar>( solver->monitor(), solver_type, preconditioner_type,
-                                                    grid_size, solve_time_duration, output_dir );
-        save_convergence_history<krylov_monitor_t, scalar>( solver->monitor(), output_dir );
+        // Save times.dat and convergence history
+        {
+            std::chrono::duration<double, std::milli> solve_time_duration(solve_time_ms);
+            save_times_dat<krylov_monitor_t, scalar>( solver->monitor(), solver_type, preconditioner_type,
+                                                        grid_size, solve_time_duration, output_dir );
+            save_convergence_history<krylov_monitor_t, scalar>( solver->monitor(), output_dir );
+        }
     }
 
     // Verify that L(exact_solution) - rhs is close to zero
@@ -482,19 +551,22 @@ int main( int argc, char *argv[] )
     scalar error_norm = vspace->norm_l2( error );
     scalar exact_norm = vspace->norm_l2( exact_solution );
 
-    std::cout << std::endl;
-    std::cout << "========================================" << std::endl;
-    std::cout << "Results" << std::endl;
-    std::cout << "========================================" << std::endl;
-    std::cout << "  Converged:                  " << ( converged ? "yes" : "no" ) << std::endl;
-    std::cout << "  ||solution - exact||_2:     " << std::scientific << error_norm << std::endl;
-    std::cout << "  Relative error:             " << std::scientific << ( error_norm / exact_norm ) << std::endl;
-    std::cout << "  Total solve time:           " << std::fixed << std::setprecision( 2 ) << solve_time_ms
-              << " ms" << std::endl;
-    std::cout << "========================================" << std::endl;
+    if ( is_root )
+    {
+        std::cout << std::endl;
+        std::cout << "========================================" << std::endl;
+        std::cout << "Results" << std::endl;
+        std::cout << "========================================" << std::endl;
+        std::cout << "  Converged:                  " << ( converged ? "yes" : "no" ) << std::endl;
+        std::cout << "  ||solution - exact||_2:     " << std::scientific << error_norm << std::endl;
+        std::cout << "  Relative error:             " << std::scientific << ( error_norm / exact_norm ) << std::endl;
+        std::cout << "  Total solve time:           " << std::fixed << std::setprecision( 2 ) << solve_time_ms
+                  << " ms" << std::endl;
+        std::cout << "========================================" << std::endl;
+    }
 
-    // Save solutions if requested
-    if ( save_coords )
+    // Save solutions if requested (only valid for a single rank owning the whole domain)
+    if ( save_coords && comm_world.num_procs == 1 && is_root )
     {
         std::string numerical_file = output_dir + "/numerical.bin";
         std::string exact_file     = output_dir + "/exact.bin";
@@ -508,10 +580,12 @@ int main( int argc, char *argv[] )
         std::cout << "  Exact:     " << exact_file << std::endl;
     }
 
-    // Restore cout
-    std::cout.rdbuf( old_cout_buf );
-    log_file.close();
+    // Restore cout (root only)
+    if ( is_root )
+    {
+        std::cout.rdbuf( old_cout_buf );
+        log_file.close();
+    }
 
-    // return converged ? 0 : 1;
-	return 0;
+    return 0;
 }
