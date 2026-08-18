@@ -1,3 +1,6 @@
 [submodule "contrib/SCFD"]
 	path = contrib/SCFD
 	url = https://github.com/oryabkov/SCFD-all.git
+[submodule "contrib/CLI11"]
+	path = contrib/CLI11
+	url = https://github.com/CLIUtils/CLI11.git

@@ -14,6 +14,7 @@
 #include "timers.h"
 
 #include <chrono>
+#include <CLI/CLI.hpp>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -188,12 +189,15 @@ int main( int argc, char *argv[] )
     const bool      is_root = ( comm_world.myid == 0 );
 
     // Parse CLI arguments
-    bool        save_coords = false;
-    bool        verbose     = false;
-    std::string prefix      = "run";
-    int         grid_size   = 32;
+    CLI::App app{ "Biharmonic solver test" };
+    app.get_formatter()->column_width( 42 );
+
     std::string solver_type;
     std::string preconditioner_type;
+    int         grid_size   = 32;
+    std::string prefix      = "run";
+    bool        save_coords = false;
+    bool        verbose     = false;
 
     // Solver parameters (initialized to defaults)
     int    max_iterations = DEFAULT_MAX_ITERATIONS;
@@ -202,108 +206,39 @@ int main( int argc, char *argv[] )
     int    mg_sweeps_post = DEFAULT_MG_SWEEPS_POST;
     scalar tolerance      = DEFAULT_TOLERANCE;
 
-    if ( argc < 4 )
-    {
-        if ( is_root )
-        {
-            std::cout << "USAGE: " << argv[0] << " <solver> <preconditioner> <grid_size> [prefix] [options...]"
-                      << std::endl;
-            std::cout << std::endl;
-            std::cout << "Required arguments:" << std::endl;
-            std::cout << "    solver               Solver type: 'jacobi' or 'gmres'" << std::endl;
-            std::cout << "    preconditioner       Preconditioner type: 'diag' (diagonal/Jacobi) or 'mg' (multigrid)"
-                      << std::endl;
-            std::cout << "    grid_size            Number of grid points per dimension (e.g., 32)" << std::endl;
-            std::cout << std::endl;
-            std::cout << "Optional arguments:" << std::endl;
-            std::cout << "    prefix               Output prefix (default: 'run')" << std::endl;
-            std::cout << std::endl;
-            std::cout << "Options:" << std::endl;
-            std::cout << "    --save-coords        Save numerical and exact solutions to binary files" << std::endl;
-            std::cout << "    --verbose            Save convergence history to conv_history.dat" << std::endl;
-            std::cout << "    --max-iterations N   Maximum solver iterations (default: " << DEFAULT_MAX_ITERATIONS << ")"
-                      << std::endl;
-            std::cout << "    --gmres-basis N      GMRES basis size (default: " << DEFAULT_GMRES_BASIS << ")" << std::endl;
-            std::cout << "    --mg-sweeps-pre N    Multigrid pre-sweeps (default: " << DEFAULT_MG_SWEEPS_PRE << ")"
-                      << std::endl;
-            std::cout << "    --mg-sweeps-post N   Multigrid post-sweeps (default: " << DEFAULT_MG_SWEEPS_POST << ")"
-                      << std::endl;
-            std::cout << "    --tolerance T        Solver tolerance (default: " << std::scientific << DEFAULT_TOLERANCE
-                      << std::defaultfloat << ")" << std::endl;
-        }
-        return 1;
-    }
-
-    solver_type         = argv[1];
-    preconditioner_type = argv[2];
-    grid_size           = std::stoi( argv[3] );
-
+    app.add_option( "solver", solver_type, "Solver type" )
+        ->required()
+        ->check( CLI::IsMember( std::vector<std::string>{ "jacobi", "gmres" } ) );
+    app.add_option( "preconditioner", preconditioner_type, "Preconditioner type (diagonal/Jacobi or multigrid)" )
+        ->required()
+        ->check( CLI::IsMember( std::vector<std::string>{ "diag", "mg" } ) );
     // Multigrid halves the grid down to two cells, so every extent must stay even all the way down.
-    if ( grid_size < 2 || ( grid_size & ( grid_size - 1 ) ) != 0 )
-    {
-        if ( is_root )
-            std::cerr << "ERROR: grid_size must be a power of two, got " << grid_size << "." << std::endl;
-        return 1;
-    }
+    app.add_option( "grid_size", grid_size, "Number of grid points per dimension (e.g., 32)" )
+        ->required()
+        ->check( []( const std::string &str ) -> std::string {
+            int val = std::stoi( str );
+            if ( val < 2 || ( val & ( val - 1 ) ) != 0 )
+                return "grid_size must be a power of two, got " + str + ".";
+            return std::string();
+        } );
+    app.add_option( "prefix", prefix, "Output prefix" )->capture_default_str();
 
-    // Validate solver and preconditioner types
-    if ( solver_type != "jacobi" && solver_type != "gmres" )
-    {
-        if ( is_root )
-            std::cerr << "ERROR: Unknown solver type '" << solver_type << "'. Use 'jacobi' or 'gmres'." << std::endl;
-        return 1;
-    }
+    app.add_flag( "--save-coords", save_coords, "Save numerical and exact solutions to binary files" );
+    app.add_flag( "--verbose", verbose, "Save convergence history to conv_history.dat" );
+    app.add_option( "--max-iterations", max_iterations, "Maximum solver iterations" )->capture_default_str();
+    app.add_option( "--gmres-basis", gmres_basis, "GMRES basis size" )->capture_default_str();
+    app.add_option( "--mg-sweeps-pre", mg_sweeps_pre, "Multigrid pre-sweeps" )->capture_default_str();
+    app.add_option( "--mg-sweeps-post", mg_sweeps_post, "Multigrid post-sweeps" )->capture_default_str();
+    app.add_option( "--tolerance", tolerance, "Solver tolerance" )->capture_default_str();
 
-    if ( preconditioner_type != "diag" && preconditioner_type != "mg" )
+    try
     {
-        if ( is_root )
-            std::cerr << "ERROR: Unknown preconditioner type '" << preconditioner_type << "'. Use 'diag' or 'mg'."
-                      << std::endl;
-        return 1;
+        app.parse( argc, argv );
     }
-
-    // Parse optional arguments
-    for ( int i = 4; i < argc; ++i )
+    catch ( const CLI::ParseError &e )
     {
-        std::string arg = argv[i];
-        if ( arg == "--save-coords" )
-        {
-            save_coords = true;
-        }
-        else if ( arg == "--verbose" )
-        {
-            verbose = true;
-        }
-        else if ( arg == "--max-iterations" && i + 1 < argc )
-        {
-            max_iterations = std::stoi( argv[++i] );
-        }
-        else if ( arg == "--gmres-basis" && i + 1 < argc )
-        {
-            gmres_basis = std::stoi( argv[++i] );
-        }
-        else if ( arg == "--mg-sweeps-pre" && i + 1 < argc )
-        {
-            mg_sweeps_pre = std::stoi( argv[++i] );
-        }
-        else if ( arg == "--mg-sweeps-post" && i + 1 < argc )
-        {
-            mg_sweeps_post = std::stoi( argv[++i] );
-        }
-        else if ( arg == "--tolerance" && i + 1 < argc )
-        {
-            tolerance = std::stod( argv[++i] );
-        }
-        else if ( arg.find( "--" ) == 0 )
-        {
-            if ( is_root )
-                std::cerr << "Unknown option: " << arg << std::endl;
-            return 1;
-        }
-        else
-        {
-            prefix = arg;
-        }
+        int rc = is_root ? app.exit( e ) : e.get_exit_code();
+        return rc;
     }
 
     // Variables hoisted so they remain in scope for the lifetime of the redirect

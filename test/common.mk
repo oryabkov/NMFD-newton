@@ -28,7 +28,8 @@ PLATFORM_MPI ?= 0
 PROJECT_ROOT_PATH = ../..
 SCFD_INCLUDE = $(PROJECT_ROOT_PATH)/contrib/SCFD/include
 NMFD_INCLUDE = $(PROJECT_ROOT_PATH)/include
-INCLUDE_CONTRIB = -I$(SCFD_INCLUDE) -I$(NMFD_INCLUDE)
+CLI11_INCLUDE = $(PROJECT_ROOT_PATH)/contrib/CLI11/include
+INCLUDE_CONTRIB = -I$(SCFD_INCLUDE) -I$(NMFD_INCLUDE) -I$(CLI11_INCLUDE)
 
 # Required by nmfd/operations/rect_vector_space.h (it allocates its vectors index-shifted)
 ARRAYS_FLAGS = -DSCFD_ARRAYS_ENABLE_INDEX_SHIFT=1
