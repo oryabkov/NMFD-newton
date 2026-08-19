@@ -1,6 +1,7 @@
 #include "include/balancer.h"
 #include "include/biharmonic_problem.h"
 #include "include/coarsening.h"
+#include "include/free_energy.h"
 #include "include/jacobi_op.h"
 #include "include/jacobi_pre.h"
 #include "include/prolongator.h"
@@ -98,6 +99,8 @@ using mobility_t      = tests::constant_mobility<scalar>;
 using zero_rhs_t      = tests::zero_rhs<scalar, tensor_t>;
 using rhs_t           = tests::trig_rhs<scalar, tensor_t>;
 using time_derivative_t = tests::time_derivative<vec_ops_t, tensor_t>;
+
+using free_energy_t = tests::free_energy<vec_ops_t, phobic_energy_t, dist_t>;
 
 using lin_op_t      = tests::jacobi_op<vec_ops_t, log_t, phobic_energy_t, time_derivative_t, mobility_t, dist_t>;
 using smoother_t    = tests::jacobi_pre<vec_ops_t, log_t, phobic_energy_t, time_derivative_t, mobility_t, dist_t>;
@@ -323,6 +326,8 @@ int main( int argc, char *argv[] )
 
     auto l_op = std::make_shared<lin_op_t>( vspace, step, cond, dist );
 
+    free_energy_t free_energy_calc( vspace, step, cond, dist, phobic_energy_t{}, l_op->get_gamma() );
+
     std::shared_ptr<precond_interface> precond;
     if ( preconditioner_type == "diag" )
     {
@@ -401,6 +406,10 @@ int main( int argc, char *argv[] )
     log.info_f( "  ||solution - exact||_2:     %e", static_cast<double>( error_norm ) );
     log.info_f( "  Relative error:             %e", static_cast<double>( error_norm / exact_norm ) );
     log.info_f( "  Total solve time:           %.2f ms", solve_time_ms );
+
+    auto energies = free_energy_calc.compute( solution );
+    log.info_f( "  Phobic energy:              %e", static_cast<double>( energies.phobic ) );
+    log.info_f( "  Philic energy:              %e", static_cast<double>( energies.philic ) );
     log.info( "========================================" );
 
     // Save solutions if requested (only valid for a single rank owning the whole domain)

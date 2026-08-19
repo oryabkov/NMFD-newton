@@ -1,4 +1,5 @@
 *.bin
+*.o
 *.swp
 *.dat
 .vscode
@@ -15,3 +16,4 @@
 **/#*#
 .serena/
 .claude/
+mutagen.yml*

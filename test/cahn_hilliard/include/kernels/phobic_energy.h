@@ -22,6 +22,11 @@ public:
     {
         return 3 * phi * phi - 1;
     }
+
+    __DEVICE_TAG__ Scalar get_energy( Scalar phi ) const
+    {
+        return Scalar( 0.25 ) * ( phi * phi - 1 ) * ( phi * phi - 1 );
+    }
 };
 
 template <class Scalar>
@@ -44,6 +49,13 @@ public:
         return Scalar( 2.0 ) / (Scalar( 1.0 ) - phi * phi) - omega_;
     }
 
+    __DEVICE_TAG__ Scalar get_energy( Scalar phi ) const
+    {
+        return ( Scalar( 1.0 ) + phi ) * std::log( Scalar( 1.0 ) + phi )
+             + ( Scalar( 1.0 ) - phi ) * std::log( Scalar( 1.0 ) - phi )
+             - ( omega_ / Scalar( 2.0 ) ) * phi * phi;
+    }
+
 private:
     Scalar omega_;
 };
@@ -58,6 +70,11 @@ public:
     }
 
     __DEVICE_TAG__ Scalar get_derivative( Scalar phi ) const
+    {
+        return Scalar( 0.0 );
+    }
+
+    __DEVICE_TAG__ Scalar get_energy( Scalar phi ) const
     {
         return Scalar( 0.0 );
     }
