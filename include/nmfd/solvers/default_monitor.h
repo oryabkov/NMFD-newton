@@ -254,8 +254,6 @@ public:
     }
     bool check_finished(const vector_type& x, const vector_type& r)
     {
-        logged_obj_type::info_f("iter = %d, max_iters_num = %d", iters_performed(), max_iters_num() );
-
         if (custom_funcs_) custom_funcs_->check_finished(iters_performed(), x, r);
 
         is_valid_number_ = vec_ops_.is_valid_number(x);
@@ -267,7 +265,7 @@ public:
 
         resid_norm_ = vec_ops_.norm(r);
 
-        logged_obj_type::info_f("resid norm = %0.6e tol = %0.6e", resid_norm_out(), tol_out());
+        logged_obj_type::info_f("iter=%d resid=%0.6e tol=%0.6e", iters_performed(), resid_norm_out(), tol_out());
         if (prms_.save_convergence_history)
             convergence_history_.emplace_back( iters_performed(), resid_norm_out() );
 

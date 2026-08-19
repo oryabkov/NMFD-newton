@@ -532,7 +532,7 @@ public:
                     {
                         auto reduction_rate_prod = std::accumulate(reduction_rates.begin(), reduction_rates.end(), 1.0, std::multiplies<T>() );
 
-                        logged_obj_t::info_f("iter = %i(%i), resid_estimate = %e, reduction = %.03f", total_iterations+1, i+1, monitor_.norm_out(resid_estimate), std::pow(reduction_rate_prod, 1.0/reduction_rates.size() ) );
+                        logged_obj_t::info_f("gmres_restart: iter=%i(%i) resid_estimate=%e reduction=%.03f", total_iterations+1, i+1, monitor_.norm_out(resid_estimate), std::pow(reduction_rate_prod, 1.0/reduction_rates.size() ) );
                     }
                     if(total_iterations % prms_.batch_size == 0)
                     {

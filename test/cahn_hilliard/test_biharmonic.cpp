@@ -1,7 +1,6 @@
 #include "balancer.h"
 #include "biharmonic_problem.h"
 #include "coarsening.h"
-#include "convergence_history_io.h"
 #include "jacobi_op.h"
 #include "jacobi_pre.h"
 #include "prolongator.h"
@@ -11,14 +10,10 @@
 #include "kernels/mobility.h"
 #include "time_derivative.h"
 #include "solution_io.h"
+#include <nmfd/utils/logging.h>
 #include <nmfd/utils/profiling.h>
 
-#include <chrono>
 #include <CLI/CLI.hpp>
-#include <filesystem>
-#include <fstream>
-#include <iomanip>
-#include <iostream>
 #include <memory>
 #include <nmfd/operations/rect_vector_space.h>
 #include <nmfd/preconditioners/dummy.h>
@@ -41,8 +36,6 @@
 
 #include <scfd/communication/rect_partitioner.h>
 #include <scfd/utils/log.h>
-#include <algorithm>
-#include <sstream>
 #include <string>
 #include <type_traits>
 
@@ -66,7 +59,7 @@ using scalar      = double;
 using grid_step_type = scfd::static_vec::vec<scalar, dim>;
 using idx_nd_type    = scfd::static_vec::vec<int, dim>;
 
-using log_t = scfd::utils::log_std;
+using log_t = current_log;
 
 using ord_t           = int;
 using big_ord_t       = long int;
@@ -126,52 +119,6 @@ using gmres_solver  = nmfd::solvers::gmres<vec_ops_t, krylov_monitor_t, log_t, l
 using linsolver_base_t = nmfd::solvers::iter_solver_base<vec_ops_t, krylov_monitor_t, log_t, lin_op_t, precond_interface>;
 
 /**************************************/
-// Logging helpers
-/**************************************/
-
-std::string get_timestamp_string()
-{
-    auto               now = std::chrono::system_clock::now();
-    std::time_t        t   = std::chrono::system_clock::to_time_t( now );
-    std::tm            tm  = *std::localtime( &t );
-    std::ostringstream oss;
-    oss << std::put_time( &tm, "%Y%m%d_%H%M%S" );
-    return oss.str();
-}
-
-class tee_streambuf : public std::streambuf
-{
-public:
-    tee_streambuf( std::streambuf *sb1, std::streambuf *sb2 ) : sb1_( sb1 ), sb2_( sb2 )
-    {
-    }
-
-protected:
-    int overflow( int c ) override
-    {
-        if ( c != EOF )
-        {
-            if ( sb1_ )
-                sb1_->sputc( c );
-            if ( sb2_ )
-                sb2_->sputc( c );
-        }
-        return c;
-    }
-
-    int sync() override
-    {
-        int r1 = sb1_ ? sb1_->pubsync() : 0;
-        int r2 = sb2_ ? sb2_->pubsync() : 0;
-        return ( r1 == 0 && r2 == 0 ) ? 0 : -1;
-    }
-
-private:
-    std::streambuf *sb1_;
-    std::streambuf *sb2_;
-};
-
-/**************************************/
 // Default solver parameters
 /**************************************/
 constexpr int    DEFAULT_MAX_ITERATIONS = 100;
@@ -186,7 +133,6 @@ int main( int argc, char *argv[] )
 {
     comm_platform_t comm( argc, argv );        // mpi_wrap calls MPI_Init; trivial_platform is a single-rank stand-in
     comm_info_t     comm_world = comm.comm_world();
-    const bool      is_root = ( comm_world.myid == 0 );
 
     auto prof = std::make_shared<current_prof>();
     current_prof::set_inst( prof.get() );
@@ -198,7 +144,7 @@ int main( int argc, char *argv[] )
     std::string solver_type;
     std::string preconditioner_type;
     int         grid_size   = 32;
-    std::string prefix      = "run";
+    std::string output_dir  = ".";
     bool        save_coords = false;
     bool        verbose     = false;
 
@@ -224,10 +170,11 @@ int main( int argc, char *argv[] )
                 return "grid_size must be a power of two, got " + str + ".";
             return std::string();
         } );
-    app.add_option( "prefix", prefix, "Output prefix" )->capture_default_str();
+    app.add_option( "output_dir", output_dir, "Output directory (must already exist; created by the caller, e.g. run.sh)" )
+        ->capture_default_str();
 
     app.add_flag( "--save-coords", save_coords, "Save numerical and exact solutions to binary files" );
-    app.add_flag( "--verbose", verbose, "Save convergence history to conv_history.dat" );
+    app.add_flag( "--verbose", verbose, "Print per-iteration residuals and the profiler breakdown to the log" );
     app.add_option( "--max-iterations", max_iterations, "Maximum solver iterations" )->capture_default_str();
     app.add_option( "--gmres-basis", gmres_basis, "GMRES basis size" )->capture_default_str();
     app.add_option( "--mg-sweeps-pre", mg_sweeps_pre, "Multigrid pre-sweeps" )->capture_default_str();
@@ -240,30 +187,8 @@ int main( int argc, char *argv[] )
     }
     catch ( const CLI::ParseError &e )
     {
-        int rc = is_root ? app.exit( e ) : e.get_exit_code();
+        int rc = ( comm_world.myid == 0 ) ? app.exit( e ) : e.get_exit_code();
         return rc;
-    }
-
-    // Variables hoisted so they remain in scope for the lifetime of the redirect
-    std::string output_dir;
-    std::ofstream log_file;
-    std::streambuf* old_cout_buf = nullptr;
-    // tee_buf must outlive the redirect of std::cout, so it is declared here
-    // (unique_ptr so it can be conditionally constructed on root only)
-    std::unique_ptr<tee_streambuf> tee_buf_ptr;
-
-    if ( is_root )
-    {
-        // Create output directory with timestamp
-        output_dir = "data/" + prefix + "_" + get_timestamp_string();
-        std::filesystem::create_directories( output_dir );
-
-        // Open log file and set up tee output
-        log_file.open( output_dir + "/log.txt" );
-        tee_buf_ptr.reset( new tee_streambuf( std::cout.rdbuf(), log_file.rdbuf() ) );
-
-        // Redirect std::cout to tee
-        old_cout_buf = std::cout.rdbuf( tee_buf_ptr.get() );
     }
 
     // Solver configuration
@@ -271,55 +196,50 @@ int main( int argc, char *argv[] )
 
     log_t log;
     // Set log verbosity: 0 suppresses INFO messages, 1 allows them
-    log.set_verbosity( ( verbose && is_root ) ? 1 : 0 );
+    log.set_verbosity( verbose ? 1 : 0 );
 
-    if ( is_root )
-    {
-        // Write configuration header to log
-        std::cout << "========================================" << std::endl;
+    // Write configuration header to log
+    log.info( "========================================" );
 #ifdef SCFD_BACKEND_ENABLE_MPI
-        std::cout << "Biharmonic Solver Configuration (MPI)" << std::endl;
+    log.info( "Biharmonic Solver Configuration (MPI)" );
 #else
-        std::cout << "Biharmonic Solver Configuration" << std::endl;
+    log.info( "Biharmonic Solver Configuration" );
 #endif
-        std::cout << "========================================" << std::endl;
-        std::cout << std::endl;
-        std::cout << "Problem Settings:" << std::endl;
-        std::cout << "  Grid size:     " << grid_size << " x " << grid_size << " x " << grid_size << std::endl;
-        std::cout << "  Tensor dim:    " << tensor_dim << std::endl;
-        std::cout << "  Scalar type:   " << scalar_label << std::endl;
-        std::cout << "  DOFs:          " << static_cast<long long>( grid_size ) * grid_size * grid_size * tensor_dim
-                  << std::endl;
-        std::cout << "  Processes:     " << comm_world.num_procs << std::endl;
-        std::cout << std::endl;
-        std::cout << "Solver:" << std::endl;
-        std::cout << "  Type:          " << solver_type << std::endl;
-        std::cout << "  Tolerance:     " << std::scientific << tolerance << std::endl;
-        std::cout << "  Max iters:     " << max_iterations << std::endl;
-        if ( solver_type == "gmres" )
-        {
-            std::cout << "  Basis size:    " << gmres_basis << std::endl;
-            std::cout << "  Precond side:  L" << std::endl;
-            std::cout << "  Reorthogon.:   true" << std::endl;
-        }
-        std::cout << std::endl;
-        std::cout << "Preconditioner:" << std::endl;
-        std::cout << "  Type:          " << preconditioner_type << std::endl;
-        std::cout << std::endl;
-        std::cout << "Output:" << std::endl;
-        std::cout << "  Directory:     " << output_dir << std::endl;
-        std::cout << "  Save coords:   " << ( save_coords ? "yes" : "no" ) << std::endl;
-        std::cout << "========================================" << std::endl;
-        std::cout << std::endl;
+    log.info( "========================================" );
+    log.info( "" );
+    log.info( "Problem Settings:" );
+    log.info_f( "  Grid size:     %d x %d x %d", grid_size, grid_size, grid_size );
+    log.info_f( "  Tensor dim:    %d", tensor_dim );
+    log.info_f( "  Scalar type:   %s", scalar_label.c_str() );
+    log.info_f( "  DOFs:          %lld", static_cast<long long>( grid_size ) * grid_size * grid_size * tensor_dim );
+    log.info_f( "  Processes:     %d", comm_world.num_procs );
+    log.info( "" );
+    log.info( "Solver:" );
+    log.info_f( "  Type:          %s", solver_type.c_str() );
+    log.info_f( "  Tolerance:     %e", static_cast<double>( tolerance ) );
+    log.info_f( "  Max iters:     %d", max_iterations );
+    if ( solver_type == "gmres" )
+    {
+        log.info_f( "  Basis size:    %d", gmres_basis );
+        log.info( "  Precond side:  L" );
+        log.info( "  Reorthogon.:   true" );
     }
+    log.info( "" );
+    log.info( "Preconditioner:" );
+    log.info_f( "  Type:          %s", preconditioner_type.c_str() );
+    log.info( "" );
+    log.info( "Output:" );
+    log.info_f( "  Directory:     %s", output_dir.c_str() );
+    log.info_f( "  Save coords:   %s", save_coords ? "yes" : "no" );
+    log.info( "========================================" );
+    log.info( "" );
 
     auto step  = grid_step_type::make_ones() / scalar( grid_size );
 
     // Automatic balanced decomposition for any power-of-two process count.
     if ( comm_world.num_procs < 1 || ( comm_world.num_procs & ( comm_world.num_procs - 1 ) ) != 0 )
     {
-        if ( is_root )
-            std::cerr << "ERROR: process count must be a power of two." << std::endl;
+        log.error( "process count must be a power of two." );
         return 1;
     }
 
@@ -349,8 +269,7 @@ int main( int argc, char *argv[] )
     }
     catch ( const std::exception &e )
     {
-        if ( is_root )
-            std::cerr << "ERROR: domain decomposition failed: " << e.what() << std::endl;
+        log.error_f( "domain decomposition failed: %s", e.what() );
         return 1;
     }
     part.proc_rects = proc_rects;
@@ -437,9 +356,8 @@ int main( int argc, char *argv[] )
     if ( solver_type == "jacobi" )
     {
         jacobi_solver::params solver_params;
-        solver_params.monitor.rel_tol                  = tolerance;
-        solver_params.monitor.max_iters_num            = max_iterations;
-        solver_params.monitor.save_convergence_history = true;
+        solver_params.monitor.rel_tol       = tolerance;
+        solver_params.monitor.max_iters_num = max_iterations;
         solver = std::make_shared<jacobi_solver>( l_op, vspace, &log, solver_params, precond );
     }
     else // gmres
@@ -447,7 +365,6 @@ int main( int argc, char *argv[] )
         gmres_solver::params params_gmres;
         params_gmres.monitor.rel_tol                      = tolerance;
         params_gmres.monitor.max_iters_num                = max_iterations;
-        params_gmres.monitor.save_convergence_history     = true;
         params_gmres.do_restart_on_false_ritz_convergence = true;
         params_gmres.basis_size                           = gmres_basis;
         params_gmres.preconditioner_side                  = 'L';
@@ -458,17 +375,6 @@ int main( int argc, char *argv[] )
     SCFD_PLATFORM_TIC( "Solve" );
     converged     = solver->solve( rhs, solution );
     solve_time_ms = current_prof::inst().toc( "Solve" );
-
-    if ( is_root )
-    {
-        // Save times.dat and convergence history
-        {
-            std::chrono::duration<double, std::milli> solve_time_duration(solve_time_ms);
-            save_times_dat<krylov_monitor_t, scalar>( solver->monitor(), solver_type, preconditioner_type,
-                                                        grid_size, solve_time_duration, output_dir );
-            save_convergence_history<krylov_monitor_t, scalar>( solver->monitor(), output_dir );
-        }
-    }
 
     // Verify that L(exact_solution) - rhs is close to zero
     vector_t L_exact;
@@ -487,22 +393,18 @@ int main( int argc, char *argv[] )
     scalar error_norm = vspace->norm_l2( error );
     scalar exact_norm = vspace->norm_l2( exact_solution );
 
-    if ( is_root )
-    {
-        std::cout << std::endl;
-        std::cout << "========================================" << std::endl;
-        std::cout << "Results" << std::endl;
-        std::cout << "========================================" << std::endl;
-        std::cout << "  Converged:                  " << ( converged ? "yes" : "no" ) << std::endl;
-        std::cout << "  ||solution - exact||_2:     " << std::scientific << error_norm << std::endl;
-        std::cout << "  Relative error:             " << std::scientific << ( error_norm / exact_norm ) << std::endl;
-        std::cout << "  Total solve time:           " << std::fixed << std::setprecision( 2 ) << solve_time_ms
-                  << " ms" << std::endl;
-        std::cout << "========================================" << std::endl;
-    }
+    log.info( "" );
+    log.info( "========================================" );
+    log.info( "Results" );
+    log.info( "========================================" );
+    log.info_f( "  Converged:                  %s", converged ? "yes" : "no" );
+    log.info_f( "  ||solution - exact||_2:     %e", static_cast<double>( error_norm ) );
+    log.info_f( "  Relative error:             %e", static_cast<double>( error_norm / exact_norm ) );
+    log.info_f( "  Total solve time:           %.2f ms", solve_time_ms );
+    log.info( "========================================" );
 
     // Save solutions if requested (only valid for a single rank owning the whole domain)
-    if ( save_coords && comm_world.num_procs == 1 && is_root )
+    if ( save_coords && comm_world.num_procs == 1 )
     {
         std::string numerical_file = output_dir + "/numerical.bin";
         std::string exact_file     = output_dir + "/exact.bin";
@@ -510,30 +412,20 @@ int main( int argc, char *argv[] )
         tests::save_solution_binary<vector_t, idx_nd_type>( solution, numerical_file, grid_size, tensor_dim );
         tests::save_solution_binary<vector_t, idx_nd_type>( exact_solution, exact_file, grid_size, tensor_dim );
 
-        std::cout << std::endl;
-        std::cout << "Saved solutions:" << std::endl;
-        std::cout << "  Numerical: " << numerical_file << std::endl;
-        std::cout << "  Exact:     " << exact_file << std::endl;
+        log.info( "" );
+        log.info( "Saved solutions:" );
+        log.info_f( "  Numerical: %s", numerical_file.c_str() );
+        log.info_f( "  Exact:     %s", exact_file.c_str() );
     }
 
-    if ( is_root )
-    {
 #ifdef SCFD_ENABLE_PROFILING
-        if ( verbose )
-        {
-            current_prof::inst().log_print( log );
-        }
-        log.set_verbosity( 1 );
-        current_prof::inst().log_print_totals( log );
-#endif
-    }
-
-    // Restore cout (root only)
-    if ( is_root )
+    if ( verbose )
     {
-        std::cout.rdbuf( old_cout_buf );
-        log_file.close();
+        current_prof::inst().log_print( log );
     }
+    log.set_verbosity( 1 );
+    current_prof::inst().log_print_totals( log );
+#endif
 
     return 0;
 }
