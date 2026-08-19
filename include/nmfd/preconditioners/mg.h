@@ -24,6 +24,7 @@
 #include <nlohmann/json.hpp>
 #endif
 #include <nmfd/detail/vector_wrap.h>
+#include <nmfd/utils/profiling.h>
 //#include <glued_matrix_operator.h>
 #include "preconditioner_interface.h"
 
@@ -170,6 +171,7 @@ public:
 
     void apply(const vector_type &rhs, vector_type &x) const
     {
+        SCFD_PLATFORM_SCOPED_TIC( "MG::apply" );
         if (levs_.empty())
             throw std::logic_error("mg::apply: levels are empty");
 
@@ -181,6 +183,7 @@ public:
     /// inplace version for preconditioner interface
     void apply(vector_type &x) const
     {
+        SCFD_PLATFORM_SCOPED_TIC( "MG::apply" );
         if (levs_.empty())
             throw std::logic_error("mg::apply: levels are empty");
 
@@ -253,6 +256,7 @@ private:
 
     void build(std::shared_ptr<const operator_type> op)
     {
+        SCFD_PLATFORM_SCOPED_TIC( "MG::build" );
         if (!levs_.empty())
             throw std::logic_error("mg::build: levels are alredy built!");
 

@@ -31,6 +31,7 @@
 #include "detail/dense_operations.h"
 #include "detail/residual_regularization_dummy.h"
 #include <nmfd/preconditioners/dummy.h>
+#include <nmfd/utils/profiling.h>
 
 namespace nmfd
 {
@@ -459,6 +460,7 @@ public:
                 {
                     ++i;
                     ++monitor_;
+                    SCFD_PLATFORM_SCOPED_TIC( "GMRES::iteration" );
 
                     vec_ops_->assign(r_, y_);
                     calc_krylov_vector(A, y_, r_);

@@ -8,6 +8,7 @@
 #include <memory>
 #include <scfd/static_vec/vec.h>
 #include <nmfd/detail/vector_wrap.h>
+#include <nmfd/utils/profiling.h>
 
 namespace tests
 {
@@ -156,25 +157,31 @@ public:
     void apply( const vector_type &in, vector_type &out ) const
     {
         // Synchronized all data between processes between calling foreach
-        dist_->sync( in );
-        dist_->sync( *lin_vector_wrap_ );
+        {
+            SCFD_PLATFORM_SCOPED_TIC( "Comm::sync" );
+            dist_->sync( in );
+            dist_->sync( *lin_vector_wrap_ );
+        }
 
-        for_each_nd_type for_each_nd_inst;
-        for_each_nd_inst(
-            jacobi_op_kernel{
-                in,
-                out,
-                *lin_vector_wrap_,
-                range_,
-                step_,
-                b_cond_,
-                phobic_en_,
-                mobility_,
-                time_derivative_->get_dt_inf(),
-                gamma_
-            },
-            range_
-        );
+        {
+            SCFD_PLATFORM_SCOPED_TIC( "Operator::apply" );
+            for_each_nd_type for_each_nd_inst;
+            for_each_nd_inst(
+                jacobi_op_kernel{
+                    in,
+                    out,
+                    *lin_vector_wrap_,
+                    range_,
+                    step_,
+                    b_cond_,
+                    phobic_en_,
+                    mobility_,
+                    time_derivative_->get_dt_inf(),
+                    gamma_
+                },
+                range_
+            );
+        }
     };
 
 private:

@@ -6,6 +6,7 @@
 #include "kernels/prolongator.h"
 #include "include/boundary.h"
 #include <nmfd/detail/vector_wrap.h>
+#include <nmfd/utils/profiling.h>
 #include <scfd/static_vec/vec.h>
 
 namespace tests
@@ -107,13 +108,19 @@ public:
     // domain (coarse) -> (prolongate) -> image (fine)
     void apply( vector_type &from, vector_type &to ) const
     {
-        dist_->sync( from );
-        dist_->sync( *lin_vector_wrap_ );
+        {
+            SCFD_PLATFORM_SCOPED_TIC( "Comm::sync" );
+            dist_->sync( from );
+            dist_->sync( *lin_vector_wrap_ );
+        }
 
         // `dom_r` is physical region
         rect_type        dom_r{ idx_nd_type::make_zero(), range_ / Ord{ 2u } };
-        for_each_nd_type for_each_nd_inst;
-        for_each_nd_inst( prolongator_kernel{ from, to, *lin_vector_wrap_, b_cond_, step_, dom_r }, range_ );
+        {
+            SCFD_PLATFORM_SCOPED_TIC( "Prolongator::apply" );
+            for_each_nd_type for_each_nd_inst;
+            for_each_nd_inst( prolongator_kernel{ from, to, *lin_vector_wrap_, b_cond_, step_, dom_r }, range_ );
+        }
     };
 
 private:

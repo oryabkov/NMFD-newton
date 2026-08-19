@@ -5,6 +5,7 @@
 #include "iter_solver_base.h"
 
 #include <memory>
+#include <nmfd/utils/profiling.h>
 #include <scfd/utils/logged_obj_base.h>
 #include <string>
 
@@ -91,6 +92,7 @@ public:
         while (!monitor_.check_finished(x, *tmp_wrap_))
         {
             ++monitor_;
+            SCFD_PLATFORM_SCOPED_TIC( "Jacobi::iteration" );
             // tmp := P(Ax - b);
             prec_->apply(*tmp_wrap_);
             // x   := x - P(Ax - b);

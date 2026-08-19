@@ -10,6 +10,7 @@
 #include <nmfd/preconditioners/preconditioner_interface.h>
 #include <scfd/static_mat/mat.h>
 #include <nmfd/detail/vector_wrap.h>
+#include <nmfd/utils/profiling.h>
 
 namespace tests
 {
@@ -159,25 +160,31 @@ public:
     void apply( vector_type &vector ) const
     {
         // Synchronized all data between processes between calling foreach
-        dist_->sync( vector );
-        dist_->sync( **lin_vector_wrap_ );
+        {
+            SCFD_PLATFORM_SCOPED_TIC( "Comm::sync" );
+            dist_->sync( vector );
+            dist_->sync( **lin_vector_wrap_ );
+        }
 
-        for_each_nd_type for_each_nd_inst;
-        for_each_nd_inst(
-            preconditioner_kernel{
-                vector,
-                **lin_vector_wrap_,
-                range_,
-                step_,
-                *b_cond_,
-                phobic_en_,
-                mobility_,
-                time_derivative_->get_dt_inf(),
-                params_.alpha,
-                gamma_
-            },
-            range_
-        );
+        {
+            SCFD_PLATFORM_SCOPED_TIC( "Smoother::apply" );
+            for_each_nd_type for_each_nd_inst;
+            for_each_nd_inst(
+                preconditioner_kernel{
+                    vector,
+                    **lin_vector_wrap_,
+                    range_,
+                    step_,
+                    *b_cond_,
+                    phobic_en_,
+                    mobility_,
+                    time_derivative_->get_dt_inf(),
+                    params_.alpha,
+                    gamma_
+                },
+                range_
+            );
+        }
     };
 
     void apply( const vector_type &x, vector_type &y ) const

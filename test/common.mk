@@ -46,6 +46,11 @@ PRECISION_DEFINE =
 endif
 
 
+# ----- Profiling -----
+
+PROFILE_DEFINE = -DSCFD_ENABLE_PROFILING
+
+
 # ----- Host -----
 
 HOSTCOMPILER = g++

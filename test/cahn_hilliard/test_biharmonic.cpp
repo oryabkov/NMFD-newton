@@ -11,7 +11,7 @@
 #include "kernels/mobility.h"
 #include "time_derivative.h"
 #include "solution_io.h"
-#include "timers.h"
+#include <nmfd/utils/profiling.h>
 
 #include <chrono>
 #include <CLI/CLI.hpp>
@@ -187,6 +187,9 @@ int main( int argc, char *argv[] )
     comm_platform_t comm( argc, argv );        // mpi_wrap calls MPI_Init; trivial_platform is a single-rank stand-in
     comm_info_t     comm_world = comm.comm_world();
     const bool      is_root = ( comm_world.myid == 0 );
+
+    auto prof = std::make_shared<current_prof>();
+    current_prof::set_inst( prof.get() );
 
     // Parse CLI arguments
     CLI::App app{ "Biharmonic solver test" };
@@ -452,11 +455,9 @@ int main( int argc, char *argv[] )
         solver = std::make_shared<gmres_solver>( l_op, vspace, &log, params_gmres, precond );
     }
 
-    {
-        Timer timer("Solve", false); // Don't print automatically, we'll print in Results section
-        converged     = solver->solve( rhs, solution );
-        solve_time_ms = timer.stop_and_get_ms();
-    }
+    SCFD_PLATFORM_TIC( "Solve" );
+    converged     = solver->solve( rhs, solution );
+    solve_time_ms = current_prof::inst().toc( "Solve" );
 
     if ( is_root )
     {
@@ -513,6 +514,18 @@ int main( int argc, char *argv[] )
         std::cout << "Saved solutions:" << std::endl;
         std::cout << "  Numerical: " << numerical_file << std::endl;
         std::cout << "  Exact:     " << exact_file << std::endl;
+    }
+
+    if ( is_root )
+    {
+#ifdef SCFD_ENABLE_PROFILING
+        if ( verbose )
+        {
+            current_prof::inst().log_print( log );
+        }
+        log.set_verbosity( 1 );
+        current_prof::inst().log_print_totals( log );
+#endif
     }
 
     // Restore cout (root only)
