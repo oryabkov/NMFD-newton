@@ -15,9 +15,9 @@
 #include <type_traits>
 #include <vector>
 
-#include "cahn_hilliard_op.h"
-#include "jacobi_op.h"
-#include "jacobi_pre.h"
+#include "include/cahn_hilliard_op.h"
+#include "include/jacobi_op.h"
+#include "include/jacobi_pre.h"
 
 #include <nmfd/solvers/gmres.h>
 #include <nmfd/solvers/iter_solver_base.h>
@@ -25,18 +25,18 @@
 #include <nmfd/solvers/newton_iteration.h>
 #include <nmfd/solvers/nonlinear_solver.h>
 
-#include "cahn_hilliard_problem.h"
-#include "coarsening.h"
-#include "convergence_history_io.h"
-#include "error_monitor.h"
+#include "include/cahn_hilliard_problem.h"
+#include "include/coarsening.h"
+#include "include/convergence_history_io.h"
+#include "include/error_monitor.h"
 #include "include/boundary.h"
-#include "kernels/phobic_energy.h"
-#include "kernels/mobility.h"
-#include "newton_convergence_monitor.h"
-#include "prolongator.h"
-#include "restrictor.h"
-#include "solution_io.h"
-#include "timers.h"
+#include "include/kernels/phobic_energy.h"
+#include "include/kernels/mobility.h"
+#include "include/newton_convergence_monitor.h"
+#include "include/prolongator.h"
+#include "include/restrictor.h"
+#include "include/solution_io.h"
+#include "include/timers.h"
 
 
 using backend = scfd::backend::current;

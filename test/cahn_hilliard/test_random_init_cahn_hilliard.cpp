@@ -16,22 +16,22 @@
 #include <vector>
 #include <cmath>
 
-#include "cahn_hilliard_op.h"
-#include "jacobi_op.h"
-#include "jacobi_pre.h"
+#include "include/cahn_hilliard_op.h"
+#include "include/jacobi_op.h"
+#include "include/jacobi_pre.h"
 
 #include <nmfd/solvers/gmres.h>
 #include <nmfd/solvers/newton_iteration.h>
 #include <nmfd/solvers/nonlinear_solver.h>
 
-#include "biharmonic_problem.h"
-#include "coarsening.h"
+#include "include/biharmonic_problem.h"
+#include "include/coarsening.h"
 #include "include/boundary.h"
-#include "kernels/phobic_energy.h"
-#include "prolongator.h"
-#include "restrictor.h"
-#include "solution_io.h"
-#include "perlin_noise.h"
+#include "include/kernels/phobic_energy.h"
+#include "include/prolongator.h"
+#include "include/restrictor.h"
+#include "include/solution_io.h"
+#include "include/perlin_noise.h"
 
 
 using backend = scfd::backend::current;

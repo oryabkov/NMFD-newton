@@ -8,6 +8,7 @@
 *.txt
 .DS_Store
 **/data
+**/tmp
 .venv
 .clangd
 .clang-format

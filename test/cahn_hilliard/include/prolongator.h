@@ -4,7 +4,7 @@
 #include <memory>
 
 #include "kernels/prolongator.h"
-#include "include/boundary.h"
+#include "boundary.h"
 #include <nmfd/detail/vector_wrap.h>
 #include <nmfd/utils/profiling.h>
 #include <scfd/static_vec/vec.h>

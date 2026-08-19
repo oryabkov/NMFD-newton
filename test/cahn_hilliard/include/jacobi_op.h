@@ -1,7 +1,7 @@
 #ifndef __JACOBI_OP_H__
 #define __JACOBI_OP_H__
 
-#include "include/boundary.h" // for boundary conditions
+#include "boundary.h" // for boundary conditions
 #include "kernels/jacobi_op.h"
 #include "kernels/mobility.h"
 

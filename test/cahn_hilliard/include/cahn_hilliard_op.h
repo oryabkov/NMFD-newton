@@ -1,7 +1,7 @@
 #ifndef __CAHN_HILLIARD_OP_H__
 #define __CAHN_HILLIARD_OP_H__
 
-#include "include/boundary.h" // for boundary conditions
+#include "boundary.h" // for boundary conditions
 #include "kernels/cahn_hilliard_op.h"
 #include "kernels/jacobi_op.h"
 #include "kernels/mobility.h"
