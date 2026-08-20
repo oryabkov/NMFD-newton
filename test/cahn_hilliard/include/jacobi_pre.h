@@ -104,6 +104,7 @@ public:
 
         time_derivative_ = op->get_time_derivative();
         set_distributor( op->get_distributor() );
+        dist_->sync( **lin_vector_wrap_ );
     }
 
 public:
@@ -163,7 +164,6 @@ public:
         {
             SCFD_PLATFORM_SCOPED_TIC( "Comm::sync" );
             dist_->sync( vector );
-            dist_->sync( **lin_vector_wrap_ );
         }
 
         {

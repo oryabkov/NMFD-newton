@@ -353,6 +353,16 @@ int main( int argc, char *argv[] )
         precond = std::make_shared<mg_t>( mg_utils, mg_params );
     }
 
+    // Verify that L(exact_solution) - rhs is close to zero
+    vector_t L_exact;
+    vspace->init_vector( L_exact );
+    l_op->apply( exact_solution, L_exact );
+    vector_t residual_exact;
+    vspace->init_vector( residual_exact );
+    vspace->assign_lin_comb( scalar( 1 ), L_exact, scalar( -1 ), rhs, residual_exact );
+    scalar residual_exact_norm = vspace->norm_l2( residual_exact );
+    log.info_f( "Verification: ||L(exact_solution) - rhs||_2 = %le", static_cast<double>( residual_exact_norm ) );
+
     // Solve the system and measure execution time
     double solve_time_ms;
     bool   converged;
@@ -381,16 +391,6 @@ int main( int argc, char *argv[] )
     SCFD_PLATFORM_TIC( "Solve" );
     converged     = solver->solve( rhs, solution );
     solve_time_ms = current_prof::inst().toc( "Solve" );
-
-    // Verify that L(exact_solution) - rhs is close to zero
-    vector_t L_exact;
-    vspace->init_vector( L_exact );
-    l_op->apply( exact_solution, L_exact );
-    vector_t residual_exact;
-    vspace->init_vector( residual_exact );
-    vspace->assign_lin_comb( scalar( 1 ), L_exact, scalar( -1 ), rhs, residual_exact );
-    scalar residual_exact_norm = vspace->norm_l2( residual_exact );
-    log.info_f( "Verification: ||L(exact_solution) - rhs||_2 = %le", static_cast<double>( residual_exact_norm ) );
 
     // Compute error between numerical and exact solutions
     vector_t error;

@@ -142,6 +142,7 @@ public:
     void set_linearization_point( const vector_type &p )
     {
         vspace_->assign( p, *lin_vector_wrap_ );
+        dist_->sync( *lin_vector_wrap_ );
     }
 
     vector_type get_lin_vector() const
@@ -160,7 +161,6 @@ public:
         {
             SCFD_PLATFORM_SCOPED_TIC( "Comm::sync" );
             dist_->sync( in );
-            dist_->sync( *lin_vector_wrap_ );
         }
 
         {

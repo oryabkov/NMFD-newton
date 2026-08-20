@@ -100,7 +100,7 @@ using monitor_funcs_ptr = default_monitor_t::custom_funcs_ptr;
 // Problem
 using phobic_energy     = tests::double_well_potential<scalar>;
 using mobility_t        = tests::constant_mobility<scalar>;
-using rhs_t             = tests::trig_rhs<scalar, tensor_t, 3, 3, 1>;
+using rhs_t             = tests::trig_rhs<scalar, tensor_t, 2, 4, 6>;
 using time_derivative_t = tests::time_derivative<vec_ops_t, tensor_t>;
 
 using free_energy_t = tests::free_energy<vec_ops_t, phobic_energy, dist_t>;
@@ -269,8 +269,10 @@ int main( int argc, char *argv[] )
     // Boundary conditions of the WHOLE computational domain (same as the serial test):
     //   left  = dirichlet (-1) on every axis, right = dirichlet (-1) on every axis  [psi, phi].
     //   -1 = dirichlet (value 0), +1 = neumann (derivative 0), 0 = periodic (reads opposite side).
+    // int global_left_bc[3][2]  = { { -1, -1 }, { -1, -1 }, { -1, -1 } };
+    // int global_right_bc[3][2] = { { -1, -1 }, { -1, -1 }, { -1, -1 } };
     int global_left_bc[3][2]  = { { -1, -1 }, { -1, -1 }, { -1, -1 } };
-    int global_right_bc[3][2] = { { -1, -1 }, { -1, -1 }, { -1, -1 } };
+    int global_right_bc[3][2] = { {  0,  0 }, {  0,  0 }, {  0,  0 } };
 
     big_idx_t dom_sz( grid_size, grid_size, grid_size );
     part_t    part( comm_world, dom_sz );
