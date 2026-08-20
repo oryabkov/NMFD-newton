@@ -1,11 +1,37 @@
-*.bin
-*.swp
-*.dat
-.vscode
-*.gif
+# Compiled objects
+*.o
+*.a
+*.so
+*.dylib
+*.exe
+
+# CMake build artifacts
+build/
+cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+compile_commands.json
+*.cmake
+!CMakeLists.txt
+
+# CLion
+.idea/
+
+# macOS
 .DS_Store
-**/data
+
+# Editor swap / temp
+*.swp
+*~
+
+# Other
+*.bin
+*.dat
+*.gif
+.vscode
 .venv
 .clangd
-.clang-format
+**/data
 **/#*#
