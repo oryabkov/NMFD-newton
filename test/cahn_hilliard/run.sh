@@ -8,6 +8,9 @@
 # Usage:
 #   ./run.sh [wrapper flags] <binary> <solver> <preconditioner> <grid_size> <prefix> [binary flags...]
 #
+# <binary> is looked up in bin/, whether given as a bare name
+# (test_cahn_hilliard_cuda_d.bin) or already prefixed (bin/test_cahn_hilliard_cuda_d.bin).
+#
 # Wrapper flags (-np/-omp/-gpus are accepted as aliases for --np/--omp/--gpus;
 # must appear before the binary name; everything after the binary name is
 # forwarded to it unchanged):
@@ -61,7 +64,8 @@ fi
 
 BINARY_NAME="$1"
 shift
-BINARY="./${BINARY_NAME}"
+BINARY_NAME="${BINARY_NAME#bin/}"
+BINARY="bin/${BINARY_NAME}"
 
 if [[ -z "$NP" && "$BINARY_NAME" == *mpi* ]]; then
     NP=1
@@ -76,7 +80,7 @@ if [[ -n "$GPUS" ]]; then
 fi
 
 if [[ ! -x "$BINARY" ]]; then
-    echo "error: binary $BINARY_NAME not found or not executable in $(pwd)" >&2
+    echo "error: binary $BINARY_NAME not found or not executable in $(pwd)/bin" >&2
     exit 1
 fi
 

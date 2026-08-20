@@ -1,12 +1,10 @@
 -include ../common.mk
 
-
-
 # ----- Biharmonic -----
 
 test_biharmonic: test_biharmonic.cpp
-	$(PLATFORMCXX) $(PLATFORMCXX_FLAGS) $(INCLUDE_CONTRIB) $(PLATFORM_MPI_INCLUDE) $(PLATFORM_MPI_DEFINE) $(PLATFORM_DEFINE) $(PRECISION_DEFINE) $(PROFILE_DEFINE) -c test_biharmonic.cpp -o test_biharmonic$(MPI_SUFFIX)$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o
-	$(PLATFORMLINKER) test_biharmonic$(MPI_SUFFIX)$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o $(PLATFORMLINKER_FLAGS) -o test_biharmonic$(MPI_SUFFIX)$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).bin
+	$(PLATFORMCXX) $(PLATFORMCXX_FLAGS) $(INCLUDE_CONTRIB) $(PLATFORM_MPI_INCLUDE) $(PLATFORM_MPI_DEFINE) $(PLATFORM_DEFINE) $(PRECISION_DEFINE) $(PROFILE_DEFINE) -c test_biharmonic.cpp -o bin/test_biharmonic$(MPI_SUFFIX)$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o
+	$(PLATFORMLINKER) bin/test_biharmonic$(MPI_SUFFIX)$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o $(PLATFORMLINKER_FLAGS) -o bin/test_biharmonic$(MPI_SUFFIX)$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).bin
 
 test_biharmonic_all:
 	$(MAKE) test_biharmonic PLATFORM=cpu
@@ -24,8 +22,8 @@ test_biharmonic_mpi_all:
 # ----- Cahn-Hilliard -----
 
 test_cahn_hilliard: test_cahn_hilliard.cpp
-	$(PLATFORMCXX) $(PLATFORMCXX_FLAGS) $(INCLUDE_CONTRIB) $(PLATFORM_MPI_INCLUDE) $(PLATFORM_MPI_DEFINE) $(PLATFORM_DEFINE) $(PRECISION_DEFINE) $(PROFILE_DEFINE) -c test_cahn_hilliard.cpp -o test_cahn_hilliard$(MPI_SUFFIX)$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o
-	$(PLATFORMLINKER) test_cahn_hilliard$(MPI_SUFFIX)$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o $(PLATFORMLINKER_FLAGS) -o test_cahn_hilliard$(MPI_SUFFIX)$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).bin
+	$(PLATFORMCXX) $(PLATFORMCXX_FLAGS) $(INCLUDE_CONTRIB) $(PLATFORM_MPI_INCLUDE) $(PLATFORM_MPI_DEFINE) $(PLATFORM_DEFINE) $(PRECISION_DEFINE) $(PROFILE_DEFINE) -c test_cahn_hilliard.cpp -o bin/test_cahn_hilliard$(MPI_SUFFIX)$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o
+	$(PLATFORMLINKER) bin/test_cahn_hilliard$(MPI_SUFFIX)$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o $(PLATFORMLINKER_FLAGS) -o bin/test_cahn_hilliard$(MPI_SUFFIX)$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).bin
 
 test_cahn_hilliard_all:
 	$(MAKE) test_cahn_hilliard PLATFORM=cpu
@@ -44,8 +42,8 @@ test_cahn_hilliard_mpi_all:
 # ----- Time depentent Cahn-Hilliard -----
 
 test_time_cahn_hilliard: test_time_cahn_hilliard.cpp
-	$(PLATFORMCXX) $(PLATFORMCXX_FLAGS) $(INCLUDE_CONTRIB) $(PLATFORM_MPI_INCLUDE) $(PLATFORM_MPI_DEFINE) $(PLATFORM_DEFINE) $(PRECISION_DEFINE) -c test_time_cahn_hilliard.cpp -o test_time_cahn_hilliard$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o
-	$(PLATFORMLINKER) test_time_cahn_hilliard$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o $(PLATFORMLINKER_FLAGS) -o test_time_cahn_hilliard$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).bin
+	$(PLATFORMCXX) $(PLATFORMCXX_FLAGS) $(INCLUDE_CONTRIB) $(PLATFORM_MPI_INCLUDE) $(PLATFORM_MPI_DEFINE) $(PLATFORM_DEFINE) $(PRECISION_DEFINE) -c test_time_cahn_hilliard.cpp -o bin/test_time_cahn_hilliard$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o
+	$(PLATFORMLINKER) bin/test_time_cahn_hilliard$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o $(PLATFORMLINKER_FLAGS) -o bin/test_time_cahn_hilliard$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).bin
 
 test_time_cahn_hilliard_all:
 	$(MAKE) test_time_cahn_hilliard PLATFORM=cpu
@@ -56,15 +54,15 @@ test_time_cahn_hilliard_all:
 # ----- Random init time depentent Cahn-Hilliard -----
 
 test_random_init_cahn_hilliard: test_random_init_cahn_hilliard.cpp
-	$(PLATFORMCXX) $(PLATFORMCXX_FLAGS) $(INCLUDE_CONTRIB) $(PLATFORM_MPI_INCLUDE) $(PLATFORM_MPI_DEFINE) $(PLATFORM_DEFINE) $(PRECISION_DEFINE) -c test_random_init_cahn_hilliard.cpp -o test_random_init_cahn_hilliard$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o
-	$(PLATFORMLINKER) test_random_init_cahn_hilliard$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o $(PLATFORMLINKER_FLAGS) -o test_random_init_cahn_hilliard$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).bin
+	$(PLATFORMCXX) $(PLATFORMCXX_FLAGS) $(INCLUDE_CONTRIB) $(PLATFORM_MPI_INCLUDE) $(PLATFORM_MPI_DEFINE) $(PLATFORM_DEFINE) $(PRECISION_DEFINE) -c test_random_init_cahn_hilliard.cpp -o bin/test_random_init_cahn_hilliard$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o
+	$(PLATFORMLINKER) bin/test_random_init_cahn_hilliard$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o $(PLATFORMLINKER_FLAGS) -o bin/test_random_init_cahn_hilliard$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).bin
 
 
 # ----- Cahn-Hilliard with nonlinear boundary conditions -----
 
 test_cahn_hilliard_nonlinear: test_cahn_hilliard_nonlinear.cpp
-	$(PLATFORMCXX) $(PLATFORMCXX_FLAGS) $(INCLUDE_CONTRIB) $(PLATFORM_MPI_INCLUDE) $(PLATFORM_MPI_DEFINE) $(PLATFORM_DEFINE) $(PRECISION_DEFINE) -c test_cahn_hilliard_nonlinear.cpp -o test_cahn_hilliard_nonlinear$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o
-	$(PLATFORMLINKER) test_cahn_hilliard_nonlinear$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o $(PLATFORMLINKER_FLAGS) -o test_cahn_hilliard_nonlinear$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).bin
+	$(PLATFORMCXX) $(PLATFORMCXX_FLAGS) $(INCLUDE_CONTRIB) $(PLATFORM_MPI_INCLUDE) $(PLATFORM_MPI_DEFINE) $(PLATFORM_DEFINE) $(PRECISION_DEFINE) -c test_cahn_hilliard_nonlinear.cpp -o bin/test_cahn_hilliard_nonlinear$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o
+	$(PLATFORMLINKER) bin/test_cahn_hilliard_nonlinear$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o $(PLATFORMLINKER_FLAGS) -o bin/test_cahn_hilliard_nonlinear$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).bin
 
 test_cahn_hilliard_nonlinear_all:
 	$(MAKE) test_cahn_hilliard_nonlinear PLATFORM=cpu

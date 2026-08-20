@@ -10,6 +10,8 @@
 .DS_Store
 **/data
 **/tmp
+**/bin/*
+!**/bin/.gitkeep
 .venv
 .clangd
 .clang-format
