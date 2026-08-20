@@ -23,7 +23,7 @@
 #
 # The 4th non-flag token after the binary name (solver preconditioner
 # grid_size prefix) is treated as the prefix and replaced in place with
-# results/<prefix>_<timestamp>, which is created before the run.
+# data/<prefix>_<timestamp>, which is created before the run.
 
 set -euo pipefail
 
@@ -102,7 +102,7 @@ fi
 
 PREFIX="${ARGS[$PREFIX_INDEX]}"
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
-output_dir="results/${PREFIX}_${TIMESTAMP}"
+output_dir="data/${PREFIX}_${TIMESTAMP}"
 ARGS[$PREFIX_INDEX]="$output_dir"
 
 mkdir -p "$output_dir"

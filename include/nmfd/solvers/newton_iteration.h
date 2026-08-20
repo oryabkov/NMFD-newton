@@ -82,7 +82,11 @@ public:
         nonlin_op.apply(x, f_); // f = F(x)
         vec_ops_->scale(T(-1), f_);
         lin_solver_->set_operator(nonlin_op.get_jacobi_operator());
-        bool flag_lin_solver = lin_solver_->solve(f_, d_x);
+        bool flag_lin_solver;
+        {
+            SCFD_PLATFORM_SCOPED_TIC( "LinearSolve" );
+            flag_lin_solver = lin_solver_->solve(f_, d_x);
+        }
         vec_ops_->stop_use_vector(f_);
         return flag_lin_solver;
     }

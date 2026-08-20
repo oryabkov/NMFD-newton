@@ -10,6 +10,7 @@
 
 #include <memory>
 #include <scfd/static_vec/vec.h>
+#include <nmfd/utils/profiling.h>
 
 namespace tests
 {
@@ -19,9 +20,9 @@ template <
     class JacobiOperator,
     class Log,
     class PhobicEnergy,
-    class Rhs,
     class TimeDerivative,
     class Mobility,
+    class Distributor,
     /**********************************************/
     class Backend = typename VectorSpace::backend_type>
 class cahn_hilliard_op
@@ -37,6 +38,8 @@ public:
     using grid_step_type     = scfd::static_vec::vec<scalar_type, dim>;
     using boundary_cond_type = boundary_cond<vector_space_type>;
     using ordinal_type       = typename VectorSpace::ordinal_type;
+    using dist_type          = Distributor;
+    using dist_ptr           = std::shared_ptr<const dist_type>;
 
     using Ord = ordinal_type;
 
@@ -59,27 +62,31 @@ public: // Especially for SYCL
         grid_step_type,
         boundary_cond_type,
         PhobicEnergy,
-        Rhs,
         Mobility>;
 
 public:
-    cahn_hilliard_op(vector_space_ptr vspace, grid_step_type step, boundary_cond_type b_cond, jacobi_operator_ptr jacobi_op, time_derivative_ptr time_derivative)
-        : vspace_( std::move( vspace ) ), range_( vspace_->get_size() ), step_( step ), b_cond_( b_cond ),jacobi_op_( std::move( jacobi_op ) ),
-          phobic_en_(), rhs_(), time_derivative_( std::move( time_derivative ) )
+    cahn_hilliard_op(vector_space_ptr vspace, grid_step_type step, boundary_cond_type b_cond, dist_ptr dist, vector_type rhs, jacobi_operator_ptr jacobi_op, time_derivative_ptr time_derivative)
+        : vspace_( std::move( vspace ) ), range_( vspace_->get_size() ), rhs_( std::move( rhs ) ), step_( step ), b_cond_( b_cond ), dist_( std::move( dist ) ), jacobi_op_( std::move( jacobi_op ) ),
+          phobic_en_(), time_derivative_( std::move( time_derivative ) )
     {
     }
 
-    cahn_hilliard_op( idx_nd_type range, grid_step_type step, boundary_cond_type b_cond, jacobi_operator_ptr jacobi_op )
+    cahn_hilliard_op( idx_nd_type range, grid_step_type step, boundary_cond_type b_cond, dist_ptr dist, vector_type rhs, jacobi_operator_ptr jacobi_op )
         : cahn_hilliard_op(
-              std::make_shared<vector_space_type>( range ), step, b_cond, std::move( jacobi_op ), std::make_shared<TimeDerivative>( range )
+              std::make_shared<vector_space_type>( range ), step, b_cond, std::move( dist ), std::move( rhs ), std::move( jacobi_op ), std::make_shared<TimeDerivative>( range )
           )
     {
     }
 
+    cahn_hilliard_op( vector_space_ptr vspace, grid_step_type step, boundary_cond_type b_cond, dist_ptr dist, vector_type rhs, jacobi_operator_ptr jacobi_op )
+        : cahn_hilliard_op( vspace, step, b_cond, std::move( dist ), std::move( rhs ), std::move( jacobi_op ), std::make_shared<TimeDerivative>( vspace ) )
+    {
+    }
+
     cahn_hilliard_op(
-        const vector_space_type &vspace, grid_step_type step, boundary_cond_type b_cond, jacobi_operator_ptr jacobi_op
+        const vector_space_type &vspace, grid_step_type step, boundary_cond_type b_cond, dist_ptr dist, vector_type rhs, jacobi_operator_ptr jacobi_op
     )
-        : cahn_hilliard_op( vspace.get_size(), step, b_cond, jacobi_op )
+        : cahn_hilliard_op( vspace.get_size(), step, b_cond, std::move( dist ), std::move( rhs ), jacobi_op )
     {
     }
 
@@ -87,11 +94,13 @@ public:
         idx_nd_type         range,
         grid_step_type      step,
         boundary_cond_type  b_cond,
+        dist_ptr            dist,
+        vector_type         rhs,
         jacobi_operator_ptr jacobi_op,
         time_derivative_ptr time_derivative
     )
         : cahn_hilliard_op(
-              std::make_shared<vector_space_type>( range ), step, b_cond, std::move( jacobi_op ), std::move( time_derivative )
+              std::make_shared<vector_space_type>( range ), step, b_cond, std::move( dist ), std::move( rhs ), std::move( jacobi_op ), std::move( time_derivative )
           )
     {
     }
@@ -100,10 +109,12 @@ public:
         const vector_space_type &vspace,
         grid_step_type           step,
         boundary_cond_type       b_cond,
+        dist_ptr                 dist,
+        vector_type              rhs,
         jacobi_operator_ptr      jacobi_op,
         time_derivative_ptr      time_derivative
     )
-        : cahn_hilliard_op( vspace.get_size(), step, b_cond, jacobi_op, time_derivative )
+        : cahn_hilliard_op( vspace.get_size(), step, b_cond, std::move( dist ), std::move( rhs ), jacobi_op, time_derivative )
     {
     }
 
@@ -125,6 +136,16 @@ public:
         return b_cond_;
     }
 
+    void set_distributor( dist_ptr dist )
+    {
+        dist_ = std::move( dist );
+    }
+
+    const dist_ptr &get_distributor() const noexcept
+    {
+        return dist_;
+    }
+
     const vector_space_ptr &get_dom_space() const noexcept
     {
         return vspace_;
@@ -136,23 +157,32 @@ public:
 
     void apply( const vector_type &in, vector_type &out ) const
     {
-        for_each_nd_type for_each_nd_inst;
-        for_each_nd_inst(
-            cahn_hilliard_kernel{
-                in,
-                out,
-                range_,
-                step_,
-                b_cond_,
-                phobic_en_,
-                rhs_,
-                mobility_,
-                time_derivative_->get_previous_state(),
-                time_derivative_->get_dt_inf(),
-                gamma_
-            },
-            range_
-        );
+        // Synchronized all data between processes between calling foreach
+        {
+            SCFD_PLATFORM_SCOPED_TIC( "Comm::sync" );
+            dist_->sync( in );
+        }
+
+        {
+            SCFD_PLATFORM_SCOPED_TIC( "Newton::residual" );
+            for_each_nd_type for_each_nd_inst;
+            for_each_nd_inst(
+                cahn_hilliard_kernel{
+                    in,
+                    out,
+                    range_,
+                    step_,
+                    b_cond_,
+                    phobic_en_,
+                    rhs_,
+                    mobility_,
+                    time_derivative_->get_previous_state(),
+                    time_derivative_->get_dt_inf(),
+                    gamma_
+                },
+                range_
+            );
+        }
     };
 
     void set_linearization_point( const vector_type &p )
@@ -188,16 +218,18 @@ public:
 private:
     vector_space_ptr   vspace_;
     idx_nd_type        range_;
+    vector_type        rhs_;
     grid_step_type     step_;
     boundary_cond_type b_cond_;
 
     jacobi_operator_ptr jacobi_op_;
     PhobicEnergy        phobic_en_;
-    Rhs                 rhs_;
     Mobility            mobility_;
     time_derivative_ptr time_derivative_;
 
     scalar_type gamma_ = scalar_type( 1 );
+
+    dist_ptr dist_;
 };
 
 } // namespace tests

@@ -24,13 +24,21 @@ test_biharmonic_mpi_all:
 # ----- Cahn-Hilliard -----
 
 test_cahn_hilliard: test_cahn_hilliard.cpp
-	$(PLATFORMCXX) $(PLATFORMCXX_FLAGS) $(INCLUDE_CONTRIB) $(PLATFORM_MPI_INCLUDE) $(PLATFORM_MPI_DEFINE) $(PLATFORM_DEFINE) $(PRECISION_DEFINE) -c test_cahn_hilliard.cpp -o test_cahn_hilliard$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o
-	$(PLATFORMLINKER) test_cahn_hilliard$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o $(PLATFORMLINKER_FLAGS) -o test_cahn_hilliard$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).bin
+	$(PLATFORMCXX) $(PLATFORMCXX_FLAGS) $(INCLUDE_CONTRIB) $(PLATFORM_MPI_INCLUDE) $(PLATFORM_MPI_DEFINE) $(PLATFORM_DEFINE) $(PRECISION_DEFINE) $(PROFILE_DEFINE) -c test_cahn_hilliard.cpp -o test_cahn_hilliard$(MPI_SUFFIX)$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o
+	$(PLATFORMLINKER) test_cahn_hilliard$(MPI_SUFFIX)$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o $(PLATFORMLINKER_FLAGS) -o test_cahn_hilliard$(MPI_SUFFIX)$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).bin
 
 test_cahn_hilliard_all:
 	$(MAKE) test_cahn_hilliard PLATFORM=cpu
 	$(MAKE) test_cahn_hilliard PLATFORM=omp
 	$(MAKE) test_cahn_hilliard PLATFORM=cuda
+
+test_cahn_hilliard_mpi:
+	$(MAKE) test_cahn_hilliard PLATFORM_MPI=1
+
+test_cahn_hilliard_mpi_all:
+	$(MAKE) test_cahn_hilliard_mpi PLATFORM=cpu
+	$(MAKE) test_cahn_hilliard_mpi PLATFORM=omp
+	$(MAKE) test_cahn_hilliard_mpi PLATFORM=cuda
 
 
 # ----- Time depentent Cahn-Hilliard -----

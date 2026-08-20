@@ -246,6 +246,7 @@ public:
             vec_space_->assign(x, x1_storage);
             Fx1_storage_norm_ = normFx;
             Fx_initial_norm_ = normFx;
+            logged_obj_type::info_f("iteration: %i, residuals n: %le", iterations, (double)normFx);
             /// postulate continue (other cases checked earlier) and continue
             result_status = 1;
             iterations++;

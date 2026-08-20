@@ -14,7 +14,6 @@ template <
     class GridStep,
     class BoundaryCond,
     class PhobicEnergy,
-    class Rhs,
     class Mobility>
 struct cahn_hilliard_op_kernel
 {
@@ -23,28 +22,20 @@ struct cahn_hilliard_op_kernel
     GridStep       step;
     BoundaryCond   cond;
     PhobicEnergy   phobic_en;
-    Rhs            rhs;
+    VectorType     rhs;
     Mobility       mobility;
     VectorType     previous_state;
     Scalar         dt_inf;
     Scalar gamma; // squared length of the transition regions between the domains
 
-    // using periodic_bc_vector = tests::periodic_bc_vector<IdxND, Scalar, TensorType, VectorType>;
-
     __DEVICE_TAG__ void operator()( const IdxND idx ) const
     {
         // TensorType state{ 0, 0 };
-        Scalar x = step[0] * ( 0.5 + idx[0] );
-        Scalar y = step[1] * ( 0.5 + idx[1] );
-        Scalar z = step[2] * ( 0.5 + idx[2] );
-
         // Apply rhs
-        TensorType state = -rhs( x, y, z );
+        TensorType state = -rhs.get_vec( idx );
 
         auto curr = in.get_vec( idx );
         auto prev = previous_state.get_vec( idx );
-
-        TensorType ghost{ Scalar(0), Scalar(0) };
 
         // First equation: div(M(phi) grad(psi))
         // Second equation: psi + gamma * laplace(phi) - F(phi) = 0
@@ -61,13 +52,7 @@ struct cahn_hilliard_op_kernel
             TensorType prev_vec;
             if ( idx[j] == 0 )
             {
-                cond.get_ghost_tensor( in, range, idx - ej, step, ghost ); // Calculate bc vector
-                const auto periodic_vec = tests::periodic_bc_vector<IdxND, Scalar, TensorType, VectorType>( in, idx, j, N, true ); // Calculate periodic bc vector
-                #pragma unroll
-                for ( int c = 0; c < TensorType::dim; ++c )
-                {
-                    prev_vec[c] = ( cond.left[j][c] == 0 ) ? periodic_vec[c] : ghost[c];
-                }
+                cond.get_lin_neighbor( in, range, idx - ej, j, /*is_left*/ true, step, prev_vec );
             }
             else
             {
@@ -77,13 +62,7 @@ struct cahn_hilliard_op_kernel
             TensorType next_vec;
             if ( idx[j] == N - 1 )
             {
-                cond.get_ghost_tensor( in, range, idx + ej, step, ghost ); // Calculate bc vector
-                const auto periodic_vec = tests::periodic_bc_vector<IdxND, Scalar, TensorType, VectorType>( in, idx, j, N, false ); // Calculate periodic bc vector
-                #pragma unroll
-                for ( int c = 0; c < TensorType::dim; ++c )
-                {
-                    next_vec[c] = ( cond.right[j][c] == 0 ) ? periodic_vec[c] : ghost[c];
-                }
+                cond.get_lin_neighbor( in, range, idx + ej, j, /*is_left*/ false, step, next_vec );
             }
             else
             {

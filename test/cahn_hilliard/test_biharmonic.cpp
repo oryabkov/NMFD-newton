@@ -372,6 +372,7 @@ int main( int argc, char *argv[] )
         params_gmres.monitor.max_iters_num                = max_iterations;
         params_gmres.do_restart_on_false_ritz_convergence = true;
         params_gmres.basis_size                           = gmres_basis;
+        params_gmres.batch_size                           = 1;
         params_gmres.preconditioner_side                  = 'L';
         params_gmres.reorthogonalization                  = true;
         solver = std::make_shared<gmres_solver>( l_op, vspace, &log, params_gmres, precond );
