@@ -32,6 +32,7 @@
 #include <nmfd/operations/zero_functional.h>
 #include <nmfd/detail/algo_hierarchy_macro.h>
 #include <nmfd/detail/algo_hierarchy_creator.h>
+#include <nmfd/utils/profiling.h>
 #include "../detail/str_source_helper.h"
 #include "../detail/vector_wrap.h"
 #include "default_convergence_strategy.h"
@@ -95,6 +96,7 @@ public:
         std::shared_ptr<ConvergenceStrategy> conv_strat = nullptr
     ) :
       vec_ops_(std::move(vec_ops)),
+      log_(log),
       iter_op_(std::move(iter_op)),
       conv_strat_(std::move(conv_strat)),
       delta_x_(*vec_ops_)
@@ -125,6 +127,7 @@ public:
     //inplace
     bool solve(NonlinearOperator *nonlin_op, ProjectOperator *project_op, QualityFunctor *quality_func, vector_type& x)
     {
+        SCFD_PLATFORM_SCOPED_TIC_PRINT( "Newton::solve", log_ );
         vec_ops_->assign_scalar(T(0.0), *delta_x_);
         bool converged = false;
         conv_strat_->reset_iterations(); //reset iteration count, newton wight and iteration history
@@ -179,6 +182,7 @@ private:
     using vec_wrap_t = nmfd::detail::vector_wrap<VectorSpace,true,true>;
 
     std::shared_ptr<VectorSpace> vec_ops_;
+    Log *log_;
     std::shared_ptr<IterationOperator> iter_op_;
     std::shared_ptr<ConvergenceStrategy> conv_strat_;
     vec_wrap_t delta_x_;

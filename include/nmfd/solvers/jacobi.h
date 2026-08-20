@@ -84,6 +84,7 @@ public:
     bool
     solve(const laplace_operator_type& A, const vector_type& rhs, vector_type& x) const override
     {
+        SCFD_PLATFORM_SCOPED_TIC_PRINT( "Jacobi::solve", logged_obj_t::log_ );
         A.apply(x, *tmp_wrap_);
         vec_ops_->add_lin_comb(scalar_type{-1}, rhs, scalar_type{1}, *tmp_wrap_);
         // Now, tmp represents residual

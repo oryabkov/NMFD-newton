@@ -401,6 +401,7 @@ public:
 
     virtual bool solve(const linear_operator_type &A, const T_vec &b, T_vec &x)const
     {
+        SCFD_PLATFORM_SCOPED_TIC_PRINT( "GMRES::solve", logged_obj_t::log_ );
         auto restart_ = prms_.basis_size;
         start_use_all();
         // if (prec_ != nullptr)

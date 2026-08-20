@@ -246,10 +246,12 @@ public:
             vec_space_->assign(x, x1_storage);
             Fx1_storage_norm_ = normFx;
             Fx_initial_norm_ = normFx;
-            logged_obj_type::info_f("iteration: %i, residuals n: %le", iterations, (double)normFx);
             /// postulate continue (other cases checked earlier) and continue
             result_status = 1;
             iterations++;
+            auto result_status_string = parse_result_status(result_status);
+            auto finish_string = parse_bool(false);
+            logged_obj_type::info_f("iteration: %i, max_iterations: %i, residuals n: %le, n+1: %le, min_value: %le, result_status: %i => %s, is_finished = %s, newton_weight = %le, stagnation = %u ",iterations, prm_.max_iters_num, (double)normFx, (double)normFx, double(Fx1_storage_norm_), result_status, result_status_string.c_str(), finish_string.c_str(), newton_weight, stagnation );
             return false;
         }
         T normFx1;
