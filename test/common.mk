@@ -66,7 +66,10 @@ endif
 # ----- CUDA -----
 
 ifneq ($(strip $(CUDA_ARCH)),)
-CUDA_ARCH_FLAG = -arch=$(CUDA_ARCH)
+# CUDA_ARCH_FLAG = -arch=$(CUDA_ARCH)
+# CUDA_ARCH may list several sm_XX targets (e.g. "sm_70 sm_80") to build one fat binary
+# that runs on all of them, instead of a single -arch=sm_XX tied to one GPU generation.
+CUDA_ARCH_FLAG = $(foreach arch,$(CUDA_ARCH),-gencode arch=compute_$(patsubst sm_%,%,$(arch)),code=$(arch))
 endif
 CUDAFLAGS = $(TARGET_NVCC) -std=c++17 $(CUDA_ARCH_FLAG) $(ARRAYS_FLAGS)
 

@@ -1,51 +1,57 @@
-#include <chrono>
-#include <filesystem>
-#include <fstream>
-#include <iomanip>
-#include <memory>
-#include <nmfd/operations/rect_vector_space.h>
-#include <nmfd/preconditioners/mg.h>
-#include <nmfd/preconditioners/dummy.h>
-#include <nmfd/solvers/default_monitor.h>
-#include <nmfd/solvers/monitor_krylov.h>
-#include <scfd/backend/backend.h>
-#include <scfd/utils/log.h>
-#include <sstream>
-#include <string>
-#include <type_traits>
-#include <vector>
-
+#include "include/balancer.h"
+#include "include/coarsening.h"
+#include "include/free_energy.h"
 #include "include/cahn_hilliard_op.h"
 #include "include/jacobi_op.h"
 #include "include/jacobi_pre.h"
+#include "include/prolongator.h"
+#include "include/restrictor.h"
+#include "include/boundary.h"
+#include "include/kernels/phobic_energy.h"
+#include "include/kernels/mobility.h"
+#include "include/solution_io.h"
+#include "include/scheduler.h"
+#include <nmfd/utils/logging.h>
+#include <nmfd/utils/profiling.h>
 
+#include <CLI/CLI.hpp>
+#include <cstdio>
+#include <memory>
+#include <nmfd/operations/rect_vector_space.h>
+#include <nmfd/preconditioners/dummy.h>
+#include <nmfd/preconditioners/mg.h>
+#include <nmfd/solvers/default_monitor.h>
 #include <nmfd/solvers/gmres.h>
 #include <nmfd/solvers/iter_solver_base.h>
 #include <nmfd/solvers/jacobi.h>
+#include <nmfd/solvers/monitor_krylov.h>
 #include <nmfd/solvers/newton_iteration.h>
 #include <nmfd/solvers/nonlinear_solver.h>
+#include <scfd/backend/backend.h>
 
-// #include "include/cahn_hilliard_problem.h"
-#include "include/biharmonic_problem.h"
-#include "include/coarsening.h"
-#include "include/convergence_history_io.h"
-#include "include/boundary.h"
-#include "include/kernels/phobic_energy.h"
-#include "include/newton_convergence_monitor.h"
-#include "include/prolongator.h"
-#include "include/restrictor.h"
-#include "include/solution_io.h"
-#include "include/timers.h"
-#include "include/scheduler.h"
-#include "include/kernels/mobility.h"
+#ifdef SCFD_BACKEND_ENABLE_MPI
+#include <scfd/communication/mpi_wrap.h>
+#include <scfd/communication/mpi_rect_distributor.h>
+#else
+#include <scfd/communication/trivial_platform.h>
+#include <scfd/communication/trivial_comm.h>
+#include <scfd/communication/rect_distributor.h>
+#endif
 
+#include <scfd/communication/rect_partitioner.h>
+#include <scfd/utils/log.h>
+#include <string>
+#include <type_traits>
+#include <vector>
 
 using backend = scfd::backend::current;
 
 /**************************************/
 
-constexpr int dim        = 3;
-constexpr int tensor_dim = 2;
+constexpr int dim               = 3;
+constexpr int tensor_dim        = 2;
+constexpr int stencil           = 2;
+constexpr int max_stencil_order = dim;
 
 #ifndef USE_DOUBLE_PRECISION
 using scalar      = float;
@@ -55,12 +61,35 @@ using scalar      = double;
 using grid_step_type = scfd::static_vec::vec<scalar, dim>;
 using idx_nd_type    = scfd::static_vec::vec<int, dim>;
 
-using log_t = scfd::utils::log_std;
+using log_t = current_log;
 
-using vec_ops_t        = nmfd::rect_vector_space<scalar, /*dim=*/dim, /*tensor_dim=*/tensor_dim, backend>;
-using vector_t         = typename vec_ops_t::vector_type;
-using tensor_t         = scfd::static_vec::vec<scalar, tensor_dim>;
-using vector_view_t    = typename vector_t::view_type;
+using ord_t           = int;
+using big_ord_t       = long int;
+using mem_t           = backend::memory_type;
+using dist_for_each_t = backend::for_each_nd_type<dim, ord_t>;
+
+#ifdef SCFD_BACKEND_ENABLE_MPI
+using comm_platform_t = scfd::communication::mpi_wrap;
+using comm_info_t     = scfd::communication::mpi_comm_info;
+using dist_t          = scfd::communication::mpi_rect_distributor<scalar, dim, mem_t, dist_for_each_t, ord_t, big_ord_t, comm_info_t>;
+#else
+using comm_platform_t = scfd::communication::trivial_platform<mem_t>;
+using comm_info_t     = scfd::communication::trivial_comm<mem_t>;
+using dist_t          = scfd::communication::rect_distributor<scalar, dim, mem_t, dist_for_each_t, ord_t, big_ord_t, comm_info_t>;
+#endif
+
+using part_t          = scfd::communication::rect_partitioner<dim, ord_t, big_ord_t, comm_info_t>;
+
+using big_idx_t       = scfd::static_vec::vec<big_ord_t, dim>;
+using periodic_flags_t = scfd::static_vec::vec<bool, dim>;
+using rect_t          = scfd::static_vec::rect<ord_t, dim>;
+using big_rect_t      = scfd::static_vec::rect<big_ord_t, dim>;
+
+using vec_ops_t     = nmfd::rect_vector_space<scalar, /*dim=*/dim, /*tensor_dim=*/tensor_dim, backend, comm_info_t>;
+using vector_t      = typename vec_ops_t::vector_type;
+using tensor_t      = scfd::static_vec::vec<scalar, tensor_dim>;
+using vector_view_t = typename vector_t::view_type;
+
 // Monitors
 using krylov_monitor_t  = nmfd::solvers::monitor_krylov<vec_ops_t, log_t>;
 using default_monitor_t = nmfd::solvers::default_monitor<vec_ops_t, log_t>;
@@ -68,19 +97,18 @@ using monitor_funcs_t   = default_monitor_t::custom_funcs_type;
 using monitor_funcs_ptr = default_monitor_t::custom_funcs_ptr;
 
 // Problem
-// using phobic_energy_t = tests::double_well_potential<scalar>;
-using phobic_energy_t   = tests::logarithmic_potential<scalar>;
-// using mobility_t        = tests::constant_mobility<scalar>;
+using phobic_energy     = tests::logarithmic_potential<scalar>;
 using mobility_t        = tests::parabolic_mobility<scalar>;
-using rhs_t             = tests::zero_rhs<scalar, tensor_t>;
 using time_derivative_t = tests::time_derivative<vec_ops_t, tensor_t>;
 
+using free_energy_t = tests::free_energy<vec_ops_t, phobic_energy, dist_t>;
+
 // MG
-using prolongator_t = tests::prolongator<vec_ops_t, log_t>;
-using restrictor_t  = tests::restrictor<vec_ops_t, log_t>;
-using jacobi_op_t   = tests::jacobi_op<vec_ops_t, log_t, phobic_energy_t, time_derivative_t, mobility_t>;
+using prolongator_t = tests::prolongator<vec_ops_t, log_t, dist_t>;
+using restrictor_t  = tests::restrictor<vec_ops_t, log_t, dist_t>;
+using jacobi_op_t   = tests::jacobi_op<vec_ops_t, log_t, phobic_energy, time_derivative_t, mobility_t, dist_t>;
 using ident_op_t    = nmfd::preconditioners::dummy<vec_ops_t, jacobi_op_t>;
-using smoother_t    = tests::jacobi_pre<vec_ops_t, log_t, phobic_energy_t, time_derivative_t, mobility_t>;
+using smoother_t    = tests::jacobi_pre<vec_ops_t, log_t, phobic_energy, time_derivative_t, mobility_t, dist_t>;
 using coarsening_t  = tests::coarsening<jacobi_op_t, log_t>;
 
 using precond_interface = nmfd::preconditioners::preconditioner_interface<vec_ops_t, jacobi_op_t>;
@@ -92,85 +120,12 @@ using mg_utils_t  = mg_t::utils_hierarchy;
 
 using jacobi_solver = nmfd::solvers::jacobi<vec_ops_t, jacobi_op_t, precond_interface, krylov_monitor_t, log_t>;
 using gmres_solver  = nmfd::solvers::gmres<vec_ops_t, krylov_monitor_t, log_t, jacobi_op_t, precond_interface>;
-
-using cahn_hilliard_op_t =
-    tests::cahn_hilliard_op<vec_ops_t, jacobi_op_t, log_t, phobic_energy_t, rhs_t, time_derivative_t, mobility_t>;
-
 using linsolver_base_t = nmfd::solvers::iter_solver_base<vec_ops_t, krylov_monitor_t, log_t, jacobi_op_t, precond_interface>;
-using newton_conv_monitor_t = tests::newton_convergence_monitor<vec_ops_t, log_t, cahn_hilliard_op_t, krylov_monitor_t, scalar>;
+
+// Newton
+using cahn_hilliard_op_t = tests::cahn_hilliard_op<vec_ops_t, jacobi_op_t, log_t, phobic_energy, time_derivative_t, mobility_t, dist_t>;
 using newton_iteration_t = nmfd::solvers::newton_iteration<vec_ops_t, cahn_hilliard_op_t, linsolver_base_t>;
-using newton_solver_t = nmfd::solvers::nonlinear_solver<vec_ops_t, log_t, cahn_hilliard_op_t, newton_iteration_t, newton_conv_monitor_t>;
-
-/**************************************/
-// Logging helpers
-/**************************************/
-
-std::string get_timestamp_string()
-{
-    auto               now = std::chrono::system_clock::now();
-    std::time_t        t   = std::chrono::system_clock::to_time_t( now );
-    std::tm            tm  = *std::localtime( &t );
-    std::ostringstream oss;
-    oss << std::put_time( &tm, "%Y%m%d_%H%M%S" );
-    return oss.str();
-}
-
-static tensor_t compute_component_sums( const vector_t &v, const idx_nd_type &range )
-{
-    tensor_t sums;
-    for ( int c = 0; c < tensor_dim; ++c )
-        sums[c] = scalar( 0 );
-    // IMPORTANT: this view may allocate a host buffer for device memory.
-    // We must sync FROM the array before reading, and we must NOT sync back on release.
-    vector_view_t view( const_cast<vector_t &>( v ), /*sync_from_array*/ true );
-    for ( int i = 0; i < range[0]; ++i )
-    {
-        for ( int j = 0; j < range[1]; ++j )
-        {
-            for ( int k = 0; k < range[2]; ++k )
-            {
-                for ( int c = 0; c < tensor_dim; ++c )
-                {
-                    sums[c] += view( i, j, k, c );
-                }
-            }
-        }
-    }
-    view.release( /*sync_to_array*/ false );
-    return sums;
-}
-
-class tee_streambuf : public std::streambuf
-{
-public:
-    tee_streambuf( std::streambuf *sb1, std::streambuf *sb2 ) : sb1_( sb1 ), sb2_( sb2 )
-    {
-    }
-
-protected:
-    int overflow( int c ) override
-    {
-        if ( c != EOF )
-        {
-            if ( sb1_ )
-                sb1_->sputc( c );
-            if ( sb2_ )
-                sb2_->sputc( c );
-        }
-        return c;
-    }
-
-    int sync() override
-    {
-        int r1 = sb1_ ? sb1_->pubsync() : 0;
-        int r2 = sb2_ ? sb2_->pubsync() : 0;
-        return ( r1 == 0 && r2 == 0 ) ? 0 : -1;
-    }
-
-private:
-    std::streambuf *sb1_;
-    std::streambuf *sb2_;
-};
+using newton_solver_t = nmfd::solvers::nonlinear_solver<vec_ops_t, log_t, cahn_hilliard_op_t, newton_iteration_t>;
 
 /**************************************/
 // Default solver parameters
@@ -185,21 +140,30 @@ constexpr scalar DEFAULT_D              = 1.0;
 constexpr scalar DEFAULT_GAMMA          = 1e-4;
 constexpr scalar DEFAULT_COS_THETA      = 0.5;
 constexpr scalar DEFAULT_DT_INF         = 1.0;
-constexpr int    DEFAULT_MAX_TIME_STEPS = 1;
+constexpr int    DEFAULT_MAX_TIME_STEPS = 10;
 constexpr int    DEFAULT_MAX_RETRIES    = 10;
 constexpr scalar DEFAULT_TIME_TOL       = std::is_same<float, scalar>::value ? 5e-6f : 1e-10;
 
 /**************************************/
 
-int main( int argc, char const *argv[] )
+int main( int argc, char *argv[] )
 {
+    comm_platform_t comm( argc, argv );
+    comm_info_t     comm_world = comm.comm_world();
+
+    auto prof = std::make_shared<current_prof>();
+    current_prof::set_inst( prof.get() );
+
     // Parse CLI arguments
-    bool        save_coords = false;
-    bool        verbose     = false;
-    std::string prefix      = "run";
-    int         grid_size   = 32;
+    CLI::App app{ "Cahn-Hilliard nonlinear contact-angle solver test" };
+    app.get_formatter()->column_width( 42 );
+
     std::string solver_type;
     std::string preconditioner_type;
+    int         grid_size   = 32;
+    std::string output_dir  = ".";
+    bool        save_coords = false;
+    bool        verbose     = false;
 
     // Solver parameters (initialized to defaults)
     int    max_iterations = DEFAULT_MAX_ITERATIONS;
@@ -215,143 +179,48 @@ int main( int argc, char const *argv[] )
     int    max_time_steps = DEFAULT_MAX_TIME_STEPS;
     scalar time_tol       = DEFAULT_TIME_TOL;
 
-    if ( argc < 4 )
+    app.add_option( "solver", solver_type, "Solver type" )
+        ->required()
+        ->check( CLI::IsMember( std::vector<std::string>{ "jacobi", "gmres" } ) );
+    app.add_option( "preconditioner", preconditioner_type, "Preconditioner type (diagonal/Jacobi or multigrid)" )
+        ->required()
+        ->check( CLI::IsMember( std::vector<std::string>{ "diag", "mg" } ) );
+    // Multigrid halves the grid down to two cells, so every extent must stay even all the way down.
+    app.add_option( "grid_size", grid_size, "Number of grid points per dimension (e.g., 32)" )
+        ->required()
+        ->check( []( const std::string &str ) -> std::string {
+            int val = std::stoi( str );
+            if ( val < 2 || ( val & ( val - 1 ) ) != 0 )
+                return "grid_size must be a power of two, got " + str + ".";
+            return std::string();
+        } );
+    app.add_option( "output_dir", output_dir, "Output directory (must already exist; created by the caller, e.g. run.sh)" )
+        ->capture_default_str();
+
+    app.add_flag( "--save-coords", save_coords, "Save numerical solutions to binary files" );
+    app.add_flag( "--verbose", verbose, "Print per-iteration residuals and the profiler breakdown to the log" );
+    app.add_option( "--max-iterations", max_iterations, "Maximum solver iterations" )->capture_default_str();
+    app.add_option( "--gmres-basis", gmres_basis, "GMRES basis size" )->capture_default_str();
+    app.add_option( "--mg-sweeps-pre", mg_sweeps_pre, "Multigrid pre-sweeps" )->capture_default_str();
+    app.add_option( "--mg-sweeps-post", mg_sweeps_post, "Multigrid post-sweeps" )->capture_default_str();
+    app.add_option( "--tolerance", tolerance, "Linear solver tolerance" )->capture_default_str();
+    app.add_option( "--newton-tol", newton_tol, "Newton solver tolerance" )->capture_default_str();
+    app.add_option( "--D", D, "Diffusion coefficient" )->capture_default_str();
+    app.add_option( "--gamma", gamma, "Squared length of transition regions" )->capture_default_str();
+    app.add_option( "--cos-theta", cos_theta, "Cos(equilibrium contact angle) for boundary condition" )->capture_default_str();
+    app.add_option( "--dt-inf", dt_inf, "1/dt for implicit time stepping" )->capture_default_str();
+    app.add_option( "--max-time-steps", max_time_steps, "Maximum number of time steps" )->capture_default_str();
+    app.add_option( "--time-tol", time_tol, "Time convergence tolerance" )->capture_default_str();
+
+    try
     {
-        std::cout << "USAGE: " << argv[0] << " <solver> <preconditioner> <grid_size> [prefix] [options...]"
-                  << std::endl;
-        std::cout << std::endl;
-        std::cout << "Required arguments:" << std::endl;
-        std::cout << "    solver               Solver type: 'jacobi' or 'gmres'" << std::endl;
-        std::cout << "    preconditioner       Preconditioner type: 'diag' (diagonal/Jacobi) or 'mg' (multigrid)"
-                  << std::endl;
-        std::cout << "    grid_size            Number of grid points per dimension (e.g., 32)" << std::endl;
-        std::cout << std::endl;
-        std::cout << "Optional arguments:" << std::endl;
-        std::cout << "    prefix               Output prefix (default: 'run')" << std::endl;
-        std::cout << std::endl;
-        std::cout << "Options:" << std::endl;
-        std::cout << "    --save-coords        Save numerical and exact solutions to binary files" << std::endl;
-        std::cout << "    --verbose            Save convergence history to conv_history.dat" << std::endl;
-        std::cout << "    --max-iterations N   Maximum solver iterations (default: " << DEFAULT_MAX_ITERATIONS << ")"
-                  << std::endl;
-        std::cout << "    --gmres-basis N      GMRES basis size (default: " << DEFAULT_GMRES_BASIS << ")" << std::endl;
-        std::cout << "    --mg-sweeps-pre N    Multigrid pre-sweeps (default: " << DEFAULT_MG_SWEEPS_PRE << ")"
-                  << std::endl;
-        std::cout << "    --mg-sweeps-post N   Multigrid post-sweeps (default: " << DEFAULT_MG_SWEEPS_POST << ")"
-                  << std::endl;
-        std::cout << "    --newton-tol T       Newton solver tolerance (default: " << std::scientific
-                  << DEFAULT_NEWTON_TOL << std::defaultfloat << ")" << std::endl;
-        std::cout << "    --tolerance T        Linear solver tolerance (default: " << std::scientific << tolerance
-                  << std::defaultfloat << ")" << std::endl;
-        std::cout << "    --D T                Diffusion coefficient (default: " << DEFAULT_D << ")" << std::endl;
-        std::cout << "    --gamma T            Squared length of transition regions (default: " << DEFAULT_GAMMA << ")" << std::endl;
-        std::cout << "    --cos-theta T        Cos(equilibrium contact angle) for boundary condition (default: " << DEFAULT_COS_THETA << ")" << std::endl;
-        std::cout << "    --dt-inf T           1/dt for implicit time stepping (default: " << DEFAULT_DT_INF << ")" << std::endl;
-        std::cout << "    --max-time-steps N   Maximum number of time steps (default: " << DEFAULT_MAX_TIME_STEPS << ")" << std::endl;
-        std::cout << "    --time-tol T         Time convergence tolerance (default: " << std::scientific << DEFAULT_TIME_TOL << std::defaultfloat << ")" << std::endl;
-        return 1;
+        app.parse( argc, argv );
     }
-
-    solver_type         = argv[1];
-    preconditioner_type = argv[2];
-    grid_size           = std::stoi( argv[3] );
-
-    // Validate solver and preconditioner types
-    if ( solver_type != "jacobi" && solver_type != "gmres" )
+    catch ( const CLI::ParseError &e )
     {
-        std::cerr << "ERROR: Unknown solver type '" << solver_type << "'. Use 'jacobi' or 'gmres'." << std::endl;
-        return 1;
+        int rc = ( comm_world.myid == 0 ) ? app.exit( e ) : e.get_exit_code();
+        return rc;
     }
-
-    if ( preconditioner_type != "diag" && preconditioner_type != "mg" )
-    {
-        std::cerr << "ERROR: Unknown preconditioner type '" << preconditioner_type << "'. Use 'diag' or 'mg'."
-                  << std::endl;
-        return 1;
-    }
-
-    // Parse optional arguments
-    for ( int i = 4; i < argc; ++i )
-    {
-        std::string arg = argv[i];
-        if ( arg == "--save-coords" )
-        {
-            save_coords = true;
-        }
-        else if ( arg == "--verbose" )
-        {
-            verbose = true;
-        }
-        else if ( arg == "--max-iterations" && i + 1 < argc )
-        {
-            max_iterations = std::stoi( argv[++i] );
-        }
-        else if ( arg == "--gmres-basis" && i + 1 < argc )
-        {
-            gmres_basis = std::stoi( argv[++i] );
-        }
-        else if ( arg == "--mg-sweeps-pre" && i + 1 < argc )
-        {
-            mg_sweeps_pre = std::stoi( argv[++i] );
-        }
-        else if ( arg == "--mg-sweeps-post" && i + 1 < argc )
-        {
-            mg_sweeps_post = std::stoi( argv[++i] );
-        }
-        else if ( arg == "--newton-tol" && i + 1 < argc )
-        {
-            newton_tol = std::stod( argv[++i] );
-        }
-        else if ( arg == "--tolerance" && i + 1 < argc )
-        {
-            tolerance = std::stod( argv[++i] );
-        }
-        else if ( arg == "--D" && i + 1 < argc )
-        {
-            D = std::stod( argv[++i] );
-        }
-        else if ( arg == "--gamma" && i + 1 < argc )
-        {
-            gamma = std::stod( argv[++i] );
-        }
-        else if ( arg == "--cos-theta" && i + 1 < argc )
-        {
-            cos_theta = std::stod( argv[++i] );
-        }
-        else if ( arg == "--dt-inf" && i + 1 < argc )
-        {
-            dt_inf = std::stod( argv[++i] );
-        }
-        else if ( arg == "--max-time-steps" && i + 1 < argc )
-        {
-            max_time_steps = std::stoi( argv[++i] );
-        }
-        else if ( arg == "--time-tol" && i + 1 < argc )
-        {
-            time_tol = std::stod( argv[++i] );
-        }
-        else if ( arg.find( "--" ) == 0 )
-        {
-            std::cerr << "Unknown option: " << arg << std::endl;
-            return 1;
-        }
-        else
-        {
-            prefix = arg;
-        }
-    }
-
-    // Create output directory with timestamp
-    std::string output_dir = "data/" + prefix + "_" + get_timestamp_string();
-    std::filesystem::create_directories( output_dir );
-
-    // Open log file and set up tee output
-    std::ofstream log_file( output_dir + "/log.txt" );
-    tee_streambuf tee_buf( std::cout.rdbuf(), log_file.rdbuf() );
-    std::ostream  tee_out( &tee_buf );
-
-    // Redirect std::cout to tee
-    auto *old_cout_buf = std::cout.rdbuf( &tee_buf );
 
     // Solver configuration
     const std::string scalar_label = std::is_same<float, scalar>::value ? "float" : "double";
@@ -360,124 +229,147 @@ int main( int argc, char const *argv[] )
     // Set log verbosity: 0 suppresses INFO messages, 1 allows them
     log.set_verbosity( verbose ? 1 : 0 );
 
+    // Boundary conditions of the WHOLE computational domain:
+    //   x,y periodic on both components; z is Neumann(+1) for psi both sides,
+    //   nonlinear contact-angle(2) on left / Neumann(+1) on right for phi.
+    //   -1 = dirichlet (value 0), +1 = neumann (derivative 0), 0 = periodic (reads opposite side), 2 = nonlinear.
+    int global_left_bc[3][2]  = { { 0, 0 }, { 0, 0 }, { +1, 2 } };
+    int global_right_bc[3][2] = { { 0, 0 }, { 0, 0 }, { +1, +1 } };
+
     // Write configuration header to log
-    std::cout << "========================================" << std::endl;
-    std::cout << "Cahn-Hilliard Solver Configuration" << std::endl;
-    std::cout << "========================================" << std::endl;
-    std::cout << std::endl;
-    std::cout << "Problem Settings:" << std::endl;
-    std::cout << "  Grid size:     " << grid_size << " x " << grid_size << " x " << grid_size << std::endl;
-    std::cout << "  Tensor dim:    " << tensor_dim << std::endl;
-    std::cout << "  Scalar type:   " << scalar_label << std::endl;
-    std::cout << "  DOFs:          " << static_cast<long long>( grid_size ) * grid_size * grid_size * tensor_dim
-              << std::endl;
-    std::cout << "  D:             " << std::scientific << D << std::defaultfloat << std::endl;
-    std::cout << "  gamma:         " << std::scientific << gamma << std::defaultfloat << std::endl;
-    std::cout << "  cos(theta):    " << std::scientific << cos_theta << std::defaultfloat << std::endl;
-    std::cout << "  dt_inf (init): " << std::scientific << dt_inf << std::defaultfloat << std::endl;
-    std::cout << "  max_time_steps:" << max_time_steps << std::endl;
-    std::cout << "  time_tol:      " << std::scientific << time_tol << std::defaultfloat << std::endl;
-    std::cout << std::endl;
-    std::cout << "Newton Solver:" << std::endl;
-    std::cout << "  Tolerance:     " << std::scientific << newton_tol << std::endl;
-    std::cout << "  Max iters:     " << 10 << std::endl;
-    std::cout << "  Adaptive dt:   yes (rollback + retry, dt_inf*=2 on fail, dt_inf/=2 after streak)" << std::endl;
-    std::cout << "  Retry cap:     " << ( DEFAULT_MAX_RETRIES + 1 ) << " attempts per step" << std::endl;
-    std::cout << std::endl;
-    std::cout << "Linear Solver:" << std::endl;
-    std::cout << "  Type:          " << solver_type << std::endl;
-    std::cout << "  Tolerance:     " << std::scientific << tolerance << std::endl;
-    std::cout << "  Max iters:     " << max_iterations << std::endl;
+    log.info( "========================================" );
+#ifdef SCFD_BACKEND_ENABLE_MPI
+    log.info( "Cahn-Hilliard Nonlinear Contact-Angle Solver Configuration (MPI)" );
+#else
+    log.info( "Cahn-Hilliard Nonlinear Contact-Angle Solver Configuration" );
+#endif
+    log.info( "========================================" );
+    log.info( "" );
+    log.info( "Problem Settings:" );
+    log.info_f( "  Grid size:     %d x %d x %d", grid_size, grid_size, grid_size );
+    log.info_f( "  Tensor dim:    %d", tensor_dim );
+    log.info_f( "  Scalar type:   %s", scalar_label.c_str() );
+    log.info_f( "  DOFs:          %lld", static_cast<long long>( grid_size ) * grid_size * grid_size * tensor_dim );
+    log.info_f( "  Processes:     %d", comm_world.num_procs );
+    log.info_f( "  D:             %e", static_cast<double>( D ) );
+    log.info_f( "  gamma:         %e", static_cast<double>( gamma ) );
+    log.info_f( "  cos(theta):    %e", static_cast<double>( cos_theta ) );
+    log.info_f( "  dt_inf (init): %e", static_cast<double>( dt_inf ) );
+    log.info_f( "  max_time_steps:%d", max_time_steps );
+    log.info_f( "  time_tol:      %e", static_cast<double>( time_tol ) );
+    log.info( "" );
+    log.info( "Newton Solver:" );
+    log.info_f( "  Tolerance:     %e", static_cast<double>( newton_tol ) );
+    log.info( "  Adaptive dt:   yes (rollback + retry, dt_inf*=2 on fail, dt_inf/=2 after streak)" );
+    log.info_f( "  Retry cap:     %d attempts per step", DEFAULT_MAX_RETRIES + 1 );
+    log.info( "" );
+    log.info( "Linear Solver:" );
+    log.info_f( "  Type:          %s", solver_type.c_str() );
+    log.info_f( "  Tolerance:     %e", static_cast<double>( tolerance ) );
+    log.info_f( "  Max iters:     %d", max_iterations );
     if ( solver_type == "gmres" )
     {
-        std::cout << "  Basis size:    " << gmres_basis << std::endl;
-        std::cout << "  Precond side:  L" << std::endl;
-        std::cout << "  Reorthogon.:   true" << std::endl;
+        log.info_f( "  Basis size:    %d", gmres_basis );
+        log.info( "  Precond side:  L" );
+        log.info( "  Reorthogon.:   true" );
     }
-    std::cout << std::endl;
-    std::cout << "Preconditioner:" << std::endl;
-    std::cout << "  Type:          " << preconditioner_type << std::endl;
+    log.info( "" );
+    log.info( "Preconditioner:" );
+    log.info_f( "  Type:          %s", preconditioner_type.c_str() );
     if ( preconditioner_type == "mg" )
     {
-        std::cout << "  Pre-sweeps:    " << mg_sweeps_pre << std::endl;
-        std::cout << "  Post-sweeps:   " << mg_sweeps_post << std::endl;
-        std::cout << "  Direct coarse: false" << std::endl;
+        log.info_f( "  Pre-sweeps:    %d", mg_sweeps_pre );
+        log.info_f( "  Post-sweeps:   %d", mg_sweeps_post );
+        log.info( "  Direct coarse: false" );
     }
-    std::cout << std::endl;
-    std::cout << "Boundary condition parameters:" << std::endl;
-    std::cout << "  cos(theta):    " << std::scientific << cos_theta << std::defaultfloat << std::endl;
-    std::cout << "  BC types:      (printed below after initialization)" << std::endl;
-    std::cout << std::endl;
-    std::cout << "Output:" << std::endl;
-    std::cout << "  Directory:     " << output_dir << std::endl;
-    std::cout << "  Save coords:   " << ( save_coords ? "yes" : "no" ) << std::endl;
-    std::cout << "  Verbose:       " << ( verbose ? "yes" : "no" ) << std::endl;
-    std::cout << "========================================" << std::endl;
-    std::cout << std::endl;
-
-    auto range = idx_nd_type::make_ones() * grid_size;
-    auto step  = grid_step_type::make_ones() / scalar( grid_size );
-
-    // int left_bc[3][2]  = { { 0, 0 }, { 0, 0 }, { 0, 0 } }; // left:  [x,y,z][psi=Neumann, phi=nonlinear]
-    // int right_bc[3][2] = { { 0, 0 }, { 0, 0 }, { 0, 0 } };  // right: [x,y,z][psi=Neumann, phi=nonlinear]
-
-    // int left_bc[3][2]  = { { +1, +1 }, { +1, +1 }, { +1, +1 } }; // left:  [x,y,z][psi=Neumann, phi=nonlinear]
-    // int right_bc[3][2] = { { +1, +1 }, { +1, +1 }, { +1, +1 } };  // right: [x,y,z][psi=Neumann, phi=nonlinear]
-
-    int left_bc[3][2]  = { { 0, 0 }, { 0, 0 }, { +1, 2 } }; // left:  [x,y,z][psi=Neumann, phi=nonlinear]
-    int right_bc[3][2] = { { 0, 0 }, { 0, 0 }, { +1, +1 } };  // right: [x,y,z][psi=Neumann, phi=nonlinear]
-
-    auto cond  = tests::boundary_cond<vec_ops_t>(
-        left_bc, right_bc, gamma, cos_theta
-    );
-    // Boundary condition values:
-    //   -1 = dirichlet (value = 0 at boundary)
-    //   +1 = neumann (derivative = 0 at boundary)
-    //    0 = periodic (left boundary uses value from N-1, right boundary uses value from 0)
-    //    2 = nonlinear contact-angle: alpha*nabla(C)*n = -sigma*cos(theta)*g'(C)
-
-    std::cout << "Boundary conditions table (cell = (left,right)):" << std::endl;
-    std::cout << std::setw( 10 ) << "" << std::setw( 14 ) << "x" << std::setw( 14 ) << "y" << std::setw( 14 ) << "z"
-              << std::endl;
+    log.info( "" );
+    log.info( "Boundary conditions table (cell = (left,right)):" );
+    log.info_f( "  %10s %14s %14s %14s", "", "x", "y", "z" );
     for ( int c = 0; c < 2; ++c )
     {
-        const char *row = ( c == 0 ) ? "psi" : "phi";
-        std::cout << std::setw( 10 ) << row;
-        for ( int a = 0; a < 3; ++a )
-        {
-            std::ostringstream cell;
-            cell << "(" << left_bc[a][c] << "," << right_bc[a][c] << ")";
-            std::cout << std::setw( 14 ) << cell.str();
-        }
-        std::cout << std::endl;
+        const char *row_label = ( c == 0 ) ? "psi" : "phi";
+        char        cell_x[32], cell_y[32], cell_z[32];
+        std::snprintf( cell_x, sizeof( cell_x ), "(%d,%d)", global_left_bc[0][c], global_right_bc[0][c] );
+        std::snprintf( cell_y, sizeof( cell_y ), "(%d,%d)", global_left_bc[1][c], global_right_bc[1][c] );
+        std::snprintf( cell_z, sizeof( cell_z ), "(%d,%d)", global_left_bc[2][c], global_right_bc[2][c] );
+        log.info_f( "  %10s %14s %14s %14s", row_label, cell_x, cell_y, cell_z );
     }
-    std::cout << std::endl;
+    log.info( "" );
+    log.info( "Output:" );
+    log.info_f( "  Directory:     %s", output_dir.c_str() );
+    log.info_f( "  Save coords:   %s", save_coords ? "yes" : "no" );
+    log.info( "========================================" );
+    log.info( "" );
 
+    auto step  = grid_step_type::make_ones() / scalar( grid_size );
 
-    vector_t solution( range );
-    auto     vspace = std::make_shared<vec_ops_t>( range );
+    // Automatic balanced decomposition for any power-of-two process count.
+    if ( comm_world.num_procs < 1 || ( comm_world.num_procs & ( comm_world.num_procs - 1 ) ) != 0 )
+    {
+        log.error( "process count must be a power of two." );
+        return 1;
+    }
 
-    // Initialize solution with 3D Perlin noise
+    big_idx_t dom_sz( grid_size, grid_size, grid_size );
+    part_t    part( comm_world, dom_sz );
+
+    // The balancer splits the global domain into congruent
+    // power-of-two blocks and derives this rank's local BCs
+    tests::balancer<dim, ord_t, big_ord_t, tensor_dim> bal;
+
+    std::vector<big_rect_t> proc_rects;
+    big_rect_t              my_own_glob_rect;
+    int                     left_bc[3][2];
+    int                     right_bc[3][2];
+    periodic_flags_t        periodic_flags;
+    try
+    {
+        bal.balance(
+            dom_sz, comm_world.num_procs, comm_world.myid, global_left_bc, global_right_bc, proc_rects,
+            my_own_glob_rect, left_bc, right_bc, periodic_flags );
+    }
+    catch ( const std::exception &e )
+    {
+        log.error_f( "domain decomposition failed: %s", e.what() );
+        return 1;
+    }
+    part.proc_rects = proc_rects;
+
+    rect_t my_own_loc_rect = rect_t( idx_nd_type::make_zero(), my_own_glob_rect.calc_size() );
+    auto   range           = my_own_loc_rect.calc_size();
+
+    auto cond = tests::boundary_cond<vec_ops_t>( left_bc, right_bc, gamma, cos_theta );
+
+    // Distributor initialization: fills interior-interface halos and wraps the physical periodic
+    // walls; halos at dirichlet walls are filled but ignored by the kernel.
+    auto dist = std::make_shared<dist_t>();
+    dist->init_for_tensors( tensor_dim, part, periodic_flags, stencil, max_stencil_order );
+
+    auto vspace = std::make_shared<vec_ops_t>( range, comm_world, false, stencil, max_stencil_order );
+
+    vector_t solution, rhs;
+    vspace->init_vector( solution );
+    vspace->init_vector( rhs );
+    vspace->assign_scalar( 0.0, rhs );
+
+    // Initialize solution with a droplet block
     {
         vector_view_t solution_view( solution, false );
 
         scalar d = 1.0 / 4.0;
-        // scalar d = 0.1;
         for ( int i = 0; i < range[0]; i++ )
         {
             for ( int j = 0; j < range[1]; j++ )
             {
                 for ( int k = 0; k < range[2]; k++ )
                 {
-                    scalar x = step[0] * ( 0.5 + i );
-                    scalar y = step[1] * ( 0.5 + j );
-                    scalar z = step[2] * ( 0.5 + k );
-
+                    scalar x = step[0] * ( 0.5 + i + my_own_glob_rect.i1[0] );
+                    scalar y = step[1] * ( 0.5 + j + my_own_glob_rect.i1[1] );
+                    scalar z = step[2] * ( 0.5 + k + my_own_glob_rect.i1[2] );
 
                     solution_view( i, j, k, 0 ) = 0.0;
 
-                    if ( x > 0.5 - d && x < 0.5 + d && y > 0.5 - d && y < 0.5 + d && z < 2 * d)
-                    // if ( x > 0.5 - d && x < 0.5 + d && y > 0.5 - d && y < 0.5 + d && z > 0.5 - d && z < 0.5 + d)
+                    if ( x > 0.5 - d && x < 0.5 + d && y > 0.5 - d && y < 0.5 + d && z < 2 * d )
                     {
                         solution_view( i, j, k, 1 ) = 0.9;
                     }
@@ -485,15 +377,6 @@ int main( int argc, char const *argv[] )
                     {
                         solution_view( i, j, k, 1 ) = -0.9;
                     }
-
-                    // if ( x > 0.5 - d && x < 0.5 + d && y > 0.5 - d && y < 0.5 + d && z > 0.5 - d && z < 0.5 + d)
-                    // {
-                    //     solution_view( i, j, k, 1 ) = 0.9;
-                    // }
-                    // else
-                    // {
-                    //     solution_view( i, j, k, 1 ) = -0.9;
-                    // }
                 }
             }
         }
@@ -501,32 +384,37 @@ int main( int argc, char const *argv[] )
         solution_view.release();
     }
 
-    auto time_derivative = std::make_shared<time_derivative_t>( range );
+    auto time_derivative = std::make_shared<time_derivative_t>( vspace );
     time_derivative->set_dt_inf( dt_inf );
     time_derivative->set_previous_state( solution );
 
     tests::scheduler<scalar> dt_scheduler( dt_inf, /*success_threshold=*/10 );
 
-    auto cahn_hilliard_jacobi_op = std::make_shared<jacobi_op_t>( range, step, cond, time_derivative );
-    auto cahn_hilliard_op        = std::make_shared<cahn_hilliard_op_t>( range, step, cond, cahn_hilliard_jacobi_op, time_derivative );
+    // Time-dependent operators (used for solving the time-dependent equation)
+    auto cahn_hilliard_jacobi_op = std::make_shared<jacobi_op_t>( vspace, step, cond, dist, time_derivative );
+    auto cahn_hilliard_op        = std::make_shared<cahn_hilliard_op_t>(
+        vspace, step, cond, dist, rhs, cahn_hilliard_jacobi_op, time_derivative );
 
     // Set D and gamma parameters
-    auto mobility = mobility_t(D);
+    auto mobility = mobility_t( D );
     cahn_hilliard_op->set_mobility( mobility );
     cahn_hilliard_op->set_gamma( gamma );
 
     // Stationary operators (used for checking time convergence to stationary solution)
-    auto cahn_hilliard_jacobi_op_stationary = std::make_shared<jacobi_op_t>( range, step, cond );
-    auto cahn_hilliard_op_stationary        = std::make_shared<cahn_hilliard_op_t>( range, step, cond, cahn_hilliard_jacobi_op_stationary );
+    auto cahn_hilliard_jacobi_op_stationary = std::make_shared<jacobi_op_t>( vspace, step, cond, dist );
+    auto cahn_hilliard_op_stationary        = std::make_shared<cahn_hilliard_op_t>(
+        vspace, step, cond, dist, rhs, cahn_hilliard_jacobi_op_stationary );
     cahn_hilliard_op_stationary->set_mobility( mobility );
     cahn_hilliard_op_stationary->set_gamma( gamma );
+
+    free_energy_t free_energy_calc( vspace, step, cond, dist, phobic_energy{}, cahn_hilliard_jacobi_op->get_gamma() );
 
     std::shared_ptr<precond_interface> precond;
     if ( preconditioner_type == "diag" )
     {
-        precond = std::make_shared<smoother_t>( cahn_hilliard_jacobi_op );
+        precond = std::make_shared<smoother_t>( cahn_hilliard_jacobi_op, dist );
     }
-    else if ( preconditioner_type == "mg" )
+    else // mg
     {
         mg_utils_t  mg_utils;
         mg_params_t mg_params;
@@ -536,55 +424,64 @@ int main( int argc, char const *argv[] )
         mg_params.num_sweeps_pre  = mg_sweeps_pre;
         mg_params.num_sweeps_post = mg_sweeps_post;
 
+        // Coarse levels reuse this decomposition with every block halved
+        mg_utils.coarsening.part              = part;
+        mg_utils.coarsening.periodic_flags    = periodic_flags;
+        mg_utils.coarsening.stencil           = stencil;
+        mg_utils.coarsening.max_stencil_order = max_stencil_order;
+
         precond = std::make_shared<mg_t>( mg_utils, mg_params );
     }
 
     // Verify that F_stationary(initial) norm
-    vector_t F_init( range );
+    vector_t F_init;
+    vspace->init_vector( F_init );
     cahn_hilliard_op_stationary->apply( solution, F_init );
     scalar F_init_norm = vspace->norm_l2( F_init );
     log.info_f( "||F_stationary(initial)||_2 = %le", static_cast<double>( F_init_norm ) );
 
-    // Open time convergence history file
-    std::ofstream time_conv_file( output_dir + "/time_converge_history.dat" );
-    time_conv_file << "step F_stationary_norm" << std::endl;
-    time_conv_file << 0 << " " << std::scientific << std::setprecision(15)
-                   << static_cast<double>( F_init_norm ) << std::endl;
-    time_conv_file.flush();
-
-    // Record dt_inf that each accepted step converged with
-    std::ofstream dt_history_file( output_dir + "/dt_history.dat" );
-    dt_history_file << "step dt_inf\n";
-    dt_history_file.flush();
-
-    // Track total amount of each component after each step
-    std::ofstream component_sums_csv( output_dir + "/component_sums.dat" );
-    component_sums_csv << "step sum_psi sum_phi\n";
-    component_sums_csv.flush();
+    // Mask vector used to pull out the psi component of a global (MPI-reduced) sum via scalar_prod,
+    // mirroring the trick free_energy_t uses to separate phobic/philic contributions.
+    vector_t e_psi;
+    vspace->init_vector( e_psi );
+    {
+        vector_view_t e_psi_view( e_psi, false );
+        for ( int i = 0; i < range[0]; i++ )
+        {
+            for ( int j = 0; j < range[1]; j++ )
+            {
+                for ( int k = 0; k < range[2]; k++ )
+                {
+                    e_psi_view( i, j, k, 0 ) = scalar( 1 );
+                    e_psi_view( i, j, k, 1 ) = scalar( 0 );
+                }
+            }
+        }
+        e_psi_view.release();
+    }
 
     auto write_component_sums = [&]( int step_idx, const vector_t &x )
     {
-        tensor_t sums = compute_component_sums( x, range );
-        std::cout << "Component sums @ step " << step_idx << ": "
-                  << std::scientific << std::setprecision(15)
-                  << static_cast<double>( sums[0] ) << ", " << static_cast<double>( sums[1] )
-                  << std::defaultfloat << std::endl;
-        component_sums_csv << step_idx << " "
-                           << std::scientific << std::setprecision(15)
-                           << static_cast<double>( sums[0] ) << " " << static_cast<double>( sums[1] )
-                           << std::defaultfloat << "\n";
-        component_sums_csv.flush();
+        scalar sum_psi = vspace->scalar_prod( x, e_psi );
+        scalar sum_phi = vspace->sum( x ) - sum_psi;
+        log.info_f( "Component sums @ step %d: %le, %le", step_idx, static_cast<double>( sum_psi ),
+                   static_cast<double>( sum_phi ) );
     };
 
-    // Save initial approximation (index 0) if requested
-    if ( save_coords )
+    // Log initial free energy (step 0)
+    auto energies_init = free_energy_calc.compute( solution );
+    log.info_f( "  Phobic energy: %e", static_cast<double>( energies_init.phobic ) );
+    log.info_f( "  Philic energy: %e", static_cast<double>( energies_init.philic ) );
+
+    // Save initial approximation (index 0) if requested (only valid for a single rank owning the whole domain)
+    if ( save_coords && comm_world.num_procs == 1 )
     {
         std::string numerical_file = output_dir + "/numerical_0.bin";
         tests::save_solution_binary<vector_t, idx_nd_type>( solution, numerical_file, grid_size, tensor_dim );
     }
 
     // Solve and measure time for each time step
-    double              total_time_ms = 0.0;
+    double total_time_ms = 0.0;
 
     std::shared_ptr<linsolver_base_t> lin_solver;
     if ( solver_type == "jacobi" )
@@ -592,7 +489,6 @@ int main( int argc, char const *argv[] )
         jacobi_solver::params solver_params;
         solver_params.monitor.rel_tol                  = tolerance;
         solver_params.monitor.max_iters_num            = max_iterations;
-        solver_params.monitor.save_convergence_history = true;
         lin_solver = std::make_shared<jacobi_solver>( cahn_hilliard_jacobi_op, vspace, &log, solver_params, precond );
     }
     else // gmres
@@ -600,19 +496,15 @@ int main( int argc, char const *argv[] )
         gmres_solver::params params_gmres;
         params_gmres.monitor.rel_tol                      = tolerance;
         params_gmres.monitor.max_iters_num                = max_iterations;
-        params_gmres.monitor.save_convergence_history     = true;
         params_gmres.do_restart_on_false_ritz_convergence = true;
         params_gmres.basis_size                           = gmres_basis;
+        params_gmres.batch_size                           = 1;
         params_gmres.preconditioner_side                  = 'L';
         params_gmres.reorthogonalization                  = true;
         lin_solver = std::make_shared<gmres_solver>( cahn_hilliard_jacobi_op, vspace, &log, params_gmres, precond );
     }
 
     auto newton_iteration = std::make_shared<newton_iteration_t>( vspace, lin_solver );
-
-    auto get_monitor = [lin_solver]() -> const krylov_monitor_t* {
-        return &(lin_solver->monitor());
-    };
 
     auto newton_solver = std::make_shared<newton_solver_t>( vspace, &log, newton_iteration );
     newton_solver->convergence_strategy()->set_tolerance( newton_tol );
@@ -626,40 +518,27 @@ int main( int argc, char const *argv[] )
     int ts = 0;
     while ( ts < max_time_steps )
     {
-        std::cout << std::endl;
-        std::cout << "Time iteration #" << ( ts + 1 ) << " has started" << std::endl;
-        std::cout << std::endl;
+        log.info( "" );
+        log.info_f( "Time iteration #%d has started", ts + 1 );
+        log.info( "" );
 
-        // Create step-specific output directory
-        std::string step_dir = output_dir + "/step_" + std::to_string( ts + 1 );
-        std::filesystem::create_directories( step_dir );
-
-        const vector_t backup_solution = solution;
-        bool           step_accepted   = false;
-        double         accepted_step_time = 0.0;
-        scalar         accepted_dt_inf = scalar( 0 );
-        int            attempt_idx     = 0;
+        vector_t backup_solution;
+        vspace->init_vector( backup_solution );
+        vspace->assign( solution, backup_solution );
+        bool   step_accepted      = false;
+        double accepted_step_time = 0.0;
+        scalar accepted_dt_inf    = scalar( 0 );
+        int    attempt_idx        = 0;
         for ( attempt_idx = 1; attempt_idx <= DEFAULT_MAX_RETRIES + 1; ++attempt_idx )
         {
             const scalar current_dt_inf = dt_scheduler.get_dt_inf();
             time_derivative->set_dt_inf( current_dt_inf );
 
-            std::cout << "  dt_inf attempt " << attempt_idx << ": "
-                      << std::scientific << static_cast<double>( current_dt_inf ) << std::defaultfloat << std::endl;
+            log.info_f( "  dt_inf attempt %d: %e", attempt_idx, static_cast<double>( current_dt_inf ) );
 
-            std::string attempt_dir = step_dir + "/attempt_" + std::to_string( attempt_idx );
-            std::filesystem::create_directories( attempt_dir );
-
-            // Create convergence monitor for this attempt
-            auto conv_monitor = std::make_shared<newton_conv_monitor_t>(
-                vspace, cahn_hilliard_op, get_monitor, attempt_dir, solver_type, preconditioner_type, grid_size, &log );
-
-            // Write initial residual (iteration 0) before Newton iterations start
-            conv_monitor->write_initial_residual( solution );
-
-            Timer timer( "Solve", false );
-            const bool converged = newton_solver->solve( cahn_hilliard_op.get(), conv_monitor.get(), nullptr, solution );
-            const double attempt_time = timer.stop_and_get_ms();
+            SCFD_PLATFORM_TIC( "Solve" );
+            const bool   converged    = newton_solver->solve( cahn_hilliard_op.get(), nullptr, nullptr, solution );
+            const double attempt_time = current_prof::inst().toc( "Solve" );
 
             dt_scheduler.step( converged );
 
@@ -672,25 +551,23 @@ int main( int argc, char const *argv[] )
             }
 
             // rollback state for the next attempt
-            solution = backup_solution;
+            vspace->assign( backup_solution, solution );
         }
 
         if ( !step_accepted )
         {
-            std::cerr << "ERROR: Failed to take time step after " << ( DEFAULT_MAX_RETRIES + 1 )
-                      << " attempts. Aborting." << std::endl;
+            log.error_f( "Failed to take time step after %d attempts. Aborting.", DEFAULT_MAX_RETRIES + 1 );
             break;
         }
 
         total_time_ms += accepted_step_time;
 
-        // Record dt_inf that this step converged with
-        dt_history_file << ( ts + 1 ) << " " << std::scientific << std::setprecision(15)
-                        << static_cast<double>( accepted_dt_inf ) << std::defaultfloat << "\n";
-        dt_history_file.flush();
+        // Log dt_inf that this step converged with
+        log.info_f( "  Accepted dt_inf: %e", static_cast<double>( accepted_dt_inf ) );
 
         // Compute stationary residual (to check time convergence)
-        vector_t F_x( range );
+        vector_t F_x;
+        vspace->init_vector( F_x );
         cahn_hilliard_op_stationary->apply( solution, F_x );
         scalar F_x_norm = vspace->norm_l2( F_x );
         log.info_f( "||F_stationary(solution)||_2 = %le", static_cast<double>( F_x_norm ) );
@@ -698,14 +575,15 @@ int main( int argc, char const *argv[] )
         // Track total amount of each component after this step
         write_component_sums( ts + 1, solution );
 
-        // Write to time convergence history file
-        time_conv_file << ( ts + 1 ) << " " << std::scientific << std::setprecision(15)
-                      << static_cast<double>( F_x_norm ) << std::endl;
-        time_conv_file.flush();
+        // Compute and log the free energy for this step
+        auto energies = free_energy_calc.compute( solution );
+        log.info_f( "  Phobic energy: %e", static_cast<double>( energies.phobic ) );
+        log.info_f( "  Philic energy: %e", static_cast<double>( energies.philic ) );
 
         // Compute norm of difference between solution and previous state
         vector_t previous_state = time_derivative->get_previous_state();
-        vector_t diff_prev( range );
+        vector_t diff_prev;
+        vspace->init_vector( diff_prev );
         vspace->assign_lin_comb( scalar( 1 ), solution, scalar( -1 ), previous_state, diff_prev );
         scalar diff_prev_norm = vspace->norm_l2( diff_prev );
         log.info_f( "||solution - previous_state||_2 = %le", static_cast<double>( diff_prev_norm ) );
@@ -713,8 +591,8 @@ int main( int argc, char const *argv[] )
         // Update previous state before the next step
         time_derivative->set_previous_state( solution );
 
-        // Save numerical solution at each step if requested
-        if ( save_coords )
+        // Save numerical solution at each step if requested (only valid for a single rank owning the whole domain)
+        if ( save_coords && comm_world.num_procs == 1 )
         {
             std::string numerical_file = output_dir + "/numerical_" + std::to_string( ts + 1 ) + ".bin";
             tests::save_solution_binary<vector_t, idx_nd_type>( solution, numerical_file, grid_size, tensor_dim );
@@ -723,12 +601,12 @@ int main( int argc, char const *argv[] )
         // Separate iterations with empty line
         if ( ts < max_time_steps - 1 )
         {
-            std::cout << std::endl;
+            log.info( "" );
         }
 
         ++ts;
 
-        // Check for early termination based on F(x) norm
+        // Check for early termination based on ||solution - previous_state||
         if ( diff_prev_norm < time_tol )
         {
             log.info_f( "Early termination: ||solution - previous_state||_2 = %le < %le (tolerance)",
@@ -738,34 +616,33 @@ int main( int argc, char const *argv[] )
         }
     }
 
-    // Close time convergence history file
-    time_conv_file.close();
-    component_sums_csv.close();
-
     // Final results
     scalar final_solution_norm = vspace->norm_l2( solution );
 
-    std::cout << std::endl;
-    std::cout << "========================================" << std::endl;
-    std::cout << "Results" << std::endl;
-    std::cout << "========================================" << std::endl;
-    std::cout << "  ||solution||_2:              " << std::scientific << final_solution_norm << std::endl;
-    std::cout << "  Average iteration time:      " << std::fixed << std::setprecision( 2 )
-              << ( total_time_ms / max_time_steps ) << " ms" << std::endl;
-    std::cout << "  Total solve time:            " << std::fixed << std::setprecision( 2 ) << total_time_ms
-              << " ms" << std::endl;
-    std::cout << "========================================" << std::endl;
+    log.info( "" );
+    log.info( "========================================" );
+    log.info( "Results" );
+    log.info( "========================================" );
+    log.info_f( "  ||solution||_2:              %e", static_cast<double>( final_solution_norm ) );
+    log.info_f( "  Average iteration time:      %.2f ms", total_time_ms / max_time_steps );
+    log.info_f( "  Total solve time:            %.2f ms", total_time_ms );
+    log.info( "========================================" );
 
-    if ( save_coords )
+    if ( save_coords && comm_world.num_procs == 1 )
     {
-        std::cout << std::endl;
-        std::cout << "Saved solutions:" << std::endl;
-        std::cout << "  Numerical: " << output_dir << "/numerical_*.bin" << std::endl;
+        log.info( "" );
+        log.info( "Saved solutions:" );
+        log.info_f( "  Numerical: %s/numerical_*.bin", output_dir.c_str() );
     }
 
-    // Restore cout
-    std::cout.rdbuf( old_cout_buf );
-    log_file.close();
+#ifdef SCFD_ENABLE_PROFILING
+    if ( verbose )
+    {
+        current_prof::inst().log_print( log );
+    }
+    log.set_verbosity( 1 );
+    current_prof::inst().log_print_totals( log );
+#endif
 
     return 0;
 }

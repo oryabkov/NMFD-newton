@@ -8,7 +8,7 @@ BOOST_INCLUDE = /usr/local/boost/include/
 
 AMGCL_INCLUDE = ../../../../../AmgCL/amgcl/
 
-CUDA_ARCH = sm_80
+CUDA_ARCH = sm_70 sm_80
 
 FLOAT_TYPE = double
 
