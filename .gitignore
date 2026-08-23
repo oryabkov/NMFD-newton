@@ -10,6 +10,7 @@
 .DS_Store
 **/data
 **/tmp
+**/imgs
 **/bin/*
 !**/bin/.gitkeep
 .venv

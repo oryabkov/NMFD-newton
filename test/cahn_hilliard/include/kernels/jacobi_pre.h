@@ -28,6 +28,9 @@ struct jacobi_pre_kernel
     Scalar       dt_inf;
     Scalar       alpha;
     Scalar gamma;
+    bool         adaptive_alpha;
+    Scalar       alpha_min;
+    Scalar       alpha_max;
 
     __DEVICE_TAG__ void operator()( const IdxND idx ) const
     {
@@ -95,10 +98,27 @@ struct jacobi_pre_kernel
             mat( 1, 1 ) += gamma * diag_j[1] / Scalar(hj * hj);
         }
         mat( 0, 1 ) -= dt_inf;
-        mat( 1, 1 ) -= phobic_en.get_derivative( lin_curr[1] );
+        const Scalar phobic_deriv = phobic_en.get_derivative( lin_curr[1] );
+        mat( 1, 1 ) -= phobic_deriv;
         mat( 1, 0 ) = Scalar(1);
 
-        auto result = alpha * inv( mat ) * vec;
+        auto Dinv = inv( mat );
+
+        Scalar alpha_eff = alpha;
+        if ( adaptive_alpha )
+        {
+            // Local-Fourier-analysis estimate: at the Nyquist frequency the
+            // centered-difference Laplacian symbol doubles the plain diagonal,
+            // so N(pi) = -diag(mat(0,0), mat(1,1)+phobic_deriv); alpha* minimizes
+            // the worst-case weighted-Jacobi amplification for that mode.
+            const Scalar lap_psi = mat( 0, 0 );
+            const Scalar lap_phi = mat( 1, 1 ) + phobic_deriv;
+            const Scalar trace_Dinv_N = -( Dinv( 0, 0 ) * lap_psi + Dinv( 1, 1 ) * lap_phi );
+            alpha_eff = Scalar(2) / ( Scalar(2) - trace_Dinv_N );
+            alpha_eff = alpha_eff < alpha_min ? alpha_min : ( alpha_eff > alpha_max ? alpha_max : alpha_eff );
+        }
+
+        auto result = alpha_eff * Dinv * vec;
         vector.set_vec( result, idx );
     }
 };

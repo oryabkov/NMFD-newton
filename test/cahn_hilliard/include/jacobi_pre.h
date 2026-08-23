@@ -67,9 +67,12 @@ public:
     struct params
     {
         scalar_type alpha;
+        bool        adaptive_alpha;
+        scalar_type alpha_min;
+        scalar_type alpha_max;
 
         params( const std::string &log_prefix = "", const std::string &log_name = "smoother_elliptic::" ) :
-            alpha(0.71)
+            alpha(0.5), adaptive_alpha(false), alpha_min(0.05), alpha_max(1.5)
         {
         }
     };
@@ -79,7 +82,8 @@ public:
     };
     using utils_hierarchy = utils;
 
-    jacobi_pre( const utils_hierarchy &u, const params_hierarchy &p )
+    jacobi_pre( const utils_hierarchy &u, const params_hierarchy &p ) :
+        params_(p)
     {
     }
 
@@ -138,6 +142,10 @@ public:
     {
         gamma_ = gamma;
     }
+    void set_params( const params_hierarchy &p )
+    {
+        params_ = p;
+    }
 
     void set_distributor( dist_ptr dist )
     {
@@ -180,7 +188,10 @@ public:
                     mobility_,
                     time_derivative_->get_dt_inf(),
                     params_.alpha,
-                    gamma_
+                    gamma_,
+                    params_.adaptive_alpha,
+                    params_.alpha_min,
+                    params_.alpha_max
                 },
                 range_
             );

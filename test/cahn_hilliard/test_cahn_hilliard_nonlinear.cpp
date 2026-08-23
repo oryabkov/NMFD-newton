@@ -97,8 +97,11 @@ using monitor_funcs_t   = default_monitor_t::custom_funcs_type;
 using monitor_funcs_ptr = default_monitor_t::custom_funcs_ptr;
 
 // Problem
-using phobic_energy     = tests::logarithmic_potential<scalar>;
-using mobility_t        = tests::parabolic_mobility<scalar>;
+// using phobic_energy     = tests::logarithmic_potential<scalar>;
+using phobic_energy     = tests::double_well_potential<scalar>;
+// using mobility_t        = tests::parabolic_mobility<scalar>;
+using mobility_t        = tests::constant_mobility<scalar>;
+
 using time_derivative_t = tests::time_derivative<vec_ops_t, tensor_t>;
 
 using free_energy_t = tests::free_energy<vec_ops_t, phobic_energy, dist_t>;
@@ -135,6 +138,7 @@ constexpr int    DEFAULT_GMRES_BASIS    = 25;
 constexpr int    DEFAULT_MG_SWEEPS_PRE  = 4;
 constexpr int    DEFAULT_MG_SWEEPS_POST = 4;
 constexpr scalar DEFAULT_NEWTON_TOL     = std::is_same<float, scalar>::value ? 5e-6f : 1e-10;
+constexpr int    DEFAULT_NEWTON_MAX_ITERATIONS = 10;
 constexpr scalar DEFAULT_TOLERANCE      = std::is_same<float, scalar>::value ? 5e-6f : 1e-10;
 constexpr scalar DEFAULT_D              = 1.0;
 constexpr scalar DEFAULT_GAMMA          = 1e-4;
@@ -170,7 +174,10 @@ int main( int argc, char *argv[] )
     int    gmres_basis    = DEFAULT_GMRES_BASIS;
     int    mg_sweeps_pre  = DEFAULT_MG_SWEEPS_PRE;
     int    mg_sweeps_post = DEFAULT_MG_SWEEPS_POST;
+    double smoother_alpha          = 0.5;
+    bool   smoother_adaptive_alpha = false;
     scalar newton_tol     = DEFAULT_NEWTON_TOL;
+    int    newton_max_iterations = DEFAULT_NEWTON_MAX_ITERATIONS;
     scalar tolerance      = DEFAULT_TOLERANCE;
     scalar D              = DEFAULT_D;
     scalar gamma          = DEFAULT_GAMMA;
@@ -203,8 +210,12 @@ int main( int argc, char *argv[] )
     app.add_option( "--gmres-basis", gmres_basis, "GMRES basis size" )->capture_default_str();
     app.add_option( "--mg-sweeps-pre", mg_sweeps_pre, "Multigrid pre-sweeps" )->capture_default_str();
     app.add_option( "--mg-sweeps-post", mg_sweeps_post, "Multigrid post-sweeps" )->capture_default_str();
+    app.add_option( "--smoother-alpha", smoother_alpha, "Fixed block-Jacobi smoother relaxation weight (ignored if --smoother-adaptive-alpha is set)" )->capture_default_str();
+    app.add_flag( "--smoother-adaptive-alpha", smoother_adaptive_alpha, "Use local-Fourier-analysis adaptive relaxation weight instead of the fixed --smoother-alpha" );
     app.add_option( "--tolerance", tolerance, "Linear solver tolerance" )->capture_default_str();
     app.add_option( "--newton-tol", newton_tol, "Newton solver tolerance" )->capture_default_str();
+    app.add_option( "--newton-max-iterations", newton_max_iterations, "Maximum Newton iterations per attempt" )
+        ->capture_default_str();
     app.add_option( "--D", D, "Diffusion coefficient" )->capture_default_str();
     app.add_option( "--gamma", gamma, "Squared length of transition regions" )->capture_default_str();
     app.add_option( "--cos-theta", cos_theta, "Cos(equilibrium contact angle) for boundary condition" )->capture_default_str();
@@ -267,6 +278,7 @@ int main( int argc, char *argv[] )
     log.info_f( "  Type:          %s", solver_type.c_str() );
     log.info_f( "  Tolerance:     %e", static_cast<double>( tolerance ) );
     log.info_f( "  Max iters:     %d", max_iterations );
+    log.info_f( "  Newton max iters: %d", newton_max_iterations );
     if ( solver_type == "gmres" )
     {
         log.info_f( "  Basis size:    %d", gmres_basis );
@@ -282,6 +294,7 @@ int main( int argc, char *argv[] )
         log.info_f( "  Post-sweeps:   %d", mg_sweeps_post );
         log.info( "  Direct coarse: false" );
     }
+    log.info_f( "  Smoother alpha: %f%s", smoother_alpha, smoother_adaptive_alpha ? " (adaptive)" : "" );
     log.info( "" );
     log.info( "Boundary conditions table (cell = (left,right)):" );
     log.info_f( "  %10s %14s %14s %14s", "", "x", "y", "z" );
@@ -412,7 +425,12 @@ int main( int argc, char *argv[] )
     std::shared_ptr<precond_interface> precond;
     if ( preconditioner_type == "diag" )
     {
-        precond = std::make_shared<smoother_t>( cahn_hilliard_jacobi_op, dist );
+        auto diag_precond = std::make_shared<smoother_t>( cahn_hilliard_jacobi_op, dist );
+        smoother_t::params smoother_params;
+        smoother_params.alpha          = smoother_alpha;
+        smoother_params.adaptive_alpha = smoother_adaptive_alpha;
+        diag_precond->set_params( smoother_params );
+        precond = diag_precond;
     }
     else // mg
     {
@@ -423,6 +441,8 @@ int main( int argc, char *argv[] )
         mg_params.direct_coarse   = false;
         mg_params.num_sweeps_pre  = mg_sweeps_pre;
         mg_params.num_sweeps_post = mg_sweeps_post;
+        mg_params.smoother.alpha          = smoother_alpha;
+        mg_params.smoother.adaptive_alpha = smoother_adaptive_alpha;
 
         // Coarse levels reuse this decomposition with every block halved
         mg_utils.coarsening.part              = part;
@@ -510,7 +530,7 @@ int main( int argc, char *argv[] )
     newton_solver->convergence_strategy()->set_tolerance( newton_tol );
     newton_solver->convergence_strategy()->set_convergence_constants(
         /*tolerance_*/ newton_tol,
-        /*maximum_iterations_*/ 10,
+        /*maximum_iterations_*/ newton_max_iterations,
         /*relax_tolerance_factor_*/ scalar( 1 ),
         /*relax_tolerance_steps_*/ 0
     );
