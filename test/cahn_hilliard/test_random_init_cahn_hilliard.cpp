@@ -463,7 +463,9 @@ int main( int argc, char *argv[] )
         total_time_ms += step_time;
 
         // Compute norm of difference between solution and previous state
-        vector_t previous_state = time_derivative->get_previous_state();
+        vector_t previous_state;
+        vspace->init_vector( previous_state );
+        vspace->assign( time_derivative->get_previous_state(), previous_state );
         vector_t diff_prev;
         vspace->init_vector( diff_prev );
         vspace->assign_lin_comb( scalar( 1 ), solution, scalar( -1 ), previous_state, diff_prev );

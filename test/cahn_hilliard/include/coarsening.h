@@ -129,7 +129,8 @@ public:
 
         // Restrict the linearization point from fine to coarse level
         vector_type fine_vector = op.get_lin_vector();
-        vector_type coarse_vector( coarse_size );
+        vector_type coarse_vector;
+        coarse_vspace->init_vector( coarse_vector );
         restrictor.apply( fine_vector, coarse_vector, false );
         coarse_op->set_linearization_point( coarse_vector );
 
