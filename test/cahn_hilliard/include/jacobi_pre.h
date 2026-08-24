@@ -66,13 +66,11 @@ public: // Especially for SYCL
 public:
     struct params
     {
-        scalar_type alpha;
-        bool        adaptive_alpha;
         scalar_type alpha_min;
         scalar_type alpha_max;
 
         params( const std::string &log_prefix = "", const std::string &log_name = "smoother_elliptic::" ) :
-            alpha(0.5), adaptive_alpha(false), alpha_min(0.05), alpha_max(1.5)
+            alpha_min(0.05), alpha_max(1.5)
         {
         }
     };
@@ -187,9 +185,7 @@ public:
                     phobic_en_,
                     mobility_,
                     time_derivative_->get_dt_inf(),
-                    params_.alpha,
                     gamma_,
-                    params_.adaptive_alpha,
                     params_.alpha_min,
                     params_.alpha_max
                 },

@@ -174,8 +174,6 @@ int main( int argc, char *argv[] )
     int    gmres_basis    = DEFAULT_GMRES_BASIS;
     int    mg_sweeps_pre  = DEFAULT_MG_SWEEPS_PRE;
     int    mg_sweeps_post = DEFAULT_MG_SWEEPS_POST;
-    double smoother_alpha          = 0.5;
-    bool   smoother_adaptive_alpha = false;
     scalar newton_tol     = DEFAULT_NEWTON_TOL;
     int    newton_max_iterations = DEFAULT_NEWTON_MAX_ITERATIONS;
     scalar tolerance      = DEFAULT_TOLERANCE;
@@ -210,8 +208,6 @@ int main( int argc, char *argv[] )
     app.add_option( "--gmres-basis", gmres_basis, "GMRES basis size" )->capture_default_str();
     app.add_option( "--mg-sweeps-pre", mg_sweeps_pre, "Multigrid pre-sweeps" )->capture_default_str();
     app.add_option( "--mg-sweeps-post", mg_sweeps_post, "Multigrid post-sweeps" )->capture_default_str();
-    app.add_option( "--smoother-alpha", smoother_alpha, "Fixed block-Jacobi smoother relaxation weight (ignored if --smoother-adaptive-alpha is set)" )->capture_default_str();
-    app.add_flag( "--smoother-adaptive-alpha", smoother_adaptive_alpha, "Use local-Fourier-analysis adaptive relaxation weight instead of the fixed --smoother-alpha" );
     app.add_option( "--tolerance", tolerance, "Linear solver tolerance" )->capture_default_str();
     app.add_option( "--newton-tol", newton_tol, "Newton solver tolerance" )->capture_default_str();
     app.add_option( "--newton-max-iterations", newton_max_iterations, "Maximum Newton iterations per attempt" )
@@ -294,7 +290,6 @@ int main( int argc, char *argv[] )
         log.info_f( "  Post-sweeps:   %d", mg_sweeps_post );
         log.info( "  Direct coarse: false" );
     }
-    log.info_f( "  Smoother alpha: %f%s", smoother_alpha, smoother_adaptive_alpha ? " (adaptive)" : "" );
     log.info( "" );
     log.info( "Boundary conditions table (cell = (left,right)):" );
     log.info_f( "  %10s %14s %14s %14s", "", "x", "y", "z" );
@@ -427,10 +422,6 @@ int main( int argc, char *argv[] )
     if ( preconditioner_type == "diag" )
     {
         auto diag_precond = std::make_shared<smoother_t>( cahn_hilliard_jacobi_op, dist );
-        smoother_t::params smoother_params;
-        smoother_params.alpha          = smoother_alpha;
-        smoother_params.adaptive_alpha = smoother_adaptive_alpha;
-        diag_precond->set_params( smoother_params );
         precond = diag_precond;
     }
     else // mg
@@ -442,8 +433,6 @@ int main( int argc, char *argv[] )
         mg_params.direct_coarse   = false;
         mg_params.num_sweeps_pre  = mg_sweeps_pre;
         mg_params.num_sweeps_post = mg_sweeps_post;
-        mg_params.smoother.alpha          = smoother_alpha;
-        mg_params.smoother.adaptive_alpha = smoother_adaptive_alpha;
 
         // Coarse levels reuse this decomposition with every block halved
         mg_utils.coarsening.part              = part;
