@@ -344,6 +344,7 @@ protected:
             }
 
             const auto diag = A( k, k );
+#pragma omp parallel for
             for ( arr_ord i = k + 1; i < n; ++i )
             {
                 const auto factor = A( i, k ) / diag;
