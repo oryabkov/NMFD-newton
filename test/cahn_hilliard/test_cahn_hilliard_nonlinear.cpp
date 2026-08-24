@@ -414,9 +414,10 @@ int main( int argc, char *argv[] )
     cahn_hilliard_op->set_gamma( gamma );
 
     // Stationary operators (used for checking time convergence to stationary solution)
+    auto time_derivative_stationary         = std::make_shared<time_derivative_t>( vspace );
     auto cahn_hilliard_jacobi_op_stationary = std::make_shared<jacobi_op_t>( vspace, step, cond, dist );
     auto cahn_hilliard_op_stationary        = std::make_shared<cahn_hilliard_op_t>(
-        vspace, step, cond, dist, rhs, cahn_hilliard_jacobi_op_stationary );
+        vspace, step, cond, dist, rhs, cahn_hilliard_jacobi_op_stationary, time_derivative_stationary );
     cahn_hilliard_op_stationary->set_mobility( mobility );
     cahn_hilliard_op_stationary->set_gamma( gamma );
 
@@ -456,6 +457,7 @@ int main( int argc, char *argv[] )
     // Verify that F_stationary(initial) norm
     vector_t F_init;
     vspace->init_vector( F_init );
+    time_derivative_stationary->set_previous_state( solution );
     cahn_hilliard_op_stationary->apply( solution, F_init );
     scalar F_init_norm = vspace->norm_l2( F_init );
     log.info_f( "||F_stationary(initial)||_2 = %le", static_cast<double>( F_init_norm ) );
@@ -588,6 +590,7 @@ int main( int argc, char *argv[] )
         // Compute stationary residual (to check time convergence)
         vector_t F_x;
         vspace->init_vector( F_x );
+        time_derivative_stationary->set_previous_state( solution );
         cahn_hilliard_op_stationary->apply( solution, F_x );
         scalar F_x_norm = vspace->norm_l2( F_x );
         log.info_f( "||F_stationary(solution)||_2 = %le", static_cast<double>( F_x_norm ) );

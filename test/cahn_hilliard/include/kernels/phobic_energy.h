@@ -13,14 +13,14 @@ template <class Scalar>
 class double_well_potential
 {
 public:
-    __DEVICE_TAG__ Scalar operator()( Scalar phi ) const
+    __DEVICE_TAG__ Scalar operator()( Scalar phi_impl, Scalar phi_expl ) const
     {
-        return ( phi * phi - 1 ) * phi;
+        return phi_impl * phi_impl * phi_impl - phi_expl;
     }
 
     __DEVICE_TAG__ Scalar get_derivative( Scalar phi ) const
     {
-        return 3 * phi * phi - 1;
+        return 3 * phi * phi;
     }
 
     __DEVICE_TAG__ Scalar get_energy( Scalar phi ) const
@@ -39,14 +39,14 @@ public:
     {
     }
 
-    __DEVICE_TAG__ Scalar operator()( Scalar phi ) const
+    __DEVICE_TAG__ Scalar operator()( Scalar phi_impl, Scalar phi_expl ) const
     {
-        return std::log((Scalar( 1.0 ) + phi) / (Scalar( 1.0 ) - phi)) - omega_ * phi;
+        return std::log((Scalar( 1.0 ) + phi_impl) / (Scalar( 1.0 ) - phi_impl)) - omega_ * phi_expl;
     }
 
     __DEVICE_TAG__ Scalar get_derivative( Scalar phi ) const
     {
-        return Scalar( 2.0 ) / (Scalar( 1.0 ) - phi * phi) - omega_;
+        return Scalar( 2.0 ) / (Scalar( 1.0 ) - phi * phi);
     }
 
     __DEVICE_TAG__ Scalar get_energy( Scalar phi ) const
@@ -64,7 +64,7 @@ template <class Scalar>
 class zero_potential
 {
 public:
-    __DEVICE_TAG__ Scalar operator()( Scalar phi ) const
+    __DEVICE_TAG__ Scalar operator()( Scalar phi_impl, Scalar phi_expl ) const
     {
         return Scalar( 0.0 );
     }

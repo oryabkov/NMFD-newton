@@ -368,9 +368,10 @@ int main( int argc, char *argv[] )
         vspace, step, cond, dist, rhs, cahn_hilliard_jacobi_op, time_derivative );
 
     // Stationary operators (used for checking time convergence to stationary solution)
+    auto time_derivative_stationary         = std::make_shared<time_derivative_t>( vspace );
     auto cahn_hilliard_jacobi_op_stationary = std::make_shared<jacobi_op_t>( vspace, step, cond, dist );
     auto cahn_hilliard_op_stationary        = std::make_shared<cahn_hilliard_op_t>(
-        vspace, step, cond, dist, rhs, cahn_hilliard_jacobi_op_stationary );
+        vspace, step, cond, dist, rhs, cahn_hilliard_jacobi_op_stationary, time_derivative_stationary );
 
     free_energy_t free_energy_calc( vspace, step, cond, dist, phobic_energy{}, cahn_hilliard_jacobi_op->get_gamma() );
 
@@ -401,6 +402,7 @@ int main( int argc, char *argv[] )
     // Verify that F_stationary(exact_solution) is close to zero
     vector_t F_exact;
     vspace->init_vector( F_exact );
+    time_derivative_stationary->set_previous_state( exact_solution );
     cahn_hilliard_op_stationary->apply( exact_solution, F_exact );
     scalar F_exact_norm = vspace->norm_l2( F_exact );
     log.info_f( "Verification: ||F_stationary(exact_solution)||_2 = %le", static_cast<double>( F_exact_norm ) );
@@ -408,6 +410,7 @@ int main( int argc, char *argv[] )
     // Compute initial F(x) norm (step 0)
     vector_t F_x_init;
     vspace->init_vector( F_x_init );
+    time_derivative_stationary->set_previous_state( solution );
     cahn_hilliard_op_stationary->apply( solution, F_x_init );
     scalar F_x_init_norm = vspace->norm_l2( F_x_init );
     log.info_f( "Step 0: ||F_stationary(solution)||_2 = %le", static_cast<double>( F_x_init_norm ) );
@@ -473,6 +476,7 @@ int main( int argc, char *argv[] )
         // Compute norm F(x) - stationary residual (to check time convergence)
         vector_t F_x;
         vspace->init_vector( F_x );
+        time_derivative_stationary->set_previous_state( solution );
         cahn_hilliard_op_stationary->apply( solution, F_x );
         scalar F_x_norm = vspace->norm_l2( F_x );
         log.info_f( "||F_stationary(solution)||_2 = %le", static_cast<double>( F_x_norm ) );

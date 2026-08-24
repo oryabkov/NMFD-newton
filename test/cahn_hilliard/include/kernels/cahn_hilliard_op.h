@@ -40,7 +40,7 @@ struct cahn_hilliard_op_kernel
         // First equation: div(M(phi) grad(psi))
         // Second equation: psi + gamma * laplace(phi) - F(phi) = 0
         state[0] -= (curr[1] - prev[1]) * dt_inf; // Apply time derivative
-        state[1] += curr[0] - phobic_en( curr[1] );
+        state[1] += curr[0] - phobic_en( curr[1], prev[1] );
         #pragma unroll
         for ( int j = 0; j < IdxND::dim; j++ ) // iterate over x, y, z,... dimension
         {
