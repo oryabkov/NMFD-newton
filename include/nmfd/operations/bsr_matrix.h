@@ -11,84 +11,195 @@ namespace operations
 {
 
 /**
- * Block Sparse Row (BSR) matrix — local (host) version.
+ * Block Sparse Row (BSR) matrix.
  *
- * Memory layout for vals (for square block_sz):
- *   For non-zero block k (row_ptrs(row) <= k < row_ptrs(row+1)):
- *     vals( k * block_sz * block_sz + r * block_sz + c ) = block(r, c)
+ * The matrix is stored in block-CSR format.
  *
- * For rectangular blocks: use block_sz_r and block_sz_c.
+ * Matrix dimensions:
+ *   nrows * block_sz_r  scalar rows
+ *   ncols * block_sz_c  scalar columns
  *
- * Uses raw_ptr() for direct pointer access and operator() for element access.
+ * For each block row:
+ *   row_ptrs(i) <= k < row_ptrs(i + 1)
+ *
+ * gives the indices of its non-zero blocks. The corresponding
+ * block column is stored in col_ind(k).
+ *
+ * Memory layout for vals:
+ *   For non-zero block k:
+ *
+ *     vals(
+ *         k * block_sz_r * block_sz_c
+ *         + r * block_sz_c
+ *         + c
+ *     ) = block(r, c)
+ *
+ * where:
+ *   0 <= r < block_sz_r
+ *   0 <= c < block_sz_c
+ *
+ * For square blocks, block_sz_r == block_sz_c.
+ *
+ * Access to individual block elements is provided by block_val().
+ * Raw access to a block is provided by block_ptr().
  */
 template <class T, class Memory = scfd::memory::host, class Ord = std::ptrdiff_t>
-struct bsr_matrix
+class bsr_matrix
 {
+public:
     using ordinal_type = Ord;
-    using array_t      = scfd::arrays::array<Ord, Memory>;
+    using array_t      = scfd::arrays::array<ordinal_type, Memory>;
     using vals_array_t = scfd::arrays::array<T, Memory>;
 
-    ordinal_type nrows;      ///< number of block rows
-    ordinal_type ncols;      ///< number of block columns
-    ordinal_type nnz;        ///< number of non-zero blocks
-    ordinal_type block_sz;   ///< block size (square blocks)
-    ordinal_type block_sz_r; ///< block rows (for rectangular blocks)
-    ordinal_type block_sz_c; ///< block columns (for rectangular blocks)
-
-    array_t    row_ptrs;  ///< CSR row pointers, size nrows + 1
-    array_t    col_inds;  ///< column indices of non-zero blocks, size nnz
-    vals_array_t vals;    ///< block values, size nnz * block_sz_r * block_sz_c
-
-    bsr_matrix() = default;
-
-    void init(ordinal_type nrows, ordinal_type ncols, ordinal_type nnz, ordinal_type block_sz)
+    bsr_matrix() : nrows_( 0 ), ncols_( 0 ), nnzb_( 0 ), block_sz_r_( 0 ), block_sz_c_( 0 )
     {
-        this->nrows      = nrows;
-        this->ncols      = ncols;
-        this->nnz        = nnz;
-        this->block_sz   = block_sz;
-        this->block_sz_r = block_sz;
-        this->block_sz_c = block_sz;
-
-        row_ptrs.init(nrows + 1);
-        col_inds.init(nnz);
-        vals.init(nnz * block_sz * block_sz);
     }
 
-    void init(ordinal_type nrows, ordinal_type ncols, ordinal_type nnz,
-              ordinal_type block_sz_r, ordinal_type block_sz_c)
+    /// Initialize BSR matrix with square blocks
+    void init( ordinal_type nrows, ordinal_type ncols, ordinal_type nnzb, ordinal_type block_sz )
     {
-        this->nrows      = nrows;
-        this->ncols      = ncols;
-        this->nnz        = nnz;
-        this->block_sz   = 0; // not square
-        this->block_sz_r = block_sz_r;
-        this->block_sz_c = block_sz_c;
+        init( nrows, ncols, nnzb, block_sz, block_sz );
+    }
 
-        row_ptrs.init(nrows + 1);
-        col_inds.init(nnz);
-        vals.init(nnz * block_sz_r * block_sz_c);
+    /// Initialize BSR matrix with rectangular blocks
+    void
+    init( ordinal_type nrows, ordinal_type ncols, ordinal_type nnzb, ordinal_type block_sz_r, ordinal_type block_sz_c )
+    {
+        nrows_      = nrows;
+        ncols_      = ncols;
+        nnzb_       = nnzb;
+        block_sz_r_ = block_sz_r;
+        block_sz_c_ = block_sz_c;
+
+        row_ptrs_.init( nrows_ + 1 );
+        col_inds_.init( nnzb_ );
+        vals_.init( nnzb_ * block_size() );
+    }
+
+    /// Number of block rows
+    ordinal_type nrows() const
+    {
+        return nrows_;
+    }
+
+    /// Number of block columns
+    ordinal_type ncols() const
+    {
+        return ncols_;
+    }
+
+    /// Number of non-zero blocks
+    ordinal_type nnzb() const
+    {
+        return nnzb_;
+    }
+
+    /// Number of rows in a block
+    ordinal_type block_sz_r() const
+    {
+        return block_sz_r_;
+    }
+
+    /// Number of columns in a block
+    ordinal_type block_sz_c() const
+    {
+        return block_sz_c_;
+    }
+
+    /// Number of values in one block
+    ordinal_type block_size() const
+    {
+        return block_sz_r_ * block_sz_c_;
+    }
+
+    /// Number of scalar rows
+    ordinal_type scalar_rows() const
+    {
+        return nrows_ * block_sz_r_;
+    }
+
+    /// Number of scalar columns
+    ordinal_type scalar_cols() const
+    {
+        return ncols_ * block_sz_c_;
+    }
+
+    /// CSR row pointers, size nrows + 1
+    const array_t &row_ptrs() const &
+    {
+        return row_ptrs_;
+    }
+
+    /// Column indices of non-zero blocks, size nnzb
+    const array_t &col_inds() const &
+    {
+        return col_inds_;
+    }
+
+    /// Block values, size nnzb * block_sz_r * block_sz_c
+    const vals_array_t &vals() const &
+    {
+        return vals_;
+    }
+
+    /// Access row pointer
+    ordinal_type &row_ptr( ordinal_type i ) &
+    {
+        return row_ptrs_( i );
+    }
+
+    /// Access row pointer
+    ordinal_type row_ptr( ordinal_type i ) const &
+    {
+        return row_ptrs_( i );
+    }
+
+    /// Access column index
+    ordinal_type &col_ind( ordinal_type i ) &
+    {
+        return col_inds_( i );
+    }
+
+    /// Access column index
+    ordinal_type col_ind( ordinal_type i ) const &
+    {
+        return col_inds_( i );
     }
 
     /// Access element (r, c) of non-zero block k
-    T& block_val(ordinal_type k, ordinal_type r, ordinal_type c)
+    T &block_val( ordinal_type k, ordinal_type r, ordinal_type c ) &
     {
-        return vals.raw_ptr()[k * block_sz_r * block_sz_c + r * block_sz_c + c];
+        return vals_.raw_ptr()[k * block_size() + r * block_sz_c_ + c];
     }
-    const T& block_val(ordinal_type k, ordinal_type r, ordinal_type c) const
+
+    /// Access element (r, c) of non-zero block k
+    const T &block_val( ordinal_type k, ordinal_type r, ordinal_type c ) const &
     {
-        return vals.raw_ptr()[k * block_sz_r * block_sz_c + r * block_sz_c + c];
+        return vals_.raw_ptr()[k * block_size() + r * block_sz_c_ + c];
     }
 
     /// Raw pointer to values of block k
-    T* block_ptr(ordinal_type k)
+    T *block_ptr( ordinal_type k ) &
     {
-        return vals.raw_ptr() + k * block_sz_r * block_sz_c;
+        return vals_.raw_ptr() + k * block_size();
     }
-    const T* block_ptr(ordinal_type k) const
+
+    /// Raw pointer to values of block k
+    const T *block_ptr( ordinal_type k ) const &
     {
-        return vals.raw_ptr() + k * block_sz_r * block_sz_c;
+        return vals_.raw_ptr() + k * block_size();
     }
+
+private:
+    ordinal_type nrows_;      ///< number of block rows
+    ordinal_type ncols_;      ///< number of block columns
+    ordinal_type nnzb_;       ///< number of non-zero blocks
+    ordinal_type block_sz_r_; ///< block rows
+    ordinal_type block_sz_c_; ///< block columns
+
+    array_t      row_ptrs_; ///< CSR row pointers, size nrows + 1
+    array_t      col_inds_; ///< column indices of non-zero blocks, size nnzb
+    vals_array_t vals_;     ///< block values, size nnzb * block_sz_r * block_sz_c
 };
 
 } // namespace operations
