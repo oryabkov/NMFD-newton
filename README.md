@@ -1,4 +1,100 @@
 
+# Building and testing
+
+## Requirements
+
+- CMake 3.18+
+- C++17 compiler (GCC, Clang)
+- Optional: CUDA toolkit, MPI
+
+GoogleTest is expected in `contrib/googletest` (submodule). If it is missing, CMake falls back to `FetchContent`.
+
+## Configure and build
+
+```bash
+cmake -S . -B build
+cmake --build build -j
+```
+
+### Useful options
+
+| Option | Default | Description |
+|---|---|---|
+| `NMFD_FLOAT_TYPE` | `float` | `float` or `double`. Affects the `USE_DOUBLE_PRECISION` define and the `_f`/`_d` extension of test binaries. |
+| `NMFD_WITH_TESTS` | `ON` | Build and register tests. |
+| `NMFD_WITH_CUDA` | `OFF` | Enable CUDA variant of tests. |
+| `NMFD_WITH_MPI` | `OFF` | Enable MPI variant of tests. |
+| `NMFD_USE_APPLE_OMP` | `OFF` | Use Homebrew OpenMP lookup on macOS (`find_package(OpenMP COMPONENTS CXX)`). |
+
+Example:
+
+```bash
+cmake -S . -B build -DNMFD_FLOAT_TYPE=double
+```
+
+On macOS with Apple Clang OpenMP may not be found automatically; point it to Homebrew libomp:
+
+```bash
+cmake -S . -B build \
+  -DCMAKE_CXX_FLAGS="-Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include" \
+  -DCMAKE_EXE_LINKER_FLAGS="-L/opt/homebrew/opt/libomp/lib -lomp"
+```
+
+## Running tests
+
+```bash
+ctest --test-dir build          # run all registered tests
+ctest --test-dir build -N       # list tests without running
+ctest --test-dir build -V       # verbose output
+ctest --test-dir build -j4      # run 4 tests in parallel
+```
+
+Select tests by name with `-R <regex>` (matched against the test name):
+
+```bash
+ctest --test-dir build -R "^test_gmres$"            # exact name
+ctest --test-dir build -R "cpu"                     # all cpu tests
+ctest --test-dir build -R "biharmonic|time"         # biharmonic and time tests
+```
+
+### Test binary naming
+
+Binaries carry a precision suffix `_f`/`_d` after the platform, e.g. `test_cahn_hilliard_cpu_d`, `test_biharmonic_omp_f`. Platform variants:
+
+- `cpu` – always built
+- `omp` – always built (requires OpenMP)
+- `cuda` – only with `-DNMFD_WITH_CUDA=ON`
+- `mpi_cpu`/`mpi_omp`/`mpi_cuda` – only with `-DNMFD_WITH_MPI=ON`
+
+Run a binary directly:
+
+```bash
+./build/test/cahn_hilliard/test_cahn_hilliard_cpu_d gmres mg 32
+```
+
+## cahn_hilliard tests
+
+The cahn_hilliard executables are standalone programs that take positional arguments
+`<solver> <preconditioner> <grid_size>` (mirroring `run_*.sh`). These are passed from CMake variables:
+
+| Variable | Default | Description |
+|---|---|---|
+| `NMFD_CH_SOLVER` | `gmres` | `jacobi` or `gmres` |
+| `NMFD_CH_PRECONDITIONER` | `mg` | `diag` or `mg` |
+| `NMFD_CH_GRID_SIZES` | `32` | Space-separated grid sizes; one test per size, like `run_grid_size_experiment_*.sh` |
+
+```bash
+cmake -S . -B build -DNMFD_CH_GRID_SIZES="2 4 8 16 32 64"
+cmake --build build -j
+ctest --test-dir build -R "test_cahn_hilliard_cpu_64"
+```
+
+The original make-based workflows live in `test/{detail,operations,solvers,cahn_hilliard}/Makefile`
+and `test/common.mk`; each cahn_hilliard `run_*.sh` script runs binaries with full
+parameter sets and saves outputs.
+
+---
+
 # Basic interfaces
 
 The following is the list of Named Conventions (like Iterator in STL) often used in NMFD. Perhaps sometime in the future we could add Concepts for these (however c++20 is needed which is not ok for now). Note that not every single aspect is specified thoroughly so futher specification of some details is needed.
