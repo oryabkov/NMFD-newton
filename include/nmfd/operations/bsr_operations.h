@@ -51,14 +51,13 @@ void bsr_mat_vec_prod(
     {
         for ( ordinal_type k = row_ptrs[row]; k < row_ptrs[row + 1]; ++k )
         {
-            const ordinal_type col   = col_inds[k];
-            const T           *block = A.block_ptr( k );
+            const ordinal_type col = col_inds[k];
 
             for ( ordinal_type r = 0; r < bsr; ++r )
             {
                 for ( ordinal_type c = 0; c < bsc; ++c )
                 {
-                    y( row * bsr + r ) += block[r * bsc + c] * x( col * bsc + c );
+                    y( row * bsr + r ) += A.vals( k, r, c ) * x( col * bsc + c );
                 }
             }
         }
@@ -250,7 +249,7 @@ void bsr_mat_mat_prod( const bsr_matrix<T, Memory> &A, const bsr_matrix<T, Memor
         {
             for ( ordinal_type c = 0; c < b_bsc; ++c )
             {
-                C.block_val( k, r, c ) = T( 0 );
+                C.vals( k, r, c ) = T( 0 );
             }
         }
     }
@@ -261,12 +260,10 @@ void bsr_mat_mat_prod( const bsr_matrix<T, Memory> &A, const bsr_matrix<T, Memor
         for ( ordinal_type ka = a_rp[i]; ka < a_rp[i + 1]; ++ka )
         {
             const ordinal_type a_col = a_ci[ka];
-            const T           *ab    = A.block_ptr( ka );
 
             for ( ordinal_type kb = b_rp[a_col]; kb < b_rp[a_col + 1]; ++kb )
             {
                 const ordinal_type b_col = b_ci[kb];
-                const T           *bb    = B.block_ptr( kb );
 
                 std::ptrdiff_t kc = -1;
 
@@ -289,10 +286,10 @@ void bsr_mat_mat_prod( const bsr_matrix<T, Memory> &A, const bsr_matrix<T, Memor
 
                         for ( ordinal_type p = 0; p < a_bsc; ++p )
                         {
-                            sum += ab[r * a_bsc + p] * bb[p * b_bsc + c];
+                            sum += A.vals( ka, r, p ) * B.vals( kb, p, c );
                         }
 
-                        C.block_val( static_cast<ordinal_type>( kc ), r, c ) += sum;
+                        C.vals( static_cast<ordinal_type>( kc ), r, c ) += sum;
                     }
                 }
             }

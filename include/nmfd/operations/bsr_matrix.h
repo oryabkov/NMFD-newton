@@ -1,6 +1,7 @@
 #ifndef __NMFD_BSR_MATRIX_H__
 #define __NMFD_BSR_MATRIX_H__
 
+#include <scfd/arrays/tensorN_array.h>
 #include <scfd/arrays/array.h>
 #include <scfd/memory/host.h>
 #include <cassert>
@@ -25,23 +26,7 @@ namespace operations
  * gives the indices of its non-zero blocks. The corresponding
  * block column is stored in col_ind(k).
  *
- * Memory layout for vals:
- *   For non-zero block k:
- *
- *     vals(
- *         k * block_sz_r * block_sz_c
- *         + r * block_sz_c
- *         + c
- *     ) = block(r, c)
- *
- * where:
- *   0 <= r < block_sz_r
- *   0 <= c < block_sz_c
- *
  * For square blocks, block_sz_r == block_sz_c.
- *
- * Access to individual block elements is provided by block_val().
- * Raw access to a block is provided by block_ptr().
  */
 template <class T, class Memory = scfd::memory::host, class Ord = std::ptrdiff_t>
 class bsr_matrix
@@ -49,8 +34,8 @@ class bsr_matrix
 public:
     using ordinal_type = Ord;
     using array_t      = scfd::arrays::array<ordinal_type, Memory>;
-    using vals_array_t = scfd::arrays::array<T, Memory>;
-
+    using vals_t       = scfd::arrays::tensor2_array<
+        T, Memory, scfd::arrays::dyn_dim, scfd::arrays::dyn_dim, scfd::arrays::last_index_fast_arranger>;
     bsr_matrix() : nrows_( 0 ), ncols_( 0 ), nnzb_( 0 ), block_sz_r_( 0 ), block_sz_c_( 0 )
     {
     }
@@ -73,7 +58,7 @@ public:
 
         row_ptrs_.init( nrows_ + 1 );
         col_inds_.init( nnzb_ );
-        vals_.init( nnzb_ * block_size() );
+        vals_.init( nnzb_, block_sz_r_, block_sz_c_ );
     }
 
     /// Number of block rows
@@ -132,14 +117,19 @@ public:
 
     /// Column indices of non-zero blocks, size nnzb
     const array_t &col_inds() const &
+
     {
         return col_inds_;
     }
-
-    /// Block values, size nnzb * block_sz_r * block_sz_c
-    const vals_array_t &vals() const &
+    /// Block values
+    T &vals( ordinal_type k, ordinal_type r, ordinal_type c ) &
     {
-        return vals_;
+        return vals_( k, r, c );
+    }
+    /// Block values
+    const T &vals( ordinal_type k, ordinal_type r, ordinal_type c ) const &
+    {
+        return vals_( k, r, c );
     }
 
     /// Access row pointer
@@ -166,30 +156,6 @@ public:
         return col_inds_( i );
     }
 
-    /// Access element (r, c) of non-zero block k
-    T &block_val( ordinal_type k, ordinal_type r, ordinal_type c ) &
-    {
-        return vals_.raw_ptr()[k * block_size() + r * block_sz_c_ + c];
-    }
-
-    /// Access element (r, c) of non-zero block k
-    const T &block_val( ordinal_type k, ordinal_type r, ordinal_type c ) const &
-    {
-        return vals_.raw_ptr()[k * block_size() + r * block_sz_c_ + c];
-    }
-
-    /// Raw pointer to values of block k
-    T *block_ptr( ordinal_type k ) &
-    {
-        return vals_.raw_ptr() + k * block_size();
-    }
-
-    /// Raw pointer to values of block k
-    const T *block_ptr( ordinal_type k ) const &
-    {
-        return vals_.raw_ptr() + k * block_size();
-    }
-
 private:
     ordinal_type nrows_;      ///< number of block rows
     ordinal_type ncols_;      ///< number of block columns
@@ -197,9 +163,9 @@ private:
     ordinal_type block_sz_r_; ///< block rows
     ordinal_type block_sz_c_; ///< block columns
 
-    array_t      row_ptrs_; ///< CSR row pointers, size nrows + 1
-    array_t      col_inds_; ///< column indices of non-zero blocks, size nnzb
-    vals_array_t vals_;     ///< block values, size nnzb * block_sz_r * block_sz_c
+    array_t row_ptrs_; ///< CSR row pointers, size nrows + 1
+    array_t col_inds_; ///< column indices of non-zero blocks, size nnzb
+    vals_t  vals_;     ///< block values, size nnzb * block_sz_r * block_sz_c
 };
 
 } // namespace operations

@@ -39,7 +39,7 @@ void print_bsr( const bsr_t &A, const char *name )
                         std::cout << ",";
                     }
 
-                    std::cout << A.block_val( k, r, c );
+                    std::cout << A.vals( k, r, c );
                 }
             }
 
@@ -84,7 +84,7 @@ bool check_identity_block( const bsr_t &A, std::ptrdiff_t k, T diagonal_value )
         {
             const T expected = ( r == c ) ? diagonal_value : T( 0 );
 
-            const T actual = A.block_val( k, r, c );
+            const T actual = A.vals( k, r, c );
 
             if ( std::abs( actual - expected ) > 1e-12 )
             {
@@ -123,8 +123,8 @@ int main()
     A1.col_ind( 0 ) = 0;
     A1.col_ind( 1 ) = 1;
 
-    A1.block_val( 0, 0, 0 ) = 2.0;
-    A1.block_val( 1, 0, 0 ) = 3.0;
+    A1.vals( 0, 0, 0 ) = 2.0;
+    A1.vals( 1, 0, 0 ) = 3.0;
 
     vector_t x1;
     vector_t y1;
@@ -171,10 +171,10 @@ int main()
 
     A2.col_ind( 0 ) = 0;
 
-    A2.block_val( 0, 0, 0 ) = 1.0;
-    A2.block_val( 0, 0, 1 ) = 2.0;
-    A2.block_val( 0, 1, 0 ) = 3.0;
-    A2.block_val( 0, 1, 1 ) = 4.0;
+    A2.vals( 0, 0, 0 ) = 1.0;
+    A2.vals( 0, 0, 1 ) = 2.0;
+    A2.vals( 0, 1, 0 ) = 3.0;
+    A2.vals( 0, 1, 1 ) = 4.0;
 
     vector_t x2;
     vector_t y2;
@@ -235,24 +235,24 @@ int main()
 
     // A[0,0] = I2
 
-    Amat.block_val( 0, 0, 0 ) = 1.0;
-    Amat.block_val( 0, 0, 1 ) = 0.0;
-    Amat.block_val( 0, 1, 0 ) = 0.0;
-    Amat.block_val( 0, 1, 1 ) = 1.0;
+    Amat.vals( 0, 0, 0 ) = 1.0;
+    Amat.vals( 0, 0, 1 ) = 0.0;
+    Amat.vals( 0, 1, 0 ) = 0.0;
+    Amat.vals( 0, 1, 1 ) = 1.0;
 
     // A[0,1] = I2
 
-    Amat.block_val( 1, 0, 0 ) = 1.0;
-    Amat.block_val( 1, 0, 1 ) = 0.0;
-    Amat.block_val( 1, 1, 0 ) = 0.0;
-    Amat.block_val( 1, 1, 1 ) = 1.0;
+    Amat.vals( 1, 0, 0 ) = 1.0;
+    Amat.vals( 1, 0, 1 ) = 0.0;
+    Amat.vals( 1, 1, 0 ) = 0.0;
+    Amat.vals( 1, 1, 1 ) = 1.0;
 
     // A[1,0] = I2
 
-    Amat.block_val( 2, 0, 0 ) = 1.0;
-    Amat.block_val( 2, 0, 1 ) = 0.0;
-    Amat.block_val( 2, 1, 0 ) = 0.0;
-    Amat.block_val( 2, 1, 1 ) = 1.0;
+    Amat.vals( 2, 0, 0 ) = 1.0;
+    Amat.vals( 2, 0, 1 ) = 0.0;
+    Amat.vals( 2, 1, 0 ) = 0.0;
+    Amat.vals( 2, 1, 1 ) = 1.0;
 
 
     bsr_t Bmat;
@@ -268,17 +268,17 @@ int main()
 
     // B[0,0] = I2
 
-    Bmat.block_val( 0, 0, 0 ) = 1.0;
-    Bmat.block_val( 0, 0, 1 ) = 0.0;
-    Bmat.block_val( 0, 1, 0 ) = 0.0;
-    Bmat.block_val( 0, 1, 1 ) = 1.0;
+    Bmat.vals( 0, 0, 0 ) = 1.0;
+    Bmat.vals( 0, 0, 1 ) = 0.0;
+    Bmat.vals( 0, 1, 0 ) = 0.0;
+    Bmat.vals( 0, 1, 1 ) = 1.0;
 
     // B[1,1] = I2
 
-    Bmat.block_val( 1, 0, 0 ) = 1.0;
-    Bmat.block_val( 1, 0, 1 ) = 0.0;
-    Bmat.block_val( 1, 1, 0 ) = 0.0;
-    Bmat.block_val( 1, 1, 1 ) = 1.0;
+    Bmat.vals( 1, 0, 0 ) = 1.0;
+    Bmat.vals( 1, 0, 1 ) = 0.0;
+    Bmat.vals( 1, 1, 0 ) = 0.0;
+    Bmat.vals( 1, 1, 1 ) = 1.0;
 
 
     bsr_t Cmat;
@@ -387,34 +387,34 @@ int main()
     A4.row_ptr( 4 ) = 10;
 
     A4.col_ind( 0 )         = 0;
-    A4.block_val( 0, 0, 0 ) = 2.0;
+    A4.vals( 0, 0, 0 ) = 2.0;
 
     A4.col_ind( 1 )         = 1;
-    A4.block_val( 1, 0, 0 ) = -1.0;
+    A4.vals( 1, 0, 0 ) = -1.0;
 
     A4.col_ind( 2 )         = 0;
-    A4.block_val( 2, 0, 0 ) = -1.0;
+    A4.vals( 2, 0, 0 ) = -1.0;
 
     A4.col_ind( 3 )         = 1;
-    A4.block_val( 3, 0, 0 ) = 2.0;
+    A4.vals( 3, 0, 0 ) = 2.0;
 
     A4.col_ind( 4 )         = 2;
-    A4.block_val( 4, 0, 0 ) = -1.0;
+    A4.vals( 4, 0, 0 ) = -1.0;
 
     A4.col_ind( 5 )         = 1;
-    A4.block_val( 5, 0, 0 ) = -1.0;
+    A4.vals( 5, 0, 0 ) = -1.0;
 
     A4.col_ind( 6 )         = 2;
-    A4.block_val( 6, 0, 0 ) = 2.0;
+    A4.vals( 6, 0, 0 ) = 2.0;
 
     A4.col_ind( 7 )         = 3;
-    A4.block_val( 7, 0, 0 ) = -1.0;
+    A4.vals( 7, 0, 0 ) = -1.0;
 
     A4.col_ind( 8 )         = 2;
-    A4.block_val( 8, 0, 0 ) = -1.0;
+    A4.vals( 8, 0, 0 ) = -1.0;
 
     A4.col_ind( 9 )         = 3;
-    A4.block_val( 9, 0, 0 ) = 2.0;
+    A4.vals( 9, 0, 0 ) = 2.0;
 
     vector_t x4;
     vector_t y4;
@@ -478,17 +478,17 @@ int main()
 
     // A[0,0] = I2
 
-    A5.block_val( 0, 0, 0 ) = 1.0;
-    A5.block_val( 0, 0, 1 ) = 0.0;
-    A5.block_val( 0, 1, 0 ) = 0.0;
-    A5.block_val( 0, 1, 1 ) = 1.0;
+    A5.vals( 0, 0, 0 ) = 1.0;
+    A5.vals( 0, 0, 1 ) = 0.0;
+    A5.vals( 0, 1, 0 ) = 0.0;
+    A5.vals( 0, 1, 1 ) = 1.0;
 
     // A[0,1] = I2
 
-    A5.block_val( 1, 0, 0 ) = 1.0;
-    A5.block_val( 1, 0, 1 ) = 0.0;
-    A5.block_val( 1, 1, 0 ) = 0.0;
-    A5.block_val( 1, 1, 1 ) = 1.0;
+    A5.vals( 1, 0, 0 ) = 1.0;
+    A5.vals( 1, 0, 1 ) = 0.0;
+    A5.vals( 1, 1, 0 ) = 0.0;
+    A5.vals( 1, 1, 1 ) = 1.0;
 
 
     bsr_t B5;
@@ -504,17 +504,17 @@ int main()
 
     // B[0,0] = I2
 
-    B5.block_val( 0, 0, 0 ) = 1.0;
-    B5.block_val( 0, 0, 1 ) = 0.0;
-    B5.block_val( 0, 1, 0 ) = 0.0;
-    B5.block_val( 0, 1, 1 ) = 1.0;
+    B5.vals( 0, 0, 0 ) = 1.0;
+    B5.vals( 0, 0, 1 ) = 0.0;
+    B5.vals( 0, 1, 0 ) = 0.0;
+    B5.vals( 0, 1, 1 ) = 1.0;
 
     // B[1,0] = I2
 
-    B5.block_val( 1, 0, 0 ) = 1.0;
-    B5.block_val( 1, 0, 1 ) = 0.0;
-    B5.block_val( 1, 1, 0 ) = 0.0;
-    B5.block_val( 1, 1, 1 ) = 1.0;
+    B5.vals( 1, 0, 0 ) = 1.0;
+    B5.vals( 1, 0, 1 ) = 0.0;
+    B5.vals( 1, 1, 0 ) = 0.0;
+    B5.vals( 1, 1, 1 ) = 1.0;
 
 
     bsr_t C5;
@@ -572,7 +572,7 @@ int main()
             {
                 const T expected = ( r == c ) ? 2.0 : 0.0;
 
-                const T actual = C5.block_val( 0, r, c );
+                const T actual = C5.vals( 0, r, c );
 
                 if ( std::abs( actual - expected ) > 1e-12 )
                 {
