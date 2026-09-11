@@ -4,95 +4,112 @@
 ## Requirements
 
 - CMake 3.18+
-- C++17 compiler (GCC, Clang)
+- C++14 (? 17)  compiler (GCC, Clang)
 - Optional: CUDA toolkit, MPI
 
 GoogleTest is expected in `contrib/googletest` (submodule). If it is missing, CMake falls back to `FetchContent`.
 
 ## Configure and build
 
+### The project provides two alternative build systems:
+
+- Original Makefile-based build — the original build workflow retained for compatibility and for reproducing existing test scripts.
+
+- CMake — alternative build system.
+
+The original make-based workflows live in `test/{detail,operations,solvers,cahn_hilliard}/Makefile`
+and `test/common.mk`; each cahn_hilliard `run_*.sh` script runs binaries with full
+parameter sets and saves outputs.
+
+## 1.  Makefile-based build
+
+The Makefiles are located in:
+
+- test/detail/Makefile
+- test/operations/Makefile
+- test/solvers/Makefile
+- test/cahn_hilliard/Makefile
+- test/common.mk
+
+The original workflow is intended to preserve the existing build and test scripts and can be used when reproducing the original project test setup.
+The cahn_hilliard directory also contains run_*.sh scripts. These scripts run the corresponding test binaries with complete sets of parameters and save the resulting output.
+Unlike the CMake workflow, Makefile-based workflow does not use CTest. Tests are normally built and executed through the corresponding Makefiles and run_*.sh scripts.
+For example, a Cahn-Hilliard experiment can be run using the corresponding script from:
+
 ```bash
-cmake -S . -B build
+test/cahn_hilliard/run_*.sh
+```
+The exact compiler, precision, CUDA/OpenMP configuration, and other build parameters are controlled by Makefile configuration in test/common.mk.
+
+## 2. CMake build
+   The build is configured for one platform at a time. The platform is selected using the PLATFORM CMake variable.
+
+Supported platforms:
+
+- cpu — serial CPU build
+- omp — OpenMP build
+- cuda — CUDA build
+
+#### Configuration
+
+The basic configuration is:
+
+```bash
+cmake -S . -B build -DPLATFORM=cpu
+```
+
+The floating-point type is selected with NMFD_FLOAT_TYPE.
+
+Available values are:
+
+- float — default
+- double
+For example:
+
+cmake -S . -B build -DPLATFORM=cpu -DNMFD_FLOAT_TYPE=double
+
+The precision is reflected in the test executable names:
+- _f    float
+- _d    double
+### MPI
+MPI can be enabled independently of the selected platform:
+```bash
+- cmake -S . -B build -DPLATFORM=omp -DNMFD_WITH_MPI=ON
+- cmake -S . -B build -DPLATFORM=cuda -DNMFD_WITH_MPI=ON
+```
+
+### Build
+
+After configuration, build the project with:
+```bash
 cmake --build build -j
 ```
+### Tests
+Tests are enabled by default:
+NMFD_WITH_TESTS=ON
 
-### Useful options
-
-| Option | Default | Description |
-|---|---|---|
-| `NMFD_FLOAT_TYPE` | `float` | `float` or `double`. Affects the `USE_DOUBLE_PRECISION` define and the `_f`/`_d` extension of test binaries. |
-| `NMFD_WITH_TESTS` | `ON` | Build and register tests. |
-| `NMFD_WITH_CUDA` | `OFF` | Enable CUDA variant of tests. |
-| `NMFD_WITH_MPI` | `OFF` | Enable MPI variant of tests. |
-| `NMFD_USE_APPLE_OMP` | `OFF` | Use Homebrew OpenMP lookup on macOS (`find_package(OpenMP COMPONENTS CXX)`). |
-
-Example:
-
+To disable tests:
 ```bash
-cmake -S . -B build -DNMFD_FLOAT_TYPE=double
+cmake -S . -B build -DPLATFORM=cpu -DNMFD_WITH_TESTS=OFF
 ```
+When tests are enabled, they can be built together with the project
 
-On macOS with Apple Clang OpenMP may not be found automatically; point it to Homebrew libomp:
-
+Run all tests using:
 ```bash
-cmake -S . -B build \
-  -DCMAKE_CXX_FLAGS="-Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include" \
-  -DCMAKE_EXE_LINKER_FLAGS="-L/opt/homebrew/opt/libomp/lib -lomp"
+ctest --test-dir build --output-on-failure
 ```
-
-## Running tests
-
+A specific test can be run with:
 ```bash
-ctest --test-dir build          # run all registered tests
-ctest --test-dir build -N       # list tests without running
-ctest --test-dir build -V       # verbose output
-ctest --test-dir build -j4      # run 4 tests in parallel
-```
-
-Select tests by name with `-R <regex>` (matched against the test name):
-
-```bash
-ctest --test-dir build -R "^test_gmres$"            # exact name
-ctest --test-dir build -R "cpu"                     # all cpu tests
-ctest --test-dir build -R "biharmonic|time"         # biharmonic and time tests
-```
-
-### Test binary naming
-
-Binaries carry a precision suffix `_f`/`_d` after the platform, e.g. `test_cahn_hilliard_cpu_d`, `test_biharmonic_omp_f`. Platform variants:
-
-- `cpu` – always built
-- `omp` – always built (requires OpenMP)
-- `cuda` – only with `-DNMFD_WITH_CUDA=ON`
-- `mpi_cpu`/`mpi_omp`/`mpi_cuda` – only with `-DNMFD_WITH_MPI=ON`
-
-Run a binary directly:
-
-```bash
-./build/test/cahn_hilliard/test_cahn_hilliard_cpu_d gmres mg 32
+ctest --test-dir build -R test_gmres --output-on-failure
 ```
 
 ## cahn_hilliard tests
-
-The cahn_hilliard executables are standalone programs that take positional arguments
-`<solver> <preconditioner> <grid_size>` (mirroring `run_*.sh`). These are passed from CMake variables:
-
-| Variable | Default | Description |
-|---|---|---|
-| `NMFD_CH_SOLVER` | `gmres` | `jacobi` or `gmres` |
-| `NMFD_CH_PRECONDITIONER` | `mg` | `diag` or `mg` |
-| `NMFD_CH_GRID_SIZES` | `32` | Space-separated grid sizes; one test per size, like `run_grid_size_experiment_*.sh` |
 
 ```bash
 cmake -S . -B build -DNMFD_CH_GRID_SIZES="2 4 8 16 32 64"
 cmake --build build -j
 ctest --test-dir build -R "test_cahn_hilliard_cpu_64"
 ```
-
-The original make-based workflows live in `test/{detail,operations,solvers,cahn_hilliard}/Makefile`
-and `test/common.mk`; each cahn_hilliard `run_*.sh` script runs binaries with full
-parameter sets and saves outputs.
-
 ---
 
 # Basic interfaces
