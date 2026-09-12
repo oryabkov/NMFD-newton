@@ -31,7 +31,7 @@
 #include "detail/dense_operations.h"
 #include "detail/residual_regularization_dummy.h"
 #include <nmfd/preconditioners/dummy.h>
-#include <nmfd/utils/profiling.h>
+#include <scfd/utils/profiling.h>
 
 namespace nmfd
 {
@@ -401,7 +401,7 @@ public:
 
     virtual bool solve(const linear_operator_type &A, const T_vec &b, T_vec &x)const
     {
-        SCFD_PLATFORM_SCOPED_TIC_PRINT( "GMRES::solve", logged_obj_t::log_ );
+        SCFD_PROFILING_SCOPED_TIC_PRINT( "GMRES::solve", logged_obj_t::log_ );
         auto restart_ = prms_.basis_size;
         start_use_all();
         // if (prec_ != nullptr)
@@ -461,7 +461,7 @@ public:
                 {
                     ++i;
                     ++monitor_;
-                    SCFD_PLATFORM_SCOPED_TIC( "GMRES::iteration" );
+                    SCFD_PROFILING_SCOPED_TIC( "GMRES::iteration" );
 
                     vec_ops_->assign(r_, y_);
                     calc_krylov_vector(A, y_, r_);

@@ -6,7 +6,7 @@
 
 #include <memory>
 #include <nmfd/detail/vector_wrap.h>
-#include <nmfd/utils/profiling.h>
+#include <scfd/utils/profiling.h>
 #include <scfd/static_vec/vec.h>
 
 namespace tests
@@ -72,13 +72,13 @@ public:
     energies compute( const vector_type &state ) const
     {
         {
-            SCFD_PLATFORM_SCOPED_TIC( "Comm::sync" );
+            SCFD_PROFILING_SCOPED_TIC( "Comm::sync" );
             dist_->sync( state );
         }
 
         scalar_type cell_volume = step_.components_prod();
         {
-            SCFD_PLATFORM_SCOPED_TIC( "FreeEnergy::apply" );
+            SCFD_PROFILING_SCOPED_TIC( "FreeEnergy::apply" );
             for_each_nd_type for_each_nd_inst;
             for_each_nd_inst(
                 free_energy_kernel{ state, *density_, range_, step_, b_cond_, phobic_en_, gamma_, cell_volume }, range_

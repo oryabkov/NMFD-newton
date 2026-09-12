@@ -1,3 +1,16 @@
+#include <scfd/utils/profiling.h>
+
+#if defined(PLATFORM_CUDA)
+#include <scfd/utils/cuda_timer_event.h>
+SCFD_GLOBAL_PROFILING(scfd::utils::cuda_timer_event)
+#elif defined(SCFD_BACKEND_ENABLE_MPI)
+#include <scfd/utils/mpi_timer_event.h>
+SCFD_GLOBAL_PROFILING(scfd::utils::mpi_timer_event)
+#else
+#include <scfd/utils/system_timer_event.h>
+SCFD_GLOBAL_PROFILING(scfd::utils::system_timer_event)
+#endif
+
 #include "include/balancer.h"
 #include "include/biharmonic_problem.h"
 #include "include/coarsening.h"
@@ -12,7 +25,6 @@
 #include "include/time_derivative.h"
 #include "include/solution_io.h"
 #include <nmfd/utils/logging.h>
-#include <nmfd/utils/profiling.h>
 
 #include <CLI/CLI.hpp>
 #include <memory>
@@ -388,7 +400,7 @@ int main( int argc, char *argv[] )
         solver = std::make_shared<gmres_solver>( l_op, vspace, &log, params_gmres, precond );
     }
 
-    SCFD_PLATFORM_TIC( "Solve" );
+    SCFD_PROFILING_TIC( "Solve" );
     converged     = solver->solve( rhs, solution );
     solve_time_ms = current_prof::inst().toc( "Solve" );
 

@@ -19,7 +19,7 @@
 
 #include <nmfd/detail/algo_hierarchy_macro.h>
 #include <nmfd/detail/algo_hierarchy_creator.h>
-#include <nmfd/utils/profiling.h>
+#include <scfd/utils/profiling.h>
 
 /// NOTE originally taken from deflated_continuation master branch source/deflation/system_operator_deflation.h 22.07.2025
 
@@ -76,7 +76,7 @@ public:
 
     bool solve(NonlinearOperator &nonlin_op, const vector_type& x, vector_type& d_x)
     {
-        SCFD_PLATFORM_SCOPED_TIC( "Newton::iteration" );
+        SCFD_PROFILING_SCOPED_TIC( "Newton::iteration" );
         vec_ops_->start_use_vector(f_);
         nonlin_op.set_linearization_point(x);
         nonlin_op.apply(x, f_); // f = F(x)

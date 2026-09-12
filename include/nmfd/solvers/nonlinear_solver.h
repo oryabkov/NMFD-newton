@@ -32,7 +32,7 @@
 #include <nmfd/operations/zero_functional.h>
 #include <nmfd/detail/algo_hierarchy_macro.h>
 #include <nmfd/detail/algo_hierarchy_creator.h>
-#include <nmfd/utils/profiling.h>
+#include <scfd/utils/profiling.h>
 #include "../detail/str_source_helper.h"
 #include "../detail/vector_wrap.h"
 #include "default_convergence_strategy.h"
@@ -127,7 +127,7 @@ public:
     //inplace
     bool solve(NonlinearOperator *nonlin_op, ProjectOperator *project_op, QualityFunctor *quality_func, vector_type& x)
     {
-        SCFD_PLATFORM_SCOPED_TIC_PRINT( "Newton::solve", log_ );
+        SCFD_PROFILING_SCOPED_TIC_PRINT( "Newton::solve", log_ );
         vec_ops_->assign_scalar(T(0.0), *delta_x_);
         bool converged = false;
         conv_strat_->reset_iterations(); //reset iteration count, newton wight and iteration history

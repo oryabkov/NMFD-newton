@@ -10,7 +10,7 @@
 
 #include <memory>
 #include <scfd/static_vec/vec.h>
-#include <nmfd/utils/profiling.h>
+#include <scfd/utils/profiling.h>
 
 namespace tests
 {
@@ -159,12 +159,12 @@ public:
     {
         // Synchronized all data between processes between calling foreach
         {
-            SCFD_PLATFORM_SCOPED_TIC( "Comm::sync" );
+            SCFD_PROFILING_SCOPED_TIC( "Comm::sync" );
             dist_->sync( in );
         }
 
         {
-            SCFD_PLATFORM_SCOPED_TIC( "Newton::residual" );
+            SCFD_PROFILING_SCOPED_TIC( "Newton::residual" );
             for_each_nd_type for_each_nd_inst;
             for_each_nd_inst(
                 cahn_hilliard_kernel{

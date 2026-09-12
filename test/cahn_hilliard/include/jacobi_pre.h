@@ -10,7 +10,7 @@
 #include <nmfd/preconditioners/preconditioner_interface.h>
 #include <scfd/static_mat/mat.h>
 #include <nmfd/detail/vector_wrap.h>
-#include <nmfd/utils/profiling.h>
+#include <scfd/utils/profiling.h>
 
 namespace tests
 {
@@ -168,12 +168,12 @@ public:
     {
         // Synchronized all data between processes between calling foreach
         {
-            SCFD_PLATFORM_SCOPED_TIC( "Comm::sync" );
+            SCFD_PROFILING_SCOPED_TIC( "Comm::sync" );
             dist_->sync( vector );
         }
 
         {
-            SCFD_PLATFORM_SCOPED_TIC( "Smoother::apply" );
+            SCFD_PROFILING_SCOPED_TIC( "Smoother::apply" );
             for_each_nd_type for_each_nd_inst;
             for_each_nd_inst(
                 preconditioner_kernel{

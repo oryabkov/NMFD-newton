@@ -5,7 +5,7 @@
 #include "iter_solver_base.h"
 
 #include <memory>
-#include <nmfd/utils/profiling.h>
+#include <scfd/utils/profiling.h>
 #include <scfd/utils/logged_obj_base.h>
 #include <string>
 
@@ -84,7 +84,7 @@ public:
     bool
     solve(const laplace_operator_type& A, const vector_type& rhs, vector_type& x) const override
     {
-        SCFD_PLATFORM_SCOPED_TIC_PRINT( "Jacobi::solve", logged_obj_t::log_ );
+        SCFD_PROFILING_SCOPED_TIC_PRINT( "Jacobi::solve", logged_obj_t::log_ );
         A.apply(x, *tmp_wrap_);
         vec_ops_->add_lin_comb(scalar_type{-1}, rhs, scalar_type{1}, *tmp_wrap_);
         // Now, tmp represents residual
@@ -93,7 +93,7 @@ public:
         while (!monitor_.check_finished(x, *tmp_wrap_))
         {
             ++monitor_;
-            SCFD_PLATFORM_SCOPED_TIC( "Jacobi::iteration" );
+            SCFD_PROFILING_SCOPED_TIC( "Jacobi::iteration" );
             // tmp := P(Ax - b);
             prec_->apply(*tmp_wrap_);
             // x   := x - P(Ax - b);

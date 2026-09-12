@@ -1,3 +1,16 @@
+#include <scfd/utils/profiling.h>
+
+#if defined(PLATFORM_CUDA)
+#include <scfd/utils/cuda_timer_event.h>
+SCFD_GLOBAL_PROFILING(scfd::utils::cuda_timer_event)
+#elif defined(SCFD_BACKEND_ENABLE_MPI)
+#include <scfd/utils/mpi_timer_event.h>
+SCFD_GLOBAL_PROFILING(scfd::utils::mpi_timer_event)
+#else
+#include <scfd/utils/system_timer_event.h>
+SCFD_GLOBAL_PROFILING(scfd::utils::system_timer_event)
+#endif
+
 #include "include/balancer.h"
 #include "include/coarsening.h"
 #include "include/free_energy.h"
@@ -12,7 +25,6 @@
 #include "include/solution_io.h"
 #include "include/scheduler.h"
 #include <nmfd/utils/logging.h>
-#include <nmfd/utils/profiling.h>
 
 #include <CLI/CLI.hpp>
 #include <cstdio>
@@ -547,7 +559,7 @@ int main( int argc, char *argv[] )
 
             log.info_f( "  dt_inf attempt %d: %e", attempt_idx, static_cast<double>( current_dt_inf ) );
 
-            SCFD_PLATFORM_TIC( "Solve" );
+            SCFD_PROFILING_TIC( "Solve" );
             const bool   converged    = newton_solver->solve( cahn_hilliard_op.get(), nullptr, nullptr, solution );
             const double attempt_time = current_prof::inst().toc( "Solve" );
 

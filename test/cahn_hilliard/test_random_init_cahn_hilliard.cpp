@@ -1,3 +1,16 @@
+#include <scfd/utils/profiling.h>
+
+#if defined(PLATFORM_CUDA)
+#include <scfd/utils/cuda_timer_event.h>
+SCFD_GLOBAL_PROFILING(scfd::utils::cuda_timer_event)
+#elif defined(SCFD_BACKEND_ENABLE_MPI)
+#include <scfd/utils/mpi_timer_event.h>
+SCFD_GLOBAL_PROFILING(scfd::utils::mpi_timer_event)
+#else
+#include <scfd/utils/system_timer_event.h>
+SCFD_GLOBAL_PROFILING(scfd::utils::system_timer_event)
+#endif
+
 #include "include/balancer.h"
 #include "include/coarsening.h"
 #include "include/free_energy.h"
@@ -12,7 +25,6 @@
 #include "include/solution_io.h"
 #include "include/perlin_noise.h"
 #include <nmfd/utils/logging.h>
-#include <nmfd/utils/profiling.h>
 
 #include <CLI/CLI.hpp>
 #include <memory>
@@ -456,7 +468,7 @@ int main( int argc, char *argv[] )
         log.info( "" );
 
         // Solve and measure time
-        SCFD_PLATFORM_TIC( "Solve" );
+        SCFD_PROFILING_TIC( "Solve" );
         newton_solver->solve( cahn_hilliard_op.get(), nullptr, nullptr, solution );
         double step_time = current_prof::inst().toc( "Solve" );
         iteration_times.push_back( step_time );
