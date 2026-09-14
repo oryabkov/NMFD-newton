@@ -19,10 +19,6 @@ set(NMFD_CH_PRECONDITIONER "mg"
         CACHE STRING
         "Preconditioner for cahn_hilliard tests: 'diag' or 'mg'")
 
-set(NMFD_CH_GRID_SIZE "32"
-        CACHE STRING
-        "Grid points per dimension for cahn_hilliard tests")
-
 set(NMFD_CH_GRID_SIZES "32"
         CACHE STRING
         "Grid sizes for the experiment, e.g. '2 4 8 16 32 64 128 256'")

@@ -183,25 +183,54 @@ endif()
 
 function(nmfd_add_test TEST_NAME)
 
-  set(TEST_TARGET
-      ${TEST_NAME}_${NMFD_PLATFORM_SUFFIX}_${NMFD_PRECISION_SUFFIX})
-
-  add_executable(${TEST_TARGET} ${ARGN})
-  set_target_properties(${TEST_TARGET} PROPERTIES SUFFIX ".bin")
-  target_link_libraries(${TEST_TARGET} PRIVATE nmfd_headers
-                                               ${NMFD_PLATFORM_LIBS})
-
-  target_include_directories(${TEST_TARGET} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-
-  target_compile_definitions(${TEST_TARGET} PRIVATE ${NMFD_PLATFORM_DEFINITIONS}
-                                                    ${NMFD_PRECISION_DEFINE})
+  set(TEST_TARGET ${TEST_NAME}_${NMFD_PLATFORM_SUFFIX}_${NMFD_PRECISION_SUFFIX})
 
   if(PLATFORM STREQUAL "cuda")
-    set_target_properties(${TEST_TARGET} PROPERTIES CUDA_STANDARD 17
-                                                    CUDA_STANDARD_REQUIRED ON)
+    set_source_files_properties(
+            ${ARGN}
+            PROPERTIES
+            LANGUAGE CUDA
+    )
+
   endif()
 
-  add_test(NAME ${TEST_TARGET} COMMAND ${TEST_TARGET})
+  add_executable(${TEST_TARGET} ${ARGN})
+
+  set_target_properties(${TEST_TARGET} PROPERTIES
+          SUFFIX ".bin"
+  )
+
+  target_link_libraries(${TEST_TARGET} PRIVATE
+          nmfd_headers
+          ${NMFD_PLATFORM_LIBS}
+  )
+
+  target_include_directories(${TEST_TARGET} PRIVATE
+          ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(${TEST_TARGET} PRIVATE
+          ${NMFD_PLATFORM_DEFINITIONS}
+          ${NMFD_PRECISION_DEFINE}
+  )
+
+  if(PLATFORM STREQUAL "cuda")
+    set_target_properties(${TEST_TARGET} PROPERTIES
+            CUDA_STANDARD 17
+            CUDA_STANDARD_REQUIRED ON
+
+    )
+    target_compile_options(${TEST_TARGET} PRIVATE
+
+            $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>
+
+    )
+  endif()
+
+  add_test(
+          NAME ${TEST_TARGET}
+          COMMAND ${TEST_TARGET}
+  )
 
 endfunction()
 

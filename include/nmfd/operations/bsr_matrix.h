@@ -28,7 +28,7 @@ namespace operations
  *
  * For square blocks, block_sz_r == block_sz_c.
  */
-template <class T, class Memory = scfd::memory::host, class Ord = std::ptrdiff_t>
+template <class T, class Ord, class Memory>
 class bsr_matrix
 {
 public:
@@ -62,96 +62,118 @@ public:
     }
 
     /// Number of block rows
-    ordinal_type nrows() const
+    __DEVICE_TAG__ ordinal_type nrows() const
     {
         return nrows_;
     }
 
     /// Number of block columns
-    ordinal_type ncols() const
+    __DEVICE_TAG__ ordinal_type ncols() const
     {
         return ncols_;
     }
 
     /// Number of non-zero blocks
-    ordinal_type nnzb() const
+    __DEVICE_TAG__ ordinal_type nnzb() const
     {
         return nnzb_;
     }
 
     /// Number of rows in a block
-    ordinal_type block_sz_r() const
+    __DEVICE_TAG__ ordinal_type block_sz_r() const
     {
         return block_sz_r_;
     }
 
     /// Number of columns in a block
-    ordinal_type block_sz_c() const
+    __DEVICE_TAG__ ordinal_type block_sz_c() const
     {
         return block_sz_c_;
     }
 
     /// Number of values in one block
-    ordinal_type block_size() const
+    __DEVICE_TAG__ ordinal_type block_size() const
     {
         return block_sz_r_ * block_sz_c_;
     }
 
     /// Number of scalar rows
-    ordinal_type scalar_rows() const
+    __DEVICE_TAG__ ordinal_type scalar_rows() const
     {
         return nrows_ * block_sz_r_;
     }
 
     /// Number of scalar columns
-    ordinal_type scalar_cols() const
+    __DEVICE_TAG__ ordinal_type scalar_cols() const
     {
         return ncols_ * block_sz_c_;
     }
 
     /// CSR row pointers, size nrows + 1
-    const array_t &row_ptrs() const &
+    ordinal_type *row_ptrs_data()
     {
-        return row_ptrs_;
+        return row_ptrs_.raw_ptr();
+    }
+
+    const ordinal_type *row_ptrs_data() const
+    {
+        return row_ptrs_.raw_ptr();
+    }
+    T *vals_data()
+
+    {
+
+        return vals_.raw_ptr();
+    }
+
+    const T *vals_data() const
+
+    {
+
+        return vals_.raw_ptr();
     }
 
     /// Column indices of non-zero blocks, size nnzb
-    const array_t &col_inds() const &
+    ordinal_type *col_inds_data()
+    {
+        return col_inds_.raw_ptr();
+    }
+    const ordinal_type *col_inds_data() const
 
     {
-        return col_inds_;
+        return col_inds_.raw_ptr();
     }
     /// Block values
-    T &vals( ordinal_type k, ordinal_type r, ordinal_type c ) &
+    __DEVICE_TAG__ T &vals( ordinal_type k, ordinal_type r, ordinal_type c ) &
     {
         return vals_( k, r, c );
     }
     /// Block values
-    const T &vals( ordinal_type k, ordinal_type r, ordinal_type c ) const &
+    __DEVICE_TAG__ const T &vals( ordinal_type k, ordinal_type r, ordinal_type c ) const &
     {
         return vals_( k, r, c );
     }
 
     /// Access row pointer
-    ordinal_type &row_ptr( ordinal_type i ) &
+    __DEVICE_TAG__ ordinal_type &row_ptr( ordinal_type i ) &
     {
         return row_ptrs_( i );
     }
 
     /// Access row pointer
-    ordinal_type row_ptr( ordinal_type i ) const &
+    __DEVICE_TAG__ ordinal_type row_ptr( ordinal_type i ) const &
     {
         return row_ptrs_( i );
     }
 
     /// Access column index
-    ordinal_type &col_ind( ordinal_type i ) &
+    __DEVICE_TAG__ ordinal_type &col_ind( ordinal_type i ) &
     {
         return col_inds_( i );
     }
 
     /// Access column index
-    ordinal_type col_ind( ordinal_type i ) const &
+    __DEVICE_TAG__ ordinal_type col_ind( ordinal_type i ) const &
     {
         return col_inds_( i );
     }

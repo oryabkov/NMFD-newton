@@ -57,7 +57,12 @@ The basic configuration is:
 ```bash
 cmake -S . -B build -DPLATFORM=cpu
 ```
-
+For CUDA:
+```bash
+cmake -S . -B build \
+    -DPLATFORM=cuda \
+    -DCMAKE_CUDA_COMPILER=PATH_TO_CUDA_nvcc
+```
 The floating-point type is selected with NMFD_FLOAT_TYPE.
 
 Available values are:
@@ -65,9 +70,9 @@ Available values are:
 - float — default
 - double
 For example:
-
+```bash
 cmake -S . -B build -DPLATFORM=cpu -DNMFD_FLOAT_TYPE=double
-
+```
 The precision is reflected in the test executable names:
 - _f    float
 - _d    double
@@ -98,13 +103,26 @@ Run all tests using:
 ```bash
 ctest --test-dir build --output-on-failure
 ```
+
+Run any tests to see stdout using:
+```bash
+ctest --test-dir build -R "test_bsr*" -V
+```
 A specific test can be run with:
 ```bash
 ctest --test-dir build -R test_gmres --output-on-failure
 ```
 
 ## cahn_hilliard tests
+### Options:
+```bash
+NMFD_CH_SOLVER  - "Solver used by cahn_hilliard tests: 'jacobi' or 'gmres'" (by default: "gmres")
 
+NMFD_CH_PRECONDITIONER - "Preconditioner for cahn_hilliard tests: 'diag' or 'mg'" (by default: "mg")
+
+NMFD_CH_GRID_SIZES - "Grid sizes for the experiment, e.g. '2 4 8 16 32 64 128 256'" (by default: "32")
+```
+Example:
 ```bash
 cmake -S . -B build -DNMFD_CH_GRID_SIZES="2 4 8 16 32 64"
 cmake --build build -j

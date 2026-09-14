@@ -1,611 +1,552 @@
 #include <cmath>
-#include <iostream>
 #include <cstddef>
+#include <iostream>
+#include <stdexcept>
 
 #include <scfd/arrays/array.h>
 #include <scfd/memory/host.h>
+#include <scfd/backend/backend.h>
 
 #include <nmfd/operations/bsr_matrix.h>
 #include <nmfd/operations/bsr_operations.h>
 
-using T        = double;
-using Memory   = scfd::memory::host;
-using bsr_t    = nmfd::operations::bsr_matrix<T, Memory>;
+
+using T      = double;
+using Memory = scfd::backend::memory;
+using Ord    = std::ptrdiff_t;
+
+using bsr_t    = nmfd::operations::bsr_matrix<T, Ord, Memory>;
 using vector_t = scfd::arrays::array<T, Memory>;
 
-void print_bsr( const bsr_t &A, const char *name )
+using host_memory_t = scfd::memory::host;
+using host_vector_t = scfd::arrays::array<T, host_memory_t>;
+
+
+// ============================================================================
+// BSR matrix initialization
+// ============================================================================
+
+void fill_bsr_matrix_1x1( bsr_t &A )
 {
-    std::cout << "=== " << name << " ===" << std::endl;
+    Ord *row_ptr = A.row_ptrs_data();
+    Ord *col_ind = A.col_inds_data();
+    T   *vals    = A.vals_data();
+    scfd::backend::for_each<Ord>()( [=] __DEVICE_TAG__( Ord i ) { row_ptr[i] = i; }, 3 );
 
-    std::cout << "  nrows=" << A.nrows() << " ncols=" << A.ncols() << " nnzb=" << A.nnzb()
-              << " block_sz_r=" << A.block_sz_r() << " block_sz_c=" << A.block_sz_c() << std::endl;
+    scfd::backend::for_each<Ord>()(
+        [=] __DEVICE_TAG__( Ord i ) {
+            col_ind[i] = i;
 
-    for ( std::ptrdiff_t i = 0; i < A.nrows(); ++i )
-    {
-        std::cout << "  row " << i << ":";
+            vals[i] = static_cast<T>( i + 2 );
+        },
+        2
+    );
 
-        for ( std::ptrdiff_t k = A.row_ptr( i ); k < A.row_ptr( i + 1 ); ++k )
-        {
-            const std::ptrdiff_t col = A.col_ind( k );
+    scfd::backend::for_each<Ord>().wait();
+}
 
-            std::cout << " [col=" << col << " block=(";
 
-            for ( std::ptrdiff_t r = 0; r < A.block_sz_r(); ++r )
+void fill_bsr_matrix_2x2( bsr_t &A )
+{
+    /*
+        A = [ 1  2 | 0  0 ]
+            [ 3  4 | 0  0 ]
+            -------------
+            [ 0  0 | 5  6 ]
+            [ 0  0 | 7  8 ]
+    */
+    Ord *row_ptr = A.row_ptrs_data();
+    Ord *col_ind = A.col_inds_data();
+    T   *vals    = A.vals_data();
+
+    // row_ptr = [0, 1, 2]
+    scfd::backend::for_each<Ord>()( [=] __DEVICE_TAG__( Ord i ) { row_ptr[i] = i; }, 3 );
+    scfd::backend::for_each<Ord>()(
+        [=] __DEVICE_TAG__( Ord k ) {
+            col_ind[k] = k;
+
+            if ( k == 0 )
             {
-                for ( std::ptrdiff_t c = 0; c < A.block_sz_c(); ++c )
-                {
-                    if ( r > 0 || c > 0 )
-                    {
-                        std::cout << ",";
-                    }
+                vals[0] = static_cast<T>( 1 );
+                vals[1] = static_cast<T>( 2 );
+                vals[2] = static_cast<T>( 3 );
+                vals[3] = static_cast<T>( 4 );
+            }
+            else
+            {
+                vals[4] = static_cast<T>( 5 );
+                vals[5] = static_cast<T>( 6 );
+                vals[6] = static_cast<T>( 7 );
+                vals[7] = static_cast<T>( 8 );
+            }
+        },
+        2
+    );
 
-                    std::cout << A.vals( k, r, c );
+    scfd::backend::for_each<Ord>().wait();
+}
+
+
+// ============================================================================
+// Vector initialization
+// ============================================================================
+
+void fill_vector_1x1( vector_t &x )
+{
+    scfd::backend::for_each<Ord>()( [=] __DEVICE_TAG__( Ord i ) { x( i ) = static_cast<T>( i + 1 ); }, 2 );
+
+    scfd::backend::for_each<Ord>().wait();
+}
+
+
+void fill_vector_2x2( vector_t &x )
+{
+    scfd::backend::for_each<Ord>()( [=] __DEVICE_TAG__( Ord i ) { x( i ) = 1.0; }, 4 );
+    scfd::backend::for_each<Ord>().wait();
+}
+
+
+// ============================================================================
+// Copy vector to host
+// ============================================================================
+
+#if PLATFORM_SERIAL_CPU or PLATFORM_OMP
+
+host_vector_t copy_vector_to_host( const vector_t &x )
+{
+    return x;
+}
+
+#else
+
+host_vector_t copy_vector_to_host( const vector_t &x )
+{
+    host_vector_t result;
+
+    result.init( x.size() );
+
+    Memory::copy_to_host( sizeof( T ) * x.size(), x.raw_ptr(), result.raw_ptr() );
+
+    return result;
+}
+
+#endif
+
+
+// ============================================================================
+// Vector check
+// ============================================================================
+
+void check_vector( const host_vector_t &actual, const T *expected, Ord n, const char *name )
+{
+    const T eps = 1e-12;
+
+    for ( Ord i = 0; i < n; ++i )
+    {
+        if ( std::abs( actual( i ) - expected[i] ) > eps )
+        {
+            std::cerr << name << ": mismatch at " << i << ": expected " << expected[i] << ", got " << actual( i )
+                      << std::endl;
+
+            throw std::runtime_error( "vector check failed" );
+        }
+    }
+
+    std::cout << name << ": OK" << std::endl;
+}
+
+
+// ============================================================================
+// BSR matrix check
+// ============================================================================
+
+
+void check_bsr_matrix(
+    const bsr_t &A, const Ord *expected_row_ptr, const Ord *expected_col_ind, const T *expected_vals,
+    Ord expected_nrows, Ord expected_ncols, Ord expected_nnzb, Ord block_sz_r, Ord block_sz_c, const char *name
+)
+{
+    const T eps = 1e-12;
+
+    if ( A.nrows() != expected_nrows )
+        throw std::runtime_error( "wrong number of block rows" );
+
+    if ( A.ncols() != expected_ncols )
+        throw std::runtime_error( "wrong number of block columns" );
+
+    if ( A.nnzb() != expected_nnzb )
+        throw std::runtime_error( "wrong number of nonzero blocks" );
+
+    if ( A.block_sz_r() != block_sz_r )
+        throw std::runtime_error( "wrong block row size" );
+
+    if ( A.block_sz_c() != block_sz_c )
+        throw std::runtime_error( "wrong block column size" );
+
+    for ( Ord i = 0; i < expected_nrows + 1; ++i )
+    {
+        if ( A.row_ptr( i ) != expected_row_ptr[i] )
+        {
+            std::cerr << name << ": row_ptr[" << i << "] = " << A.row_ptr( i ) << ", expected " << expected_row_ptr[i]
+                      << std::endl;
+
+            throw std::runtime_error( "BSR row_ptr check failed" );
+        }
+    }
+
+    for ( Ord i = 0; i < expected_nnzb; ++i )
+    {
+        if ( A.col_ind( i ) != expected_col_ind[i] )
+        {
+            std::cerr << name << ": col_ind[" << i << "] = " << A.col_ind( i ) << ", expected " << expected_col_ind[i]
+                      << std::endl;
+
+            throw std::runtime_error( "BSR col_ind check failed" );
+        }
+    }
+
+    for ( Ord k = 0; k < expected_nnzb; ++k )
+    {
+        for ( Ord r = 0; r < block_sz_r; ++r )
+        {
+            for ( Ord c = 0; c < block_sz_c; ++c )
+            {
+                const Ord index = k * block_sz_r * block_sz_c + r * block_sz_c + c;
+
+                const T actual   = A.vals( k, r, c );
+                const T expected = expected_vals[index];
+
+                if ( std::abs( actual - expected ) > eps )
+                {
+                    std::cerr << name << ": vals(" << k << ", " << r << ", " << c << ") = " << actual << ", expected "
+                              << expected << std::endl;
+
+                    throw std::runtime_error( "BSR values check failed" );
                 }
             }
-
-            std::cout << ")]";
         }
-
-        std::cout << std::endl;
     }
+
+    std::cout << name << ": OK" << std::endl;
 }
 
-bool check_vector( const vector_t &actual, const T *expected, std::ptrdiff_t size )
+
+
+// ============================================================================
+// Test 1: BSR mat-vec, 1x1 blocks
+// ============================================================================
+
+void test_bsr_mat_vec_1x1()
 {
-    bool ok = true;
+    std::cout << "Test 1: BSR mat-vec product (1x1 blocks)" << std::endl;
 
-    if ( actual.size() != size )
-    {
-        std::cerr << "  FAIL: vector size = " << actual.size() << ", expected " << size << std::endl;
+    bsr_t A;
 
-        return false;
-    }
+    A.init( 2, 2, 2, 1 );
 
-    for ( std::ptrdiff_t i = 0; i < size; ++i )
-    {
-        if ( std::abs( actual( i ) - expected[i] ) > 1e-12 )
-        {
-            std::cerr << "  FAIL: y[" << i << "] = " << actual( i ) << ", expected " << expected[i] << std::endl;
+    fill_bsr_matrix_1x1( A );
 
-            ok = false;
-        }
-    }
+    vector_t x;
+    vector_t y;
 
-    return ok;
+    x.init( 2 );
+    y.init( 2 );
+
+    fill_vector_1x1( x );
+
+    nmfd::operations::bsr_mat_vec_prod<T, Ord, Memory>( A, x, y );
+
+    host_vector_t y_host = copy_vector_to_host( y );
+
+    const T expected[] = { 2.0, 6.0 };
+
+    check_vector( y_host, expected, 2, "Test 1" );
 }
 
-bool check_identity_block( const bsr_t &A, std::ptrdiff_t k, T diagonal_value )
+
+// ============================================================================
+// Test 2: BSR mat-vec, 2x2 blocks
+// ============================================================================
+
+void test_bsr_mat_vec_2x2()
 {
-    bool ok = true;
+    std::cout << "Test 2: BSR mat-vec product (2x2 blocks)" << std::endl;
 
-    for ( std::ptrdiff_t r = 0; r < A.block_sz_r(); ++r )
-    {
-        for ( std::ptrdiff_t c = 0; c < A.block_sz_c(); ++c )
-        {
-            const T expected = ( r == c ) ? diagonal_value : T( 0 );
+    bsr_t A;
 
-            const T actual = A.vals( k, r, c );
+    A.init( 2, 2, 2, 2 );
 
-            if ( std::abs( actual - expected ) > 1e-12 )
-            {
-                std::cerr << "  FAIL: block k=" << k << " [" << r << "," << c << "] = " << actual << ", expected "
-                          << expected << std::endl;
+    fill_bsr_matrix_2x2( A );
 
-                ok = false;
-            }
-        }
-    }
+    vector_t x;
+    vector_t y;
 
-    return ok;
+    x.init( 4 );
+    y.init( 4 );
+
+    fill_vector_2x2( x );
+
+    nmfd::operations::bsr_mat_vec_prod<T, Ord, Memory>( A, x, y );
+
+    host_vector_t y_host = copy_vector_to_host( y );
+
+    const T expected[] = { 3.0, 7.0, 11.0, 15.0 };
+
+    check_vector( y_host, expected, 4, "Test 2" );
 }
+
+
+// ============================================================================
+// Test 3: BSR mat-mat, 1x1 blocks
+// ============================================================================
+
+void test_bsr_mat_mat_1x1()
+{
+    std::cout << "Test 3: BSR mat-mat product (1x1 blocks)" << std::endl;
+
+    bsr_t A, B;
+
+    /*
+        A = [ 2  0 ]
+            [ 0  3 ]
+
+        B = [ 4  0 ]
+            [ 0  5 ]
+
+        C = A * B
+
+          = [ 8   0 ]
+            [ 0  15 ]
+    */
+
+    A.init( 2, 2, 2, 1 );
+
+    A.row_ptr( 0 ) = 0;
+    A.row_ptr( 1 ) = 1;
+    A.row_ptr( 2 ) = 2;
+
+    A.col_ind( 0 ) = 0;
+    A.col_ind( 1 ) = 1;
+
+    A.vals( 0, 0, 0 ) = 2.0;
+    A.vals( 1, 0, 0 ) = 3.0;
+
+
+    B.init( 2, 2, 2, 1 );
+
+    B.row_ptr( 0 ) = 0;
+    B.row_ptr( 1 ) = 1;
+    B.row_ptr( 2 ) = 2;
+
+    B.col_ind( 0 ) = 0;
+    B.col_ind( 1 ) = 1;
+
+    B.vals( 0, 0, 0 ) = 4.0;
+    B.vals( 1, 0, 0 ) = 5.0;
+    bsr_t C;
+    nmfd::operations::bsr_mat_mat_prod_skeleton<T, Ord, Memory>( A, B, C );
+    nmfd::operations::bsr_mat_mat_prod<T, Ord, Memory>( A, B, C );
+
+    const Ord expected_row_ptr[] = { 0, 1, 2 };
+
+    const Ord expected_col_ind[] = { 0, 1 };
+
+    const T expected_vals[] = { 8.0, 15.0 };
+
+    check_bsr_matrix( C, expected_row_ptr, expected_col_ind, expected_vals, 2, 2, 2, 1, 1, "Test 3" );
+}
+
+
+// ============================================================================
+// Test 4: BSR mat-mat, 2x2 blocks
+// ============================================================================
+
+void test_bsr_mat_mat_2x2()
+{
+    std::cout << "Test 4: BSR mat-mat product (2x2 blocks)" << std::endl;
+
+    bsr_t A, B;
+
+    /*
+        A = [ A0  0 ]
+            [ 0   A1 ]
+
+        A0 = [1 2]
+             [3 4]
+
+        A1 = [5 6]
+             [7 8]
+
+
+        B = [ B0  0 ]
+            [ 0   B1 ]
+
+        B0 = [1 0]
+             [0 1]
+
+        B1 = [2 0]
+             [0 2]
+
+
+        C = A * B
+
+        C0 = A0
+
+        C1 = 2 * A1
+    */
+
+    A.init( 2, 2, 2, 2 );
+
+    A.row_ptr( 0 ) = 0;
+    A.row_ptr( 1 ) = 1;
+    A.row_ptr( 2 ) = 2;
+
+    A.col_ind( 0 ) = 0;
+    A.col_ind( 1 ) = 1;
+
+    A.vals( 0, 0, 0 ) = 1.0;
+    A.vals( 0, 0, 1 ) = 2.0;
+    A.vals( 0, 1, 0 ) = 3.0;
+    A.vals( 0, 1, 1 ) = 4.0;
+
+    A.vals( 1, 0, 0 ) = 5.0;
+    A.vals( 1, 0, 1 ) = 6.0;
+    A.vals( 1, 1, 0 ) = 7.0;
+    A.vals( 1, 1, 1 ) = 8.0;
+
+
+    B.init( 2, 2, 2, 2 );
+
+    B.row_ptr( 0 ) = 0;
+    B.row_ptr( 1 ) = 1;
+    B.row_ptr( 2 ) = 2;
+
+    B.col_ind( 0 ) = 0;
+    B.col_ind( 1 ) = 1;
+
+    B.vals( 0, 0, 0 ) = 1.0;
+    B.vals( 0, 0, 1 ) = 0.0;
+    B.vals( 0, 1, 0 ) = 0.0;
+    B.vals( 0, 1, 1 ) = 1.0;
+
+    B.vals( 1, 0, 0 ) = 2.0;
+    B.vals( 1, 0, 1 ) = 0.0;
+    B.vals( 1, 1, 0 ) = 0.0;
+    B.vals( 1, 1, 1 ) = 2.0;
+
+
+    bsr_t C;
+    nmfd::operations::bsr_mat_mat_prod_skeleton<T, Ord, Memory>( A, B, C );
+    nmfd::operations::bsr_mat_mat_prod<T, Ord, Memory>( A, B, C );
+
+    const Ord expected_row_ptr[] = { 0, 1, 2 };
+
+    const Ord expected_col_ind[] = { 0, 1 };
+
+    const T expected_vals[] = { 1.0,  2.0,  3.0,  4.0,
+
+                                10.0, 12.0, 14.0, 16.0 };
+
+    check_bsr_matrix( C, expected_row_ptr, expected_col_ind, expected_vals, 2, 2, 2, 2, 2, "Test 4" );
+}
+
+
+// ============================================================================
+// Test 5: BSR mat-mat with multiple blocks
+// ============================================================================
+
+void test_bsr_mat_mat_multiple_blocks()
+{
+    std::cout << "Test 5: BSR mat-mat product (multiple blocks)" << std::endl;
+
+    bsr_t A;
+    bsr_t B;
+    /*
+        A = [ 1  1 ]
+            [ 0  1 ]
+
+        B = [ 1  0 ]
+            [ 1  1 ]
+
+        C = A * B
+
+          = [ 2  1 ]
+            [ 1  1 ]
+    */
+
+    A.init( 2, 2, 3, 1 );
+
+    A.row_ptr( 0 ) = 0;
+    A.row_ptr( 1 ) = 2;
+    A.row_ptr( 2 ) = 3;
+
+    A.col_ind( 0 ) = 0;
+    A.col_ind( 1 ) = 1;
+    A.col_ind( 2 ) = 1;
+
+    A.vals( 0, 0, 0 ) = 1.0;
+    A.vals( 1, 0, 0 ) = 1.0;
+    A.vals( 2, 0, 0 ) = 1.0;
+
+
+    B.init( 2, 2, 3, 1 );
+
+    B.row_ptr( 0 ) = 0;
+    B.row_ptr( 1 ) = 1;
+    B.row_ptr( 2 ) = 3;
+
+    B.col_ind( 0 ) = 0;
+    B.col_ind( 1 ) = 0;
+    B.col_ind( 2 ) = 1;
+
+    B.vals( 0, 0, 0 ) = 1.0;
+    B.vals( 1, 0, 0 ) = 1.0;
+    B.vals( 2, 0, 0 ) = 1.0;
+
+
+    bsr_t C;
+    nmfd::operations::bsr_mat_mat_prod_skeleton<T, Ord, Memory>( A, B, C );
+    nmfd::operations::bsr_mat_mat_prod<T, Ord, Memory>( A, B, C );
+
+    const Ord expected_row_ptr[] = { 0, 2, 4 };
+
+    const Ord expected_col_ind[] = { 0, 1, 0, 1 };
+
+    const T expected_vals[] = { 2.0, 1.0, 1.0, 1.0 };
+
+    check_bsr_matrix( C, expected_row_ptr, expected_col_ind, expected_vals, 2, 2, 4, 1, 1, "Test 5" );
+}
+
+
+
+
+// ============================================================================
+// Main
+// ============================================================================
 
 int main()
 {
-    int errors = 0;
-
-    // ====================================================================
-    // Test 1: BSR matrix-vector product (1x1 blocks, diagonal)
-    // ====================================================================
-
-    std::cout << "Test 1: BSR mat-vec product (1x1 blocks)" << std::endl;
-
-    // A = [ 2  0 ]
-    //     [ 0  3 ]
-
-    bsr_t A1;
-
-    A1.init( 2, 2, 2, 1 );
-
-    A1.row_ptr( 0 ) = 0;
-    A1.row_ptr( 1 ) = 1;
-    A1.row_ptr( 2 ) = 2;
-
-    A1.col_ind( 0 ) = 0;
-    A1.col_ind( 1 ) = 1;
-
-    A1.vals( 0, 0, 0 ) = 2.0;
-    A1.vals( 1, 0, 0 ) = 3.0;
-
-    vector_t x1;
-    vector_t y1;
-
-    x1.init( 2 );
-    y1.init( 2 );
-
-    x1( 0 ) = 1.0;
-    x1( 1 ) = 2.0;
-
-    nmfd::operations::bsr_mat_vec_prod( A1, x1, y1 );
-
-    // Expected:
-    //
-    // y = [2, 6]
-
-    const T expected1[2] = { 2.0, 6.0 };
-
-    if ( check_vector( y1, expected1, 2 ) )
+    try
     {
-        std::cout << "  PASS" << std::endl;
+        test_bsr_mat_vec_1x1();
+        test_bsr_mat_vec_2x2();
+
+#if PLATFORM_SERIAL_CPU or PLATFORM_OMP
+
+        test_bsr_mat_mat_1x1();
+        test_bsr_mat_mat_2x2();
+        test_bsr_mat_mat_multiple_blocks();
+
+#endif
+
+        std::cout << "All tests passed." << std::endl;
+
+        return 0;
     }
-    else
+    catch ( const std::exception &e )
     {
-        ++errors;
+        std::cerr << "Test failed: " << e.what() << std::endl;
+
+        return 1;
     }
-
-
-    // ====================================================================
-    // Test 2: BSR matrix-vector product (2x2 block)
-    // ====================================================================
-
-    std::cout << "Test 2: BSR mat-vec product (2x2 blocks)" << std::endl;
-
-    // A = [ 1 2 ]
-    //     [ 3 4 ]
-
-    bsr_t A2;
-
-    A2.init( 1, 1, 1, 2 );
-
-    A2.row_ptr( 0 ) = 0;
-    A2.row_ptr( 1 ) = 1;
-
-    A2.col_ind( 0 ) = 0;
-
-    A2.vals( 0, 0, 0 ) = 1.0;
-    A2.vals( 0, 0, 1 ) = 2.0;
-    A2.vals( 0, 1, 0 ) = 3.0;
-    A2.vals( 0, 1, 1 ) = 4.0;
-
-    vector_t x2;
-    vector_t y2;
-
-    x2.init( 2 );
-    y2.init( 2 );
-
-    x2( 0 ) = 1.0;
-    x2( 1 ) = 2.0;
-
-    nmfd::operations::bsr_mat_vec_prod( A2, x2, y2 );
-
-    // Expected:
-    //
-    // [1 2] [1]   [ 5]
-    // [3 4] [2] = [11]
-
-    const T expected2[2] = { 5.0, 11.0 };
-
-    if ( check_vector( y2, expected2, 2 ) )
-    {
-        std::cout << "  PASS" << std::endl;
-    }
-    else
-    {
-        ++errors;
-    }
-
-
-    // ====================================================================
-    // Test 3: BSR matrix-matrix product
-    // ====================================================================
-
-    std::cout << "Test 3: BSR mat-mat product" << std::endl;
-
-    // A = [ I2  I2 ]
-    //     [ I2   0 ]
-    //
-    // B = [ I2  0  ]
-    //     [ 0   I2 ]
-    //
-    // C = A * B
-    //
-    //   = [ I2  I2 ]
-    //     [ I2   0 ]
-
-    bsr_t Amat;
-
-    Amat.init( 2, 2, 3, 2 );
-
-    Amat.row_ptr( 0 ) = 0;
-    Amat.row_ptr( 1 ) = 2;
-    Amat.row_ptr( 2 ) = 3;
-
-    Amat.col_ind( 0 ) = 0;
-    Amat.col_ind( 1 ) = 1;
-    Amat.col_ind( 2 ) = 0;
-
-    // A[0,0] = I2
-
-    Amat.vals( 0, 0, 0 ) = 1.0;
-    Amat.vals( 0, 0, 1 ) = 0.0;
-    Amat.vals( 0, 1, 0 ) = 0.0;
-    Amat.vals( 0, 1, 1 ) = 1.0;
-
-    // A[0,1] = I2
-
-    Amat.vals( 1, 0, 0 ) = 1.0;
-    Amat.vals( 1, 0, 1 ) = 0.0;
-    Amat.vals( 1, 1, 0 ) = 0.0;
-    Amat.vals( 1, 1, 1 ) = 1.0;
-
-    // A[1,0] = I2
-
-    Amat.vals( 2, 0, 0 ) = 1.0;
-    Amat.vals( 2, 0, 1 ) = 0.0;
-    Amat.vals( 2, 1, 0 ) = 0.0;
-    Amat.vals( 2, 1, 1 ) = 1.0;
-
-
-    bsr_t Bmat;
-
-    Bmat.init( 2, 2, 2, 2 );
-
-    Bmat.row_ptr( 0 ) = 0;
-    Bmat.row_ptr( 1 ) = 1;
-    Bmat.row_ptr( 2 ) = 2;
-
-    Bmat.col_ind( 0 ) = 0;
-    Bmat.col_ind( 1 ) = 1;
-
-    // B[0,0] = I2
-
-    Bmat.vals( 0, 0, 0 ) = 1.0;
-    Bmat.vals( 0, 0, 1 ) = 0.0;
-    Bmat.vals( 0, 1, 0 ) = 0.0;
-    Bmat.vals( 0, 1, 1 ) = 1.0;
-
-    // B[1,1] = I2
-
-    Bmat.vals( 1, 0, 0 ) = 1.0;
-    Bmat.vals( 1, 0, 1 ) = 0.0;
-    Bmat.vals( 1, 1, 0 ) = 0.0;
-    Bmat.vals( 1, 1, 1 ) = 1.0;
-
-
-    bsr_t Cmat;
-
-    nmfd::operations::bsr_mat_mat_prod_skeleton( Amat, Bmat, Cmat );
-
-    bool pattern_ok = true;
-
-    // Expected C pattern:
-    //
-    // row 0: columns 0, 1
-    // row 1: column 0
-    //
-    // row_ptr = [0, 2, 3]
-    // col_ind = [0, 1, 0]
-
-    const std::ptrdiff_t expected_row_ptr[3] = { 0, 2, 3 };
-
-    const std::ptrdiff_t expected_col_ind[3] = { 0, 1, 0 };
-
-    if ( Cmat.nnzb() != 3 )
-    {
-        std::cerr << "  FAIL: C.nnzb() = " << Cmat.nnzb() << ", expected 3" << std::endl;
-
-        pattern_ok = false;
-        ++errors;
-    }
-
-    for ( std::ptrdiff_t i = 0; i <= 2; ++i )
-    {
-        if ( Cmat.row_ptr( i ) != expected_row_ptr[i] )
-        {
-            std::cerr << "  FAIL: C.row_ptr(" << i << ") = " << Cmat.row_ptr( i ) << ", expected "
-                      << expected_row_ptr[i] << std::endl;
-
-            pattern_ok = false;
-            ++errors;
-        }
-    }
-
-    for ( std::ptrdiff_t k = 0; k < 3; ++k )
-    {
-        if ( Cmat.col_ind( k ) != expected_col_ind[k] )
-        {
-            std::cerr << "  FAIL: C.col_ind(" << k << ") = " << Cmat.col_ind( k ) << ", expected "
-                      << expected_col_ind[k] << std::endl;
-
-            pattern_ok = false;
-            ++errors;
-        }
-    }
-
-    if ( pattern_ok )
-    {
-        nmfd::operations::bsr_mat_mat_prod( Amat, Bmat, Cmat );
-
-        bool values_ok = true;
-
-        // Check all three blocks.
-        //
-        // C[0,0] = I
-        // C[0,1] = I
-        // C[1,0] = I
-
-        for ( std::ptrdiff_t i = 0; i < Cmat.nrows(); ++i )
-        {
-            for ( std::ptrdiff_t k = Cmat.row_ptr( i ); k < Cmat.row_ptr( i + 1 ); ++k )
-            {
-                if ( !check_identity_block( Cmat, k, 1.0 ) )
-                {
-                    values_ok = false;
-                    ++errors;
-                }
-            }
-        }
-
-        if ( values_ok )
-        {
-            std::cout << "  PASS" << std::endl;
-        }
-    }
-
-
-    // ====================================================================
-    // Test 4: BSR matrix-vector product
-    //         4x4 tridiagonal, 1x1 blocks
-    // ====================================================================
-
-    std::cout << "Test 4: BSR mat-vec (4x4 tridiagonal)" << std::endl;
-
-    // A =
-    //
-    // [ 2 -1  0  0 ]
-    // [-1  2 -1  0 ]
-    // [ 0 -1  2 -1 ]
-    // [ 0  0 -1  2 ]
-
-    bsr_t A4;
-
-    A4.init( 4, 4, 10, 1 );
-
-    A4.row_ptr( 0 ) = 0;
-    A4.row_ptr( 1 ) = 2;
-    A4.row_ptr( 2 ) = 5;
-    A4.row_ptr( 3 ) = 8;
-    A4.row_ptr( 4 ) = 10;
-
-    A4.col_ind( 0 )         = 0;
-    A4.vals( 0, 0, 0 ) = 2.0;
-
-    A4.col_ind( 1 )         = 1;
-    A4.vals( 1, 0, 0 ) = -1.0;
-
-    A4.col_ind( 2 )         = 0;
-    A4.vals( 2, 0, 0 ) = -1.0;
-
-    A4.col_ind( 3 )         = 1;
-    A4.vals( 3, 0, 0 ) = 2.0;
-
-    A4.col_ind( 4 )         = 2;
-    A4.vals( 4, 0, 0 ) = -1.0;
-
-    A4.col_ind( 5 )         = 1;
-    A4.vals( 5, 0, 0 ) = -1.0;
-
-    A4.col_ind( 6 )         = 2;
-    A4.vals( 6, 0, 0 ) = 2.0;
-
-    A4.col_ind( 7 )         = 3;
-    A4.vals( 7, 0, 0 ) = -1.0;
-
-    A4.col_ind( 8 )         = 2;
-    A4.vals( 8, 0, 0 ) = -1.0;
-
-    A4.col_ind( 9 )         = 3;
-    A4.vals( 9, 0, 0 ) = 2.0;
-
-    vector_t x4;
-    vector_t y4;
-
-    x4.init( 4 );
-    y4.init( 4 );
-
-    x4( 0 ) = 1.0;
-    x4( 1 ) = 2.0;
-    x4( 2 ) = 3.0;
-    x4( 3 ) = 4.0;
-
-    nmfd::operations::bsr_mat_vec_prod( A4, x4, y4 );
-
-    // Expected:
-    //
-    // [ 2 -1  0  0 ] [1]   [0]
-    // [-1  2 -1  0 ] [2]   [0]
-    // [ 0 -1  2 -1 ] [3] = [0]
-    // [ 0  0 -1  2 ] [4]   [5]
-
-    const T expected4[4] = { 0.0, 0.0, 0.0, 5.0 };
-
-    if ( check_vector( y4, expected4, 4 ) )
-    {
-        std::cout << "  PASS" << std::endl;
-    }
-    else
-    {
-        ++errors;
-    }
-
-
-    // ====================================================================
-    // Test 5: BSR matrix-matrix product
-    //         accumulation into the same block
-    // ====================================================================
-
-    std::cout << "Test 5: BSR mat-mat product with accumulation" << std::endl;
-
-    // A = [ I  I ]
-    //
-    // B = [ I ]
-    //     [ I ]
-    //
-    // C = A * B
-    //
-    //   = I*I + I*I
-    //
-    //   = 2I
-
-    bsr_t A5;
-
-    A5.init( 1, 2, 2, 2 );
-
-    A5.row_ptr( 0 ) = 0;
-    A5.row_ptr( 1 ) = 2;
-
-    A5.col_ind( 0 ) = 0;
-    A5.col_ind( 1 ) = 1;
-
-    // A[0,0] = I2
-
-    A5.vals( 0, 0, 0 ) = 1.0;
-    A5.vals( 0, 0, 1 ) = 0.0;
-    A5.vals( 0, 1, 0 ) = 0.0;
-    A5.vals( 0, 1, 1 ) = 1.0;
-
-    // A[0,1] = I2
-
-    A5.vals( 1, 0, 0 ) = 1.0;
-    A5.vals( 1, 0, 1 ) = 0.0;
-    A5.vals( 1, 1, 0 ) = 0.0;
-    A5.vals( 1, 1, 1 ) = 1.0;
-
-
-    bsr_t B5;
-
-    B5.init( 2, 1, 2, 2 );
-
-    B5.row_ptr( 0 ) = 0;
-    B5.row_ptr( 1 ) = 1;
-    B5.row_ptr( 2 ) = 2;
-
-    B5.col_ind( 0 ) = 0;
-    B5.col_ind( 1 ) = 0;
-
-    // B[0,0] = I2
-
-    B5.vals( 0, 0, 0 ) = 1.0;
-    B5.vals( 0, 0, 1 ) = 0.0;
-    B5.vals( 0, 1, 0 ) = 0.0;
-    B5.vals( 0, 1, 1 ) = 1.0;
-
-    // B[1,0] = I2
-
-    B5.vals( 1, 0, 0 ) = 1.0;
-    B5.vals( 1, 0, 1 ) = 0.0;
-    B5.vals( 1, 1, 0 ) = 0.0;
-    B5.vals( 1, 1, 1 ) = 1.0;
-
-
-    bsr_t C5;
-
-    nmfd::operations::bsr_mat_mat_prod_skeleton( A5, B5, C5 );
-
-    bool pattern5_ok = true;
-
-    if ( C5.nnzb() != 1 )
-    {
-        std::cerr << "  FAIL: C.nnzb() = " << C5.nnzb() << ", expected 1" << std::endl;
-
-        pattern5_ok = false;
-        ++errors;
-    }
-
-    if ( C5.row_ptr( 0 ) != 0 )
-    {
-        std::cerr << "  FAIL: C.row_ptr(0) = " << C5.row_ptr( 0 ) << ", expected 0" << std::endl;
-
-        pattern5_ok = false;
-        ++errors;
-    }
-
-    if ( C5.row_ptr( 1 ) != 1 )
-    {
-        std::cerr << "  FAIL: C.row_ptr(1) = " << C5.row_ptr( 1 ) << ", expected 1" << std::endl;
-
-        pattern5_ok = false;
-        ++errors;
-    }
-
-    if ( C5.col_ind( 0 ) != 0 )
-    {
-        std::cerr << "  FAIL: C.col_ind(0) = " << C5.col_ind( 0 ) << ", expected 0" << std::endl;
-
-        pattern5_ok = false;
-        ++errors;
-    }
-
-    if ( pattern5_ok )
-    {
-        nmfd::operations::bsr_mat_mat_prod( A5, B5, C5 );
-
-        bool values5_ok = true;
-
-        // Expected:
-        //
-        // [2 0]
-        // [0 2]
-
-        for ( std::ptrdiff_t r = 0; r < 2; ++r )
-        {
-            for ( std::ptrdiff_t c = 0; c < 2; ++c )
-            {
-                const T expected = ( r == c ) ? 2.0 : 0.0;
-
-                const T actual = C5.vals( 0, r, c );
-
-                if ( std::abs( actual - expected ) > 1e-12 )
-                {
-                    std::cerr << "  FAIL: C[0,0][" << r << "," << c << "] = " << actual << ", expected " << expected
-                              << std::endl;
-
-                    values5_ok = false;
-                    ++errors;
-                }
-            }
-        }
-
-        if ( values5_ok )
-        {
-            std::cout << "  PASS" << std::endl;
-        }
-    }
-
-
-    // ====================================================================
-    // Result
-    // ====================================================================
-
-    std::cout << std::endl;
-
-    if ( errors == 0 )
-    {
-        std::cout << "All tests passed!" << std::endl;
-    }
-    else
-    {
-        std::cerr << errors << " test(s) failed!" << std::endl;
-    }
-
-    return errors;
 }
