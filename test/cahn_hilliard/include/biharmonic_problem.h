@@ -19,7 +19,7 @@ public:
 };
 
 template <class Scalar, class TensorType>
-class trig_rhs
+class biharmonic_trig_rhs
 {
     using st = scfd::utils::scalar_traits<Scalar>;
 
