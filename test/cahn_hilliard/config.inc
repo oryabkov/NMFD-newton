@@ -13,3 +13,9 @@ CUDA_ARCH = sm_70 sm_80
 FLOAT_TYPE = double
 
 USE_APPLE_OMP = False
+
+CUDA_AWARE_MPI = False
+
+ENABLE_PROFILING = True
+
+BUILD_DIR = bin
