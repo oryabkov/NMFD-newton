@@ -49,10 +49,12 @@ public:
         bool_vec_t     periodic_flags;
         ordinal_type   stencil           = ordinal_type( 1 );
         int            max_stencil_order = 1;
+        dist_ptr       mg_dist; // fine-level restrictor/prolongator distributor (stencil 2)
     };
     using utils_hierarchy = utils;
 
-    coarsening( const utils_hierarchy &u, const params_hierarchy &p ) : utils_( u ), cur_part_( u.part )
+    coarsening( const utils_hierarchy &u, const params_hierarchy &p ) :
+        utils_( u ), cur_part_( u.part ), cur_mg_dist_( u.mg_dist )
     {
     }
 
@@ -65,7 +67,7 @@ public:
         // distributor. The prolongator reads the coarse ones and gets its distributor later, from
         // coarse_operator, once the coarse level exists.
         auto res = std::make_shared<restrictor_type>(
-            op.get_size(), fine_step, op.get_b_cond(), cur_part_.comm_info, op.get_distributor(), utils_.stencil,
+            op.get_size(), fine_step, op.get_b_cond(), cur_part_.comm_info, cur_mg_dist_, utils_.stencil,
             utils_.max_stencil_order );
         auto pro = std::make_shared<prolongator_type>(
             op.get_size(), coarse_step, op.get_b_cond(), cur_part_.comm_info, utils_.stencil,
@@ -113,16 +115,19 @@ public:
             }
         }
 
-        auto coarse_dist = std::make_shared<dist_type>();
+        auto coarse_dist = std::make_shared<dist_type>(); // stencil 2 / order dim, for the prolongator
         coarse_dist->init_for_tensors(
             tensor_dim, cur_part_, utils_.periodic_flags, utils_.stencil, utils_.max_stencil_order );
+
+        auto coarse_op_dist = std::make_shared<dist_type>(); // stencil 1 / order 1, for the coarse operator itself
+        coarse_op_dist->init_for_tensors( tensor_dim, cur_part_, utils_.periodic_flags, ordinal_type( 1 ), 1 );
 
         // Coarse vector space must carry the same stencil as the fine one
         auto coarse_vspace = std::make_shared<vector_space_type>(
             coarse_size, cur_part_.comm_info, false, utils_.stencil, utils_.max_stencil_order );
 
         auto coarse_op = std::make_shared<operator_type>(
-            coarse_vspace, coarse_h, b_cond, coarse_dist, op.get_time_derivative() );
+            coarse_vspace, coarse_h, b_cond, coarse_op_dist, op.get_time_derivative() );
 
         coarse_op->set_mobility( op.get_mobility() );
         coarse_op->set_gamma( new_gamma );
@@ -138,6 +143,9 @@ public:
         prolongator.set_distributor( coarse_dist );
         prolongator.set_b_cond( b_cond );
         prolongator.set_linearization_point( coarse_vector );
+
+        // This level's MG distributor becomes the next next_level() call's fine distributor
+        cur_mg_dist_ = coarse_dist;
 
         return coarse_op;
     }
@@ -158,6 +166,7 @@ public:
 private:
     utils utils_;
     part_type cur_part_;
+    dist_ptr cur_mg_dist_;
 };
 
 } // namespace tests

@@ -234,7 +234,10 @@ int main( int argc, char *argv[] )
     // Distributor initialization: fills interior-interface halos and wraps the physical periodic
     // walls; halos at dirichlet walls are filled but ignored by the kernel.
     auto dist = std::make_shared<dist_t>();
-    dist->init_for_tensors( tensor_dim, part, periodic_flags, stencil, max_stencil_order );
+    dist->init_for_tensors( tensor_dim, part, periodic_flags, stencil, max_stencil_order ); // mg stencil (restrictor/prolongator)
+
+    auto op_dist = std::make_shared<dist_t>();
+    op_dist->init_for_tensors( tensor_dim, part, periodic_flags, ord_t( 1 ), 1 ); // fast stencil (per-sweep halo)
 
     auto vspace = std::make_shared<vec_ops_t>( range, comm_world, false, stencil, max_stencil_order );
 
@@ -277,19 +280,19 @@ int main( int argc, char *argv[] )
     time_derivative->set_dt_inf( dt_inf );
     time_derivative->set_previous_state( solution );
 
-    auto cahn_hilliard_jacobi_op = std::make_shared<jacobi_op_t>( vspace, step, cond, dist, time_derivative );
+    auto cahn_hilliard_jacobi_op = std::make_shared<jacobi_op_t>( vspace, step, cond, op_dist, time_derivative );
     auto cahn_hilliard_op        = std::make_shared<cahn_hilliard_op_t>(
-        vspace, step, cond, dist, rhs, cahn_hilliard_jacobi_op, time_derivative );
+        vspace, step, cond, op_dist, rhs, cahn_hilliard_jacobi_op, time_derivative );
 
     cahn_hilliard_op->set_mobility( mobility_t( D ) );
     cahn_hilliard_op->set_gamma( gamma );
 
-    free_energy_t free_energy_calc( vspace, step, cond, dist, phobic_energy{}, cahn_hilliard_jacobi_op->get_gamma() );
+    free_energy_t free_energy_calc( vspace, step, cond, op_dist, phobic_energy{}, cahn_hilliard_jacobi_op->get_gamma() );
 
     std::shared_ptr<precond_interface> precond;
     if ( preconditioner_type == "diag" )
     {
-        precond = std::make_shared<smoother_t>( cahn_hilliard_jacobi_op, dist );
+        precond = std::make_shared<smoother_t>( cahn_hilliard_jacobi_op, op_dist );
     }
     else // mg
     {
@@ -306,6 +309,7 @@ int main( int argc, char *argv[] )
         mg_utils.coarsening.periodic_flags    = periodic_flags;
         mg_utils.coarsening.stencil           = stencil;
         mg_utils.coarsening.max_stencil_order = max_stencil_order;
+        mg_utils.coarsening.mg_dist           = dist;
 
         precond = std::make_shared<mg_t>( mg_utils, mg_params );
     }

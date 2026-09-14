@@ -191,7 +191,10 @@ int main( int argc, char *argv[] )
     // Distributor initialization: fills interior-interface halos and wraps the physical periodic
     // walls; halos at dirichlet walls are filled but ignored by the kernel.
     auto dist = std::make_shared<dist_t>();
-    dist->init_for_tensors( tensor_dim, part, periodic_flags, stencil, max_stencil_order );
+    dist->init_for_tensors( tensor_dim, part, periodic_flags, stencil, max_stencil_order ); // mg stencil (restrictor/prolongator)
+
+    auto op_dist = std::make_shared<dist_t>();
+    op_dist->init_for_tensors( tensor_dim, part, periodic_flags, ord_t( 1 ), 1 ); // fast stencil (per-sweep halo)
 
     rhs_t    rhs_function;
 
@@ -230,14 +233,14 @@ int main( int argc, char *argv[] )
         exact_view.release();
     }
 
-    auto l_op = std::make_shared<lin_op_t>( vspace, step, cond, dist );
+    auto l_op = std::make_shared<lin_op_t>( vspace, step, cond, op_dist );
 
-    free_energy_t free_energy_calc( vspace, step, cond, dist, phobic_energy_t{}, l_op->get_gamma() );
+    free_energy_t free_energy_calc( vspace, step, cond, op_dist, phobic_energy_t{}, l_op->get_gamma() );
 
     std::shared_ptr<precond_interface> precond;
     if ( preconditioner_type == "diag" )
     {
-        auto smoother = std::make_shared<smoother_t>( l_op, dist );
+        auto smoother = std::make_shared<smoother_t>( l_op, op_dist );
         precond = smoother;
     }
     else // mg
@@ -255,6 +258,7 @@ int main( int argc, char *argv[] )
         mg_utils.coarsening.periodic_flags    = periodic_flags;
         mg_utils.coarsening.stencil           = stencil;
         mg_utils.coarsening.max_stencil_order = max_stencil_order;
+        mg_utils.coarsening.mg_dist           = dist;
 
         precond = std::make_shared<mg_t>( mg_utils, mg_params );
     }
