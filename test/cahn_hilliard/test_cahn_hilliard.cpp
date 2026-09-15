@@ -1,4 +1,5 @@
 #include "common.h"
+#include "include/solve_report.h"
 
 // Problem
 using phobic_energy     = tests::double_well_potential<scalar>;
@@ -322,6 +323,12 @@ int main( int argc, char *argv[] )
     bool converged = newton_solver->solve( cahn_hilliard_op.get(), nullptr, nullptr, solution );
     double solve_time_ms = current_prof::inst().toc( "Solve" );
 
+    // Verify that F(solution) is close to zero
+    vector_t F_solution;
+    vspace->init_vector( F_solution );
+    cahn_hilliard_op->apply( solution, F_solution );
+    scalar F_solution_norm = vspace->norm_l2( F_solution );
+
     // Final comparison
     vector_t error;
     vspace->init_vector( error );
@@ -329,19 +336,17 @@ int main( int argc, char *argv[] )
     scalar error_norm = vspace->norm_l2( error );
     scalar exact_norm = vspace->norm_l2( exact_solution );
 
-    log.info( "" );
-    log.info( "========================================" );
-    log.info( "Results" );
-    log.info( "========================================" );
-    log.info_f( "  Converged:                  %s", converged ? "yes" : "no" );
-    log.info_f( "  ||solution - exact||_2:     %e", static_cast<double>( error_norm ) );
-    log.info_f( "  Relative error:             %e", static_cast<double>( error_norm / exact_norm ) );
-    log.info_f( "  Total solve time:           %.2f ms", solve_time_ms );
-
     auto energies = free_energy_calc.compute( solution );
-    log.info_f( "  Phobic energy:              %e", static_cast<double>( energies.phobic ) );
-    log.info_f( "  Philic energy:              %e", static_cast<double>( energies.philic ) );
-    log.info( "========================================" );
+
+    tests::final_report report;
+    report.converged        = converged;
+    report.final_resid      = static_cast<double>( F_solution_norm );
+    report.final_error      = static_cast<double>( error_norm );
+    report.final_rel_error  = static_cast<double>( error_norm / exact_norm );
+    report.total_time_ms    = solve_time_ms;
+    report.phobic_energy    = static_cast<double>( energies.phobic );
+    report.philic_energy    = static_cast<double>( energies.philic );
+    tests::log_final_report( log, report );
 
     // Save solutions if requested (only valid for a single rank owning the whole domain)
     if ( save_coords && comm_world.num_procs == 1 )

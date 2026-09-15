@@ -1,4 +1,5 @@
 #include "common.h"
+#include "include/solve_report.h"
 
 // Problem
 // using phobic_energy     = tests::logarithmic_potential<scalar>;
@@ -400,7 +401,11 @@ int main( int argc, char *argv[] )
     }
 
     // Solve and measure time for each time step
-    double total_time_ms = 0.0;
+    double       total_time_ms       = 0.0;
+    unsigned int total_newton_iters  = 0;
+    int          steps_completed     = 0;
+    bool         stopped_by_time_tol = false;
+    scalar       last_F_x_norm       = F_init_norm;
 
     std::shared_ptr<linsolver_base_t> lin_solver;
     if ( solver_type == "jacobi" )
@@ -444,10 +449,11 @@ int main( int argc, char *argv[] )
         vector_t backup_solution;
         vspace->init_vector( backup_solution );
         vspace->assign( solution, backup_solution );
-        bool   step_accepted      = false;
-        double accepted_step_time = 0.0;
-        scalar accepted_dt_inf    = scalar( 0 );
-        int    attempt_idx        = 0;
+        bool         step_accepted        = false;
+        double       accepted_step_time   = 0.0;
+        scalar       accepted_dt_inf      = scalar( 0 );
+        unsigned int accepted_newton_iters = 0;
+        int          attempt_idx          = 0;
         for ( attempt_idx = 1; attempt_idx <= DEFAULT_MAX_RETRIES + 1; ++attempt_idx )
         {
             const scalar current_dt_inf = dt_scheduler.get_dt_inf();
@@ -463,9 +469,10 @@ int main( int argc, char *argv[] )
 
             if ( converged )
             {
-                accepted_step_time = attempt_time;
-                accepted_dt_inf    = current_dt_inf;
-                step_accepted      = true;
+                accepted_step_time    = attempt_time;
+                accepted_dt_inf       = current_dt_inf;
+                accepted_newton_iters = newton_solver->convergence_strategy()->get_number_of_iterations();
+                step_accepted         = true;
                 break;
             }
 
@@ -480,6 +487,7 @@ int main( int argc, char *argv[] )
         }
 
         total_time_ms += accepted_step_time;
+        total_newton_iters += accepted_newton_iters;
 
         // Log dt_inf that this step converged with
         log.info_f( "  Accepted dt_inf: %e", static_cast<double>( accepted_dt_inf ) );
@@ -490,15 +498,13 @@ int main( int argc, char *argv[] )
         time_derivative_stationary->set_previous_state( solution );
         cahn_hilliard_op_stationary->apply( solution, F_x );
         scalar F_x_norm = vspace->norm_l2( F_x );
-        log.info_f( "||F_stationary(solution)||_2 = %le", static_cast<double>( F_x_norm ) );
+        last_F_x_norm   = F_x_norm;
 
         // Track total amount of each component after this step
         write_component_sums( ts + 1, solution );
 
         // Compute and log the free energy for this step
         auto energies = free_energy_calc.compute( solution );
-        log.info_f( "  Phobic energy: %e", static_cast<double>( energies.phobic ) );
-        log.info_f( "  Philic energy: %e", static_cast<double>( energies.philic ) );
 
         // Compute norm of difference between solution and previous state
         vector_t previous_state;
@@ -508,7 +514,18 @@ int main( int argc, char *argv[] )
         vspace->init_vector( diff_prev );
         vspace->assign_lin_comb( scalar( 1 ), solution, scalar( -1 ), previous_state, diff_prev );
         scalar diff_prev_norm = vspace->norm_l2( diff_prev );
-        log.info_f( "||solution - previous_state||_2 = %le", static_cast<double>( diff_prev_norm ) );
+
+        tests::step_report report;
+        report.index         = ts + 1;
+        report.newton_iters  = static_cast<int>( accepted_newton_iters );
+        report.resid         = static_cast<double>( F_x_norm );
+        report.step_norm     = static_cast<double>( diff_prev_norm );
+        report.phobic_energy = static_cast<double>( energies.phobic );
+        report.philic_energy = static_cast<double>( energies.philic );
+        report.step_time_ms  = accepted_step_time;
+        tests::log_step_report( log, report );
+
+        steps_completed = ts + 1;
 
         // Update previous state before the next step
         time_derivative->set_previous_state( solution );
@@ -531,24 +548,21 @@ int main( int argc, char *argv[] )
         // Check for early termination based on ||solution - previous_state||
         if ( diff_prev_norm < time_tol )
         {
-            log.info_f( "Early termination: ||solution - previous_state||_2 = %le < %le (tolerance)",
-                       static_cast<double>( diff_prev_norm ), static_cast<double>( time_tol ) );
+            stopped_by_time_tol = true;
             time_derivative->set_previous_state( solution );
             break;
         }
     }
 
-    // Final results
-    scalar final_solution_norm = vspace->norm_l2( solution );
-
-    log.info( "" );
-    log.info( "========================================" );
-    log.info( "Results" );
-    log.info( "========================================" );
-    log.info_f( "  ||solution||_2:              %e", static_cast<double>( final_solution_norm ) );
-    log.info_f( "  Average iteration time:      %.2f ms", total_time_ms / max_time_steps );
-    log.info_f( "  Total solve time:            %.2f ms", total_time_ms );
-    log.info( "========================================" );
+    tests::final_report report;
+    report.steps_completed  = steps_completed;
+    report.steps_total      = max_time_steps;
+    report.stop_reason      = stopped_by_time_tol ? "time_tol reached" : "max_time_steps reached";
+    report.final_resid      = static_cast<double>( last_F_x_norm );
+    report.avg_newton_iters = static_cast<double>( total_newton_iters ) / steps_completed;
+    report.avg_step_time_ms = total_time_ms / steps_completed;
+    report.total_time_ms    = total_time_ms;
+    tests::log_final_report( log, report );
 
     if ( save_coords && comm_world.num_procs == 1 )
     {

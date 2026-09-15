@@ -1,4 +1,5 @@
 #include "common.h"
+#include "include/solve_report.h"
 
 using phobic_energy_t = tests::zero_potential<scalar>;
 using mobility_t      = tests::constant_mobility<scalar>;
@@ -302,6 +303,15 @@ int main( int argc, char *argv[] )
     converged     = solver->solve( rhs, solution );
     solve_time_ms = current_prof::inst().toc( "Solve" );
 
+    // Verify that L(solution) - rhs is close to zero
+    vector_t L_solution;
+    vspace->init_vector( L_solution );
+    l_op->apply( solution, L_solution );
+    vector_t residual_solution;
+    vspace->init_vector( residual_solution );
+    vspace->assign_lin_comb( scalar( 1 ), L_solution, scalar( -1 ), rhs, residual_solution );
+    scalar residual_solution_norm = vspace->norm_l2( residual_solution );
+
     // Compute error between numerical and exact solutions
     vector_t error;
     vspace->init_vector( error );
@@ -309,19 +319,17 @@ int main( int argc, char *argv[] )
     scalar error_norm = vspace->norm_l2( error );
     scalar exact_norm = vspace->norm_l2( exact_solution );
 
-    log.info( "" );
-    log.info( "========================================" );
-    log.info( "Results" );
-    log.info( "========================================" );
-    log.info_f( "  Converged:                  %s", converged ? "yes" : "no" );
-    log.info_f( "  ||solution - exact||_2:     %e", static_cast<double>( error_norm ) );
-    log.info_f( "  Relative error:             %e", static_cast<double>( error_norm / exact_norm ) );
-    log.info_f( "  Total solve time:           %.2f ms", solve_time_ms );
-
     auto energies = free_energy_calc.compute( solution );
-    log.info_f( "  Phobic energy:              %e", static_cast<double>( energies.phobic ) );
-    log.info_f( "  Philic energy:              %e", static_cast<double>( energies.philic ) );
-    log.info( "========================================" );
+
+    tests::final_report report;
+    report.converged       = converged;
+    report.final_resid     = static_cast<double>( residual_solution_norm );
+    report.final_error     = static_cast<double>( error_norm );
+    report.final_rel_error = static_cast<double>( error_norm / exact_norm );
+    report.total_time_ms   = solve_time_ms;
+    report.phobic_energy   = static_cast<double>( energies.phobic );
+    report.philic_energy   = static_cast<double>( energies.philic );
+    tests::log_final_report( log, report );
 
     // Save solutions if requested (only valid for a single rank owning the whole domain)
     if ( save_coords && comm_world.num_procs == 1 )

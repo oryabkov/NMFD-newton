@@ -1,4 +1,5 @@
 #include "common.h"
+#include "include/solve_report.h"
 
 // Problem
 using phobic_energy     = tests::double_well_potential<scalar>;
@@ -328,6 +329,8 @@ int main( int argc, char *argv[] )
     log.info_f( "  Phobic energy: %e", static_cast<double>( energies_init.phobic ) );
     log.info_f( "  Philic energy: %e", static_cast<double>( energies_init.philic ) );
 
+    scalar exact_norm = vspace->norm_l2( exact_solution );
+
     // Save initial approximation (index 0) if requested (only valid for a single rank owning the whole domain)
     if ( save_coords && comm_world.num_procs == 1 )
     {
@@ -337,7 +340,11 @@ int main( int argc, char *argv[] )
 
     // Solve and measure time for each time step
     std::vector<double> iteration_times;
-    double              total_time_ms = 0.0;
+    double              total_time_ms       = 0.0;
+    unsigned int        total_newton_iters  = 0;
+    int                 steps_completed     = 0;
+    bool                stopped_by_time_tol = false;
+    scalar              last_F_x_norm       = F_x_init_norm;
 
     // Create solver instances based on type (will be reused for each time step)
     std::shared_ptr<linsolver_base_t> lin_solver;
@@ -380,6 +387,8 @@ int main( int argc, char *argv[] )
         double step_time = current_prof::inst().toc( "Solve" );
         iteration_times.push_back( step_time );
         total_time_ms += step_time;
+        unsigned int newton_iters = newton_solver->convergence_strategy()->get_number_of_iterations();
+        total_newton_iters += newton_iters;
 
         // Compute norm F(x) - stationary residual (to check time convergence)
         vector_t F_x;
@@ -387,22 +396,10 @@ int main( int argc, char *argv[] )
         time_derivative_stationary->set_previous_state( solution );
         cahn_hilliard_op_stationary->apply( solution, F_x );
         scalar F_x_norm = vspace->norm_l2( F_x );
-        log.info_f( "||F_stationary(solution)||_2 = %le", static_cast<double>( F_x_norm ) );
+        last_F_x_norm   = F_x_norm;
 
         // Compute and log the free energy for this step
         auto energies = free_energy_calc.compute( solution );
-        log.info_f( "  Phobic energy: %e", static_cast<double>( energies.phobic ) );
-        log.info_f( "  Philic energy: %e", static_cast<double>( energies.philic ) );
-
-        // Check for early termination based on F(x) norm
-        if ( F_x_norm < time_tol )
-        {
-            log.info_f( "Early termination: ||F(solution)||_2 = %le < %le (tolerance)",
-                       static_cast<double>( F_x_norm ), static_cast<double>( time_tol ) );
-            // Update previous step before breaking
-            time_derivative->set_previous_state( solution );
-            break;
-        }
 
         // Compute norm of difference between solution and previous state
         vector_t previous_state;
@@ -412,14 +409,26 @@ int main( int argc, char *argv[] )
         vspace->init_vector( diff_prev );
         vspace->assign_lin_comb( scalar( 1 ), solution, scalar( -1 ), previous_state, diff_prev );
         scalar diff_prev_norm = vspace->norm_l2( diff_prev );
-        log.info_f( "||solution - previous_state||_2 = %le", static_cast<double>( diff_prev_norm ) );
 
         // Compute norm of difference between solution and exact solution
         vector_t diff_exact;
         vspace->init_vector( diff_exact );
         vspace->assign_lin_comb( scalar( 1 ), solution, scalar( -1 ), exact_solution, diff_exact );
         scalar diff_exact_norm = vspace->norm_l2( diff_exact );
-        log.info_f( "||solution - exact||_2 = %le", static_cast<double>( diff_exact_norm ) );
+
+        tests::step_report report;
+        report.index         = step_idx + 1;
+        report.newton_iters  = static_cast<int>( newton_iters );
+        report.resid         = static_cast<double>( F_x_norm );
+        report.step_norm     = static_cast<double>( diff_prev_norm );
+        report.error         = static_cast<double>( diff_exact_norm );
+        report.rel_error     = static_cast<double>( diff_exact_norm ) / static_cast<double>( exact_norm );
+        report.phobic_energy = static_cast<double>( energies.phobic );
+        report.philic_energy = static_cast<double>( energies.philic );
+        report.step_time_ms  = step_time;
+        tests::log_step_report( log, report );
+
+        steps_completed = step_idx + 1;
 
         // Update previous step before the next step
         time_derivative->set_previous_state( solution );
@@ -429,6 +438,13 @@ int main( int argc, char *argv[] )
         {
             std::string numerical_file = output_dir + "/numerical_" + std::to_string( step_idx + 1 ) + ".bin";
             tests::save_solution_binary<vector_t, idx_nd_type>( solution, numerical_file, grid_size, tensor_dim );
+        }
+
+        // Check for early termination based on F(x) norm
+        if ( F_x_norm < time_tol )
+        {
+            stopped_by_time_tol = true;
+            break;
         }
 
         // Separate iterations with empty line
@@ -450,17 +466,18 @@ int main( int argc, char *argv[] )
     vspace->init_vector( error );
     vspace->assign_lin_comb( scalar( 1 ), solution, scalar( -1 ), exact_solution, error );
     scalar error_norm = vspace->norm_l2( error );
-    scalar exact_norm = vspace->norm_l2( exact_solution );
 
-    log.info( "" );
-    log.info( "========================================" );
-    log.info( "Results" );
-    log.info( "========================================" );
-    log.info_f( "  ||solution - exact||_2:     %e", static_cast<double>( error_norm ) );
-    log.info_f( "  Relative error:             %e", static_cast<double>( error_norm / exact_norm ) );
-    log.info_f( "  Average iteration time:     %.2f ms", total_time_ms / max_time_steps );
-    log.info_f( "  Total solve time:           %.2f ms", total_time_ms );
-    log.info( "========================================" );
+    tests::final_report report;
+    report.steps_completed  = steps_completed;
+    report.steps_total      = max_time_steps;
+    report.stop_reason      = stopped_by_time_tol ? "time_tol reached" : "max_time_steps reached";
+    report.final_resid      = static_cast<double>( last_F_x_norm );
+    report.final_error      = static_cast<double>( error_norm );
+    report.final_rel_error  = static_cast<double>( error_norm / exact_norm );
+    report.avg_newton_iters = static_cast<double>( total_newton_iters ) / steps_completed;
+    report.avg_step_time_ms = total_time_ms / steps_completed;
+    report.total_time_ms    = total_time_ms;
+    tests::log_final_report( log, report );
 
     if ( save_coords && comm_world.num_procs == 1 )
     {

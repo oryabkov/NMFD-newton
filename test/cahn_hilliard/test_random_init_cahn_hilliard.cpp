@@ -1,4 +1,5 @@
 #include "common.h"
+#include "include/solve_report.h"
 
 // Problem
 using phobic_energy     = tests::double_well_potential<scalar>;
@@ -287,6 +288,14 @@ int main( int argc, char *argv[] )
     cahn_hilliard_op->set_mobility( mobility_t( D ) );
     cahn_hilliard_op->set_gamma( gamma );
 
+    // Stationary operators (used for checking time convergence to stationary solution)
+    auto time_derivative_stationary         = std::make_shared<time_derivative_t>( vspace );
+    auto cahn_hilliard_jacobi_op_stationary = std::make_shared<jacobi_op_t>( vspace, step, cond, op_dist );
+    auto cahn_hilliard_op_stationary        = std::make_shared<cahn_hilliard_op_t>(
+        vspace, step, cond, op_dist, rhs, cahn_hilliard_jacobi_op_stationary, time_derivative_stationary );
+    cahn_hilliard_op_stationary->set_mobility( mobility_t( D ) );
+    cahn_hilliard_op_stationary->set_gamma( gamma );
+
     free_energy_t free_energy_calc( vspace, step, cond, op_dist, phobic_energy{}, cahn_hilliard_jacobi_op->get_gamma() );
 
     std::shared_ptr<precond_interface> precond;
@@ -314,9 +323,16 @@ int main( int argc, char *argv[] )
         precond = std::make_shared<mg_t>( mg_utils, mg_params );
     }
 
+    // Compute initial F(x) norm (step 0)
+    vector_t F_init;
+    vspace->init_vector( F_init );
+    time_derivative_stationary->set_previous_state( solution );
+    cahn_hilliard_op_stationary->apply( solution, F_init );
+    scalar F_init_norm = vspace->norm_l2( F_init );
+    log.info_f( "Step 0: ||F_stationary(solution)||_2 = %le", static_cast<double>( F_init_norm ) );
+
     // Log initial free energy (step 0)
     auto energies_init = free_energy_calc.compute( solution );
-    log.info_f( "Step 0:" );
     log.info_f( "  Phobic energy: %e", static_cast<double>( energies_init.phobic ) );
     log.info_f( "  Philic energy: %e", static_cast<double>( energies_init.philic ) );
 
@@ -329,7 +345,10 @@ int main( int argc, char *argv[] )
 
     // Solve and measure time for each time step
     std::vector<double> iteration_times;
-    double              total_time_ms = 0.0;
+    double              total_time_ms      = 0.0;
+    unsigned int        total_newton_iters = 0;
+    int                 steps_completed    = 0;
+    scalar              last_F_x_norm      = F_init_norm;
 
     // Create solver instance based on type (will be reused for each time step)
     std::shared_ptr<linsolver_base_t> lin_solver;
@@ -370,6 +389,16 @@ int main( int argc, char *argv[] )
         double step_time = current_prof::inst().toc( "Solve" );
         iteration_times.push_back( step_time );
         total_time_ms += step_time;
+        unsigned int newton_iters = newton_solver->convergence_strategy()->get_number_of_iterations();
+        total_newton_iters += newton_iters;
+
+        // Compute norm F(x) - stationary residual (to check time convergence)
+        vector_t F_x;
+        vspace->init_vector( F_x );
+        time_derivative_stationary->set_previous_state( solution );
+        cahn_hilliard_op_stationary->apply( solution, F_x );
+        scalar F_x_norm = vspace->norm_l2( F_x );
+        last_F_x_norm   = F_x_norm;
 
         // Compute norm of difference between solution and previous state
         vector_t previous_state;
@@ -379,16 +408,21 @@ int main( int argc, char *argv[] )
         vspace->init_vector( diff_prev );
         vspace->assign_lin_comb( scalar( 1 ), solution, scalar( -1 ), previous_state, diff_prev );
         scalar diff_prev_norm = vspace->norm_l2( diff_prev );
-        log.info_f( "||solution - previous_state||_2 = %le", static_cast<double>( diff_prev_norm ) );
-
-        // Compute solution norm
-        scalar solution_norm = vspace->norm_l2( solution );
-        log.info_f( "||solution||_2 = %le", static_cast<double>( solution_norm ) );
 
         // Compute and log the free energy for this step
         auto energies = free_energy_calc.compute( solution );
-        log.info_f( "  Phobic energy: %e", static_cast<double>( energies.phobic ) );
-        log.info_f( "  Philic energy: %e", static_cast<double>( energies.philic ) );
+
+        tests::step_report report;
+        report.index         = step_idx + 1;
+        report.newton_iters  = static_cast<int>( newton_iters );
+        report.resid         = static_cast<double>( F_x_norm );
+        report.step_norm     = static_cast<double>( diff_prev_norm );
+        report.phobic_energy = static_cast<double>( energies.phobic );
+        report.philic_energy = static_cast<double>( energies.philic );
+        report.step_time_ms  = step_time;
+        tests::log_step_report( log, report );
+
+        steps_completed = step_idx + 1;
 
         // Update previous step before the next step
         time_derivative->set_previous_state( solution );
@@ -407,15 +441,14 @@ int main( int argc, char *argv[] )
         }
     }
 
-    log.info( "" );
-    log.info( "========================================" );
-    log.info( "Results" );
-    log.info( "========================================" );
-    scalar final_solution_norm = vspace->norm_l2( solution );
-    log.info_f( "  ||solution||_2:             %e", static_cast<double>( final_solution_norm ) );
-    log.info_f( "  Average iteration time:     %.2f ms", total_time_ms / max_time_steps );
-    log.info_f( "  Total solve time:           %.2f ms", total_time_ms );
-    log.info( "========================================" );
+    tests::final_report report;
+    report.steps_completed  = steps_completed;
+    report.steps_total      = max_time_steps;
+    report.final_resid      = static_cast<double>( last_F_x_norm );
+    report.avg_newton_iters = static_cast<double>( total_newton_iters ) / steps_completed;
+    report.avg_step_time_ms = total_time_ms / steps_completed;
+    report.total_time_ms    = total_time_ms;
+    tests::log_final_report( log, report );
 
     if ( save_coords && comm_world.num_procs == 1 )
     {
