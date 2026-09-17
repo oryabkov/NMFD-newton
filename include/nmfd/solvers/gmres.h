@@ -24,8 +24,7 @@
 #    include <nlohmann/json.hpp>
 #endif
 #include "detail/monitor_call_wrap.h"
-#include <nmfd/detail/algo_utils_hierarchy.h>
-#include <nmfd/detail/algo_params_hierarchy.h>
+#include <nmfd/detail/algo_hierarchy_macro.h>
 #include <nmfd/detail/algo_hierarchy_creator.h>
 #include "iter_solver_base.h"
 #include "detail/dense_operations.h"
@@ -64,6 +63,7 @@ public:
     using linear_operator_type     = LinearOperator;
     using preconditioner_type      = Preconditioner;
     using vector_operations_type   = VectorOperations;
+    using vector_space_type        = VectorOperations;
     using dense_operations_t       = DenseOperations;
     using monitor_type             = Monitor;
     using log_type                 = Log;
@@ -126,56 +126,13 @@ public:
             : vec_ops( vec_ops_ ), log( log_ ), residual_reg( residual_reg_ ), dense_ops( dense_ops_ )
         {
         }
-    };
-    using preconditioner_params_hierarchy_type = typename nmfd::detail::algo_params_hierarchy<Preconditioner>::type;
-    struct params_hierarchy : public params
-    {
-        preconditioner_params_hierarchy_type preconditioner;
-
-        params_hierarchy( const std::string &log_prefix = "", const std::string &log_name = "gmres::" )
-            : params( log_prefix, log_name ), preconditioner( this->log_msg_prefix )
-        {
-        }
-        params_hierarchy( const params &prm_, const preconditioner_params_hierarchy_type &preconditioner_ )
-            : params( prm_ ), preconditioner( preconditioner_ )
-        {
-        }
-#ifdef NMFD_ENABLE_NLOHMANN
-        void from_json( const nlohmann::json &j )
-        {
-            params::from_json( j );
-            preconditioner.from_json( j.at( "preconditioner" ) );
-        }
-        nlohmann::json to_json() const
-        {
-            nlohmann::json j = params::to_json(), j_prec = preconditioner.to_json();
-            j["preconditioner"] = j_prec;
-            return j;
-        }
-#endif
-    };
-
-    using preconditioner_utils_hierarchy_type = typename nmfd::detail::algo_utils_hierarchy<Preconditioner>::type;
-    struct utils_hierarchy : public utils
-    {
-        preconditioner_utils_hierarchy_type preconditioner;
-
-        utils_hierarchy() = default;
-        template <class... Args>
-        utils_hierarchy( preconditioner_utils_hierarchy_type preconditioner_, Args... args )
-            : utils( args... ), preconditioner( preconditioner_ )
-        {
-        }
         template <class Backend>
-        utils_hierarchy( Backend &backend, std::shared_ptr<vector_operations_type> vec_space )
-            : utils(
-                  vec_space, &backend.log(), std::make_shared<residual_regulaization_t>(),
-                  std::make_shared<dense_operations_t>()
-              ),
-              preconditioner( preconditioner_utils_hierarchy_type( vec_space ) )
+        utils( Backend &backend, std::shared_ptr<vector_operations_type> vec_space )
+            : utils( vec_space, &backend.log() )
         {
         }
     };
+    NMFD_ALGO_HIERARCHY_TYPES_DEFINE(gmres,Preconditioner,preconditioner)
 
 private:
     using T      = scalar_type;
