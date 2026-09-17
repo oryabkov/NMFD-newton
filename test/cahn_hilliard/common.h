@@ -12,10 +12,12 @@
 #include <scfd/backend/backend.h>
 
 #ifdef SCFD_BACKEND_ENABLE_MPI
+#include <scfd/communication/mpi_binary_file.h>
 #include <scfd/communication/mpi_rect_distributor.h>
 #include <scfd/communication/mpi_wrap.h>
 #else
 #include <scfd/communication/rect_distributor.h>
+#include <scfd/communication/trivial_binary_file.h>
 #include <scfd/communication/trivial_comm.h>
 #include <scfd/communication/trivial_platform.h>
 #endif
@@ -95,10 +97,12 @@ using dist_for_each_t = backend::for_each_nd_type<dim, ord_t>;
 using comm_platform_t = scfd::communication::mpi_wrap;
 using comm_info_t     = scfd::communication::mpi_comm_info;
 using dist_t          = scfd::communication::mpi_rect_distributor<scalar, dim, mem_t, dist_for_each_t, ord_t, big_ord_t, comm_info_t>;
+template <class T> using binary_file_t = scfd::communication::mpi_binary_file<T>;
 #else
 using comm_platform_t = scfd::communication::trivial_platform<mem_t>;
 using comm_info_t     = scfd::communication::trivial_comm<mem_t>;
 using dist_t          = scfd::communication::rect_distributor<scalar, dim, mem_t, dist_for_each_t, ord_t, big_ord_t, comm_info_t>;
+template <class T> using binary_file_t = scfd::communication::trivial_binary_file<T>;
 #endif
 
 using part_t = scfd::communication::rect_partitioner<dim, ord_t, big_ord_t, comm_info_t>;

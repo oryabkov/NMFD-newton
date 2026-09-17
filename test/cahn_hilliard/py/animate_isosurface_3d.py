@@ -32,11 +32,22 @@ def load_solution(filename):
     with open(filename, "rb") as f:
         dims = np.frombuffer(f.read(12), dtype=np.int32)
         n_components = np.frombuffer(f.read(4), dtype=np.int32)[0]
-        data = np.frombuffer(f.read(), dtype=np.float64)
+        raw = f.read()
+        n_values = int(dims[0]) * int(dims[1]) * int(dims[2]) * int(n_components)
+        dtype = np.float32 if len(raw) == n_values * 4 else np.float64
+        data = np.frombuffer(raw, dtype=dtype)
         data = data.reshape((dims[2], dims[1], dims[0], n_components))
         # Transpose to (N, N, N, 2) with x as first axis
         data = np.transpose(data, (2, 1, 0, 3))
     return data, int(dims[0])
+
+
+def resolve_solution_dir(folder_path):
+    """New runs write into folder/solution/; fall back to the flat legacy layout."""
+    solution_dir = folder_path / "solution"
+    if list(solution_dir.glob("numerical_*.bin")) or (solution_dir / "numerical.bin").exists():
+        return solution_dir
+    return folder_path
 
 
 def format_simulation_time(frame_idx, dt=5e-5):
@@ -120,12 +131,13 @@ def create_animation(folder_path, fps=2.0, level=0.0, output_filename=None,
         raise FileNotFoundError(f"Folder not found: {folder_path}")
 
     # Time-dependent (numerical_*.bin) or stationary (numerical.bin)
+    search_dir = resolve_solution_dir(folder_path)
     numerical_files = sorted(
-        glob.glob(str(folder_path / "numerical_*.bin")),
+        glob.glob(str(search_dir / "numerical_*.bin")),
         key=lambda x: int(x.split("_")[-1].split(".")[0]),
     )
     if len(numerical_files) == 0:
-        numerical_files = [str(folder_path / "numerical.bin")]
+        numerical_files = [str(search_dir / "numerical.bin")]
         if not os.path.exists(numerical_files[0]):
             raise FileNotFoundError(
                 f"Could not find numerical solution file in {folder_path}"

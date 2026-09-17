@@ -184,6 +184,8 @@ int main( int argc, char *argv[] )
     }
     part.proc_rects = proc_rects;
 
+    tests::solution_writer<vec_ops_t, part_t, binary_file_t> writer( part, tensor_dim );
+
     rect_t my_own_loc_rect = rect_t( idx_nd_type::make_zero(), my_own_glob_rect.calc_size() );
     auto   range           = my_own_loc_rect.calc_size();
 
@@ -331,14 +333,14 @@ int main( int argc, char *argv[] )
     report.philic_energy   = static_cast<double>( energies.philic );
     tests::log_final_report( log, report );
 
-    // Save solutions if requested (only valid for a single rank owning the whole domain)
-    if ( save_coords && comm_world.num_procs == 1 )
+    // Save solutions if requested
+    if ( save_coords )
     {
-        std::string numerical_file = output_dir + "/numerical.bin";
-        std::string exact_file     = output_dir + "/exact.bin";
+        std::string numerical_file = output_dir + "/solution/numerical.bin";
+        std::string exact_file     = output_dir + "/solution/exact.bin";
 
-        tests::save_solution_binary<vector_t, idx_nd_type>( solution, numerical_file, grid_size, tensor_dim );
-        tests::save_solution_binary<vector_t, idx_nd_type>( exact_solution, exact_file, grid_size, tensor_dim );
+        writer.write( solution, numerical_file );
+        writer.write( exact_solution, exact_file );
 
         log.info( "" );
         log.info( "Saved solutions:" );

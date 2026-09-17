@@ -248,6 +248,8 @@ int main( int argc, char *argv[] )
     }
     part.proc_rects = proc_rects;
 
+    tests::solution_writer<vec_ops_t, part_t, binary_file_t> writer( part, tensor_dim );
+
     rect_t my_own_loc_rect = rect_t( idx_nd_type::make_zero(), my_own_glob_rect.calc_size() );
     auto   range           = my_own_loc_rect.calc_size();
 
@@ -395,11 +397,11 @@ int main( int argc, char *argv[] )
     log.info_f( "  Phobic energy: %e", static_cast<double>( energies_init.phobic ) );
     log.info_f( "  Philic energy: %e", static_cast<double>( energies_init.philic ) );
 
-    // Save initial approximation (index 0) if requested (only valid for a single rank owning the whole domain)
-    if ( save_coords && comm_world.num_procs == 1 )
+    // Save initial approximation (index 0) if requested
+    if ( save_coords )
     {
-        std::string numerical_file = output_dir + "/numerical_0.bin";
-        tests::save_solution_binary<vector_t, idx_nd_type>( solution, numerical_file, grid_size, tensor_dim );
+        std::string numerical_file = output_dir + "/solution/numerical_0.bin";
+        writer.write( solution, numerical_file );
     }
 
     // Solve and measure time for each time step
@@ -532,11 +534,11 @@ int main( int argc, char *argv[] )
         // Update previous state before the next step
         time_derivative->set_previous_state( solution );
 
-        // Save numerical solution at each step if requested (only valid for a single rank owning the whole domain)
-        if ( save_coords && comm_world.num_procs == 1 )
+        // Save numerical solution at each step if requested
+        if ( save_coords )
         {
-            std::string numerical_file = output_dir + "/numerical_" + std::to_string( ts + 1 ) + ".bin";
-            tests::save_solution_binary<vector_t, idx_nd_type>( solution, numerical_file, grid_size, tensor_dim );
+            std::string numerical_file = output_dir + "/solution/numerical_" + std::to_string( ts + 1 ) + ".bin";
+            writer.write( solution, numerical_file );
         }
 
         // Separate iterations with empty line
@@ -566,11 +568,11 @@ int main( int argc, char *argv[] )
     report.total_time_ms    = total_time_ms;
     tests::log_final_report( log, report );
 
-    if ( save_coords && comm_world.num_procs == 1 )
+    if ( save_coords )
     {
         log.info( "" );
         log.info( "Saved solutions:" );
-        log.info_f( "  Numerical: %s/numerical_*.bin", output_dir.c_str() );
+        log.info_f( "  Numerical: %s/solution/numerical_*.bin", output_dir.c_str() );
     }
 
 #ifdef SCFD_ENABLE_PROFILING

@@ -109,7 +109,7 @@ TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 output_dir="data/${PREFIX}_${TIMESTAMP}"
 ARGS[$PREFIX_INDEX]="$output_dir"
 
-mkdir -p "$output_dir"
+mkdir -p "$output_dir/solution"
 echo "output_dir: $output_dir"
 
 if [[ -n "$NP" ]]; then
