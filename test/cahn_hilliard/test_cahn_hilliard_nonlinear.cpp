@@ -380,12 +380,14 @@ int main( int argc, char *argv[] )
         e_psi_view.release();
     }
 
+    const scalar dV = step.components_prod();
+
     auto write_component_sums = [&]( int step_idx, const vector_t &x )
     {
         scalar sum_psi = vspace->scalar_prod( x, e_psi );
         scalar sum_phi = vspace->sum( x ) - sum_psi;
-        log.info_f( "Component sums @ step %d: %le, %le", step_idx, static_cast<double>( sum_psi ),
-                   static_cast<double>( sum_phi ) );
+        log.info_f( "Component sums @ step %d: %le, %le", step_idx, static_cast<double>( sum_psi * dV ),
+                   static_cast<double>( sum_phi * dV ) );
     };
 
     // Log initial free energy (step 0)
