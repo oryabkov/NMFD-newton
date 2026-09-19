@@ -58,23 +58,19 @@ else
 	OMP_FLAGS = -fopenmp
 endif
 
-# Required by nmfd/operations/rect_vector_space.h (it allocates its vectors index-shifted)
-ARRAYS_FLAGS = -DSCFD_ARRAYS_ENABLE_INDEX_SHIFT=1
-
-HOSTFLAGS = $(TARGET_GCC) -std=c++17 $(ARRAYS_FLAGS)
+HOSTFLAGS = $(TARGET_GCC) -std=c++17
 HOSTCOMPILER = g++
 
 ifneq ($(strip $(CUDA_ARCH)),)
 CUDA_ARCH_FLAG = -arch=$(CUDA_ARCH)
 endif
-CUDAFLAGS = $(TARGET_NVCC) -std=c++17 $(CUDA_ARCH_FLAG) $(ARRAYS_FLAGS)
+CUDAFLAGS = $(TARGET_NVCC) -std=c++17 $(CUDA_ARCH_FLAG)
 ifneq ($(strip $(CUDA_ROOT_PATH)),)
-CUDACOMPILER = $(CUDA_ROOT_PATH)bin/nvcc
+CUDACOMPILER = $(CUDA_ROOT_PATH)/bin/nvcc
 else
 CUDACOMPILER = nvcc
 endif
 
-MPICXX ?= mpic++
 
 #MPICOMPILER = $(MPI_ROOT_PATH)/bin/mpic++
 #SM = $(CUDA_ARCH)
