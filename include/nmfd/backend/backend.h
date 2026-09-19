@@ -19,8 +19,6 @@
 
 #include <scfd/utils/log_std.h>
 
-#define PLATFORM_HIP
-
 #if defined( PLATFORM_SERIAL_CPU )
 #    include "serial_cpu.h"
 
