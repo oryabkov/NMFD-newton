@@ -71,11 +71,16 @@ struct jacobi_op_kernel
                 next_lin_vec = lin_vector.get_vec( idx + ej );
             }
 
-            const Scalar mobility_plus_half  = mobility( ( next_lin_vec[1] + lin_curr[1] ) / Scalar( 2 ) );
-            const Scalar mobility_minus_half = mobility( ( prev_lin_vec[1] + lin_curr[1] ) / Scalar( 2 ) );
+            const Scalar mobility_plus_half  = mobility.face( lin_curr[1], next_lin_vec[1] );
+            const Scalar mobility_minus_half = mobility.face( prev_lin_vec[1], lin_curr[1] );
 
-            const Scalar mobility_deriv_plus_half  = mobility.get_derivative( ( next_lin_vec[1] + lin_curr[1] ) / Scalar( 2 ) );
-            const Scalar mobility_deriv_minus_half = mobility.get_derivative( ( prev_lin_vec[1] + lin_curr[1] ) / Scalar( 2 ) );
+            const Scalar dface_plus_curr  = mobility.face_diff_a( lin_curr[1], next_lin_vec[1] );
+            const Scalar dface_plus_next  = mobility.face_diff_b( lin_curr[1], next_lin_vec[1] );
+            const Scalar dface_minus_prev = mobility.face_diff_a( prev_lin_vec[1], lin_curr[1] );
+            const Scalar dface_minus_curr = mobility.face_diff_b( prev_lin_vec[1], lin_curr[1] );
+
+            const Scalar grad_psi_plus  = next_lin_vec[0] - lin_curr[0];
+            const Scalar grad_psi_minus = lin_curr[0] - prev_lin_vec[0];
 
             // [eq.1] div(M(phi_lin) grad(d_psi))
             state[0] += (
@@ -102,22 +107,12 @@ struct jacobi_op_kernel
             //         / Scalar( 8 * hj * hj );
 
             // ============ VARIANT 2: discrete linearization ============
-            // 1/2 * div(M'(phi_lin) grad(psi)) * d_phi_i
-            state[0] += Scalar( 0.5 ) * (
-                mobility_deriv_plus_half  * next_lin_vec[0] +
-                mobility_deriv_minus_half * prev_lin_vec[0] -
-                ( mobility_deriv_plus_half + mobility_deriv_minus_half ) * lin_curr[0]
-            ) / Scalar( hj * hj ) * curr[1];
+            state[0] += ( dface_plus_curr * grad_psi_plus - dface_minus_curr * grad_psi_minus )
+                      * curr[1] / Scalar( hj * hj );
 
-            // + M'_{i+1/2} * (psi_{i+1} - psi_i) / (2 h^2) * d_phi_{i+1}
-            state[0] += mobility_deriv_plus_half
-                      * ( next_lin_vec[0] - lin_curr[0] )
-                      / Scalar( 2 * hj * hj ) * next_vec[1];
+            state[0] += dface_plus_next * grad_psi_plus * next_vec[1] / Scalar( hj * hj );
 
-            // - M'_{i-1/2} * (psi_i - psi_{i-1}) / (2 h^2) * d_phi_{i-1}
-            state[0] -= mobility_deriv_minus_half
-                      * ( lin_curr[0] - prev_lin_vec[0] )
-                      / Scalar( 2 * hj * hj ) * prev_vec[1];
+            state[0] -= dface_minus_prev * grad_psi_minus * prev_vec[1] / Scalar( hj * hj );
 
             // [eq.2] gamma * laplace(d_phi)
             state[1] += gamma * ( next_vec[1] + prev_vec[1] - Scalar(2) * curr[1] ) / Scalar(hj * hj);

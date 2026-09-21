@@ -27,6 +27,16 @@ public:
     {
         return Scalar( 0.25 ) * ( phi * phi - 1 ) * ( phi * phi - 1 );
     }
+
+    Scalar get_phi_eq() const
+    {
+        return Scalar( 1 );
+    }
+
+    Scalar get_curvature() const
+    {
+        return Scalar( 2 );
+    }
 };
 
 template <class Scalar>
@@ -56,6 +66,38 @@ public:
              - ( omega_ / Scalar( 2.0 ) ) * phi * phi;
     }
 
+    Scalar get_phi_eq() const
+    {
+        if ( omega_ <= Scalar( 2.0 ) )
+        {
+            return Scalar( 0.0 );
+        }
+        Scalar lo = Scalar( 1e-12 ), hi = Scalar( 1.0 ) - Scalar( 1e-15 );
+        for ( int iter = 0; iter < 200; ++iter )
+        {
+            Scalar mid = Scalar( 0.5 ) * ( lo + hi );
+            if ( std::log( ( Scalar( 1.0 ) + mid ) / ( Scalar( 1.0 ) - mid ) ) - omega_ * mid < Scalar( 0.0 ) )
+            {
+                lo = mid;
+            }
+            else
+            {
+                hi = mid;
+            }
+        }
+        return Scalar( 0.5 ) * ( lo + hi );
+    }
+
+    Scalar get_curvature() const
+    {
+        return get_derivative( get_phi_eq() );
+    }
+
+    Scalar get_omega() const
+    {
+        return omega_;
+    }
+
 private:
     Scalar omega_;
 };
@@ -77,6 +119,16 @@ public:
     __DEVICE_TAG__ Scalar get_energy( Scalar phi ) const
     {
         return Scalar( 0.0 );
+    }
+
+    Scalar get_phi_eq() const
+    {
+        return Scalar( 1 );
+    }
+
+    Scalar get_curvature() const
+    {
+        return Scalar( 0 );
     }
 };
 

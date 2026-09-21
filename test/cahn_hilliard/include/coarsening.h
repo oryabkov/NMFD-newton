@@ -130,6 +130,7 @@ public:
             coarse_vspace, coarse_h, b_cond, coarse_op_dist, op.get_time_derivative() );
 
         coarse_op->set_mobility( op.get_mobility() );
+        coarse_op->set_phobic_energy( op.get_phobic_energy() );
         coarse_op->set_gamma( new_gamma );
 
         // Restrict the linearization point from fine to coarse level

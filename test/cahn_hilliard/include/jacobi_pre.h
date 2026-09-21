@@ -99,6 +99,7 @@ public:
         b_cond_ = std::make_unique<boundary_cond_type>( op->get_b_cond() );
         gamma_  = op->get_gamma();
         mobility_ = op->get_mobility();
+        phobic_en_ = op->get_phobic_energy();
 
         // Always recreate lin_vector_wrap_ with the current VectorSpace
         lin_vector_wrap_ = std::make_unique<vector_wrap_t>( *vspace_ );
@@ -135,6 +136,16 @@ public:
     void set_mobility( const Mobility &mobility )
     {
         mobility_ = mobility;
+    }
+
+    PhobicEnergy get_phobic_energy() const noexcept
+    {
+        return phobic_en_;
+    }
+
+    void set_phobic_energy( const PhobicEnergy &p )
+    {
+        phobic_en_ = p;
     }
     void set_gamma( scalar_type gamma )
     {

@@ -1,0 +1,6 @@
+data/
+slurm/*.out
+slurm/*.log
+raw_*.txt
+sweep_main.log
+py/__pycache__/

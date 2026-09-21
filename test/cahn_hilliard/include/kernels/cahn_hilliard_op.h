@@ -71,8 +71,8 @@ struct cahn_hilliard_op_kernel
                 next_vec = in.get_vec( idx + ej );
             }
 
-            const Scalar mobility_plus_half  = mobility( ( next_vec[1] + curr[1] ) / Scalar( 2 ) ); // i+1/2
-            const Scalar mobility_minus_half = mobility( ( prev_vec[1] + curr[1] ) / Scalar( 2 ) ); // i-1/2
+            const Scalar mobility_plus_half  = mobility.face( curr[1], next_vec[1] );
+            const Scalar mobility_minus_half = mobility.face( prev_vec[1], curr[1] );
 
             state[0] += (
                 mobility_plus_half * next_vec[0] +

@@ -209,6 +209,17 @@ public:
         mobility_ = mobility;
         jacobi_op_->set_mobility( mobility );
     }
+
+    PhobicEnergy get_phobic_energy() const noexcept
+    {
+        return phobic_en_;
+    }
+
+    void set_phobic_energy( const PhobicEnergy &p )
+    {
+        phobic_en_ = p;
+        jacobi_op_->set_phobic_energy( p );
+    }
     void set_gamma( scalar_type gamma )
     {
         gamma_ = gamma;

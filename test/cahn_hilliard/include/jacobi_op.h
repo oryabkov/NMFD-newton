@@ -115,6 +115,16 @@ public:
     {
         mobility_ = mobility;
     }
+
+    PhobicEnergy get_phobic_energy() const noexcept
+    {
+        return phobic_en_;
+    }
+
+    void set_phobic_energy( const PhobicEnergy &p )
+    {
+        phobic_en_ = p;
+    }
     void set_gamma( scalar_type gamma )
     {
         gamma_ = gamma;

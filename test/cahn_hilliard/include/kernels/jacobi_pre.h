@@ -37,8 +37,6 @@ struct jacobi_pre_kernel
         auto vec = vector.get_vec( idx );
         auto lin_curr = lin_vector.get_vec( idx ); // [psi_lin, phi_lin]
 
-        TensorType diag_ghost{ Scalar(0), Scalar(0) };
-
 #pragma unroll
         for ( int j = 0; j < IdxND::dim; j++ )
         {
@@ -46,13 +44,13 @@ struct jacobi_pre_kernel
             const auto hj = step[j];
             const auto ej = IdxND::make_unit( j );
 
-            TensorType diag_j{ Scalar(-2), Scalar(-2) };
+            TensorType ghost_coef_minus{ Scalar( 0 ), Scalar( 0 ) };
+            TensorType ghost_coef_plus{ Scalar( 0 ), Scalar( 0 ) };
 
             TensorType prev_lin_vec;
             if ( idx[j] == 0 )
             {
-                cond.get_diag_ghost_coef_linearized( lin_vector, range, idx - ej, j, /*is_left*/ true, step, diag_ghost );
-                diag_j += diag_ghost;
+                cond.get_diag_ghost_coef_linearized( lin_vector, range, idx - ej, j, /*is_left*/ true, step, ghost_coef_minus );
                 cond.get_lin_neighbor( lin_vector, range, idx - ej, j, /*is_left*/ true, step, prev_lin_vec );
             }
             else
@@ -63,8 +61,7 @@ struct jacobi_pre_kernel
             TensorType next_lin_vec;
             if ( idx[j] == N - 1 )
             {
-                cond.get_diag_ghost_coef_linearized( lin_vector, range, idx + ej, j, /*is_left*/ false, step, diag_ghost );
-                diag_j += diag_ghost;
+                cond.get_diag_ghost_coef_linearized( lin_vector, range, idx + ej, j, /*is_left*/ false, step, ghost_coef_plus );
                 cond.get_lin_neighbor( lin_vector, range, idx + ej, j, /*is_left*/ false, step, next_lin_vec );
             }
             else
@@ -72,10 +69,12 @@ struct jacobi_pre_kernel
                 next_lin_vec = lin_vector.get_vec( idx + ej );
             }
 
-            const Scalar mobility_deriv_plus_half  = mobility.get_derivative( ( next_lin_vec[1] + lin_curr[1] ) / Scalar( 2 ) );
-            const Scalar mobility_deriv_minus_half = mobility.get_derivative( ( prev_lin_vec[1] + lin_curr[1] ) / Scalar( 2 ) );
+            const Scalar mobility_plus_half  = mobility.face( lin_curr[1], next_lin_vec[1] );
+            const Scalar mobility_minus_half = mobility.face( prev_lin_vec[1], lin_curr[1] );
 
-            mat( 0, 0 ) += mobility(lin_curr[1]) * diag_j[0] / Scalar(hj * hj);
+            mat( 0, 0 ) += ( -( mobility_plus_half + mobility_minus_half )
+                           + ghost_coef_plus[0] * mobility_plus_half
+                           + ghost_coef_minus[0] * mobility_minus_half ) / Scalar( hj * hj );
             // ============ VARIANT 1: continuous linearization ============
             // Слагаемое M' * (grad(d_phi) . grad(psi)) при центральных разностях
             // не содержит d_phi_i, поэтому вклада в диагональ нет.
@@ -86,14 +85,13 @@ struct jacobi_pre_kernel
             // ) / Scalar( hj * hj );
 
             // ============ VARIANT 2: discrete linearization ============
-            // // Только диагональный коэффициент при d_phi_i, с множителем 1/2
-            mat( 0, 1 ) += Scalar( 0.5 ) * (
-                mobility_deriv_plus_half  * next_lin_vec[0] +
-                mobility_deriv_minus_half * prev_lin_vec[0] -
-                ( mobility_deriv_plus_half + mobility_deriv_minus_half ) * lin_curr[0]
-            ) / Scalar( hj * hj );
+            mat( 0, 1 ) += ( mobility.face_diff_a( lin_curr[1], next_lin_vec[1] )
+                             * ( next_lin_vec[0] - lin_curr[0] )
+                           - mobility.face_diff_b( prev_lin_vec[1], lin_curr[1] )
+                             * ( lin_curr[0] - prev_lin_vec[0] ) ) / Scalar( hj * hj );
 
-            mat( 1, 1 ) += gamma * diag_j[1] / Scalar(hj * hj);
+            mat( 1, 1 ) += gamma * ( Scalar( -2 ) + ghost_coef_plus[1] + ghost_coef_minus[1] )
+                         / Scalar( hj * hj );
         }
         mat( 0, 1 ) -= dt_inf;
         const Scalar phobic_deriv = phobic_en.get_derivative( lin_curr[1] );
