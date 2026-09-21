@@ -1,68 +1,120 @@
 #!/usr/bin/env python3
-"""One figure: candidate bulk potentials, normalised to a common scale, with the
-threshold radius each of them yields at a fixed resolved interface width."""
+"""One figure, one panel per candidate: the polynomial double well (same colour everywhere)
+against one alternative, with a single shared legend carrying names and formulas."""
 
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.lines import Line2D
 
-from potential_zoo import WIDTH, table
+from potential_zoo import (WIDTH, Candidate, dw_pair, log_pair, obstacle_pair,
+                           smooth_obstacle_pair, table)
 
 plt.rcParams.update({"font.size": 10, "axes.grid": True, "grid.alpha": 0.25})
 
 OUT = "../figs/potential_zoo.png"
 
+DW_COLOR = "0.45"
+XLIM = (-1.26, 1.26)
+YLIM = (-0.012, 0.30)
+
+
+def candidates():
+    """(short title, colour, linestyle, formula, Candidate) for the six alternatives."""
+    out = []
+
+    f, df, pe = log_pair(3.0)
+    out.append((r"логарифмический, $\omega=3$", "#d95f02", "-",
+                r"$f\propto(1{+}\phi)\ln(1{+}\phi)+(1{-}\phi)\ln(1{-}\phi)-\frac{\omega}{2}\phi^2$",
+                Candidate("", f, df, pe, 1.0 - 1e-13)))
+
+    for p, col in ((1.5, "#1b9e77"), (1.2, "#7570b3")):
+        f, df = dw_pair(p)
+        out.append((f"со сломом, $p={p}$", col, "-",
+                    rf"$f\propto\left|1-\phi^{{2}}\right|^{{{p}}}$",
+                    Candidate("", f, df, 1.0, 4.0)))
+
+    for e, col in ((0.15, "#e7298a"), (0.05, "#1f78b4")):
+        f, df = smooth_obstacle_pair(e)
+        out.append((rf"сглаженное препятствие, $\eta={e}$", col, "-",
+                    rf"$f\propto\sqrt{{(1-\phi^{{2}})^{{2}}+\eta^{{4}}}}-\eta^{{2}},\;\eta={e}$",
+                    Candidate("", f, df, 1.0, 4.0)))
+
+    f, df = obstacle_pair(1.0)
+    out.append(("двойное препятствие", "k", "--",
+                r"$f\propto(1-\phi^{2})+I_{[-1,1]}(\phi)$",
+                Candidate("", f, df, 1.0, 1.0, obstacle=True)))
+    return out
+
 
 def main():
-    rows = table(width=WIDTH)
-    ref = rows[0]["Rc"]
+    f, df = dw_pair(2.0)
+    dw = Candidate("", f, df, 1.0, 4.0)
+    rc_dw = table([dw], width=WIDTH)[0]["Rc"]
 
-    fig, ax = plt.subplots(figsize=(9.2, 6.4))
-    axin = ax.inset_axes([0.585, 0.455, 0.385, 0.38])
+    cands = candidates()
+    rcs = [table([c], width=WIDTH)[0]["Rc"] for *_, c in cands]
 
-    x = np.linspace(-1.35, 1.35, 4001)
-    xin = np.linspace(0.88, 1.12, 6001)
+    fig = plt.figure(figsize=(14.6, 7.5))
+    outer = fig.add_gridspec(1, 2, width_ratios=[3.0, 1.0], wspace=0.06,
+                             left=0.045, right=0.995, top=0.865, bottom=0.075)
+    grid = outer[0, 0].subgridspec(2, 3, hspace=0.30, wspace=0.13)
 
-    for r in rows:
-        c = r["cand"]
-        rc = r["Rc"]
-        lab = f"{c.name}:  $R_c={rc:.3f}$  ({rc / ref:.2f}$\\times$)"
+    x = np.linspace(XLIM[0], XLIM[1], 4001)
+    axes = []
+
+    for n, ((title, col, ls, _, c), rc) in enumerate(zip(cands, rcs)):
+        ax = fig.add_subplot(grid[n // 3, n % 3])
+        axes.append(ax)
+
+        ax.plot(x, dw.f(x), color=DW_COLOR, lw=2.6, zorder=2)
         if c.obstacle:
-            xo = np.linspace(-1.0, 1.0, 1001)
-            ax.plot(xo, c.f(xo), label=lab, **c.style)
-            axin.plot(xo[xo > 0.85], c.f(xo[xo > 0.85]), **c.style)
+            xo = np.linspace(-1.0, 1.0, 1201)
+            ax.plot(xo, c.f(xo), color=col, lw=2.2, ls=ls, zorder=3)
             for s in (-1.0, 1.0):
-                ax.plot([s, s], [0.0, 0.62], color=c.style["color"], lw=c.style["lw"],
-                        ls=c.style.get("ls", "-"))
-            axin.plot([1.0, 1.0], [0.0, 0.05], color=c.style["color"],
-                      lw=c.style["lw"], ls=c.style.get("ls", "-"))
+                ax.plot([s, s], [0.0, YLIM[1]], color=col, lw=2.2, ls=ls, zorder=3)
         else:
-            ax.plot(x, c.f(x), label=lab, **c.style)
-            axin.plot(xin, c.f(xin), **c.style)
+            ax.plot(x, c.f(x), color=col, lw=2.2, ls=ls, zorder=3)
 
-    ax.axhline(0.0, color="0.6", lw=0.7)
-    ax.annotate(r"$f=+\infty$", xy=(1.025, 0.15), fontsize=9.5)
-    ax.annotate(r"$f=+\infty$", xy=(-1.20, 0.36), fontsize=9.5)
+        ax.axhline(0.0, color="0.7", lw=0.6)
+        ax.set_xlim(*XLIM)
+        ax.set_ylim(*YLIM)
+        ax.set_title(title, fontsize=10.5, pad=6)
+        ax.text(0.5, 0.955,
+                f"$R_c={rc:.3f}$   ({rc / rc_dw:.2f}" + r"$\times$)",
+                transform=ax.transAxes, ha="center", va="top", fontsize=9.5, color=col)
 
-    ax.set_xlim(-1.35, 1.35)
-    ax.set_ylim(-0.02, 0.62)
-    ax.set_xlabel(r"$\phi$")
-    ax.set_ylabel(r"$f(\phi)$")
-    ax.set_title("Потенциалы, приведённые к общей нормировке "
-                 r"($\phi_{\text{равн}}=\pm1$, высота барьера $1/4$)" "\n"
-                 f"$R_c$ — порог выживания капли в кубе $1{chr(215)}1{chr(215)}1$ "
-                 f"при одинаковой ширине границы $W={WIDTH}$", fontsize=11)
-    ax.legend(fontsize=8.6, loc="upper left", framealpha=0.92)
+        if n // 3 == 1:
+            ax.set_xlabel(r"$\phi$")
+        else:
+            ax.tick_params(labelbottom=False)
+        if n % 3 == 0:
+            ax.set_ylabel(r"$f(\phi)$")
+        else:
+            ax.tick_params(labelleft=False)
 
-    axin.set_xlim(0.88, 1.12)
-    axin.set_ylim(-0.0025, 0.05)
-    axin.set_title(r"окрестность равновесного значения $\phi=+1$", fontsize=8.5)
-    axin.tick_params(labelsize=7.5)
-    axin.grid(alpha=0.2)
+    handles = [Line2D([], [], color=DW_COLOR, lw=2.6,
+                      label="полиномиальный (двойная яма)\n" + r"$f\propto(1-\phi^{2})^{2}$" + "\n")]
+    for title, col, ls, formula, _ in cands:
+        handles.append(Line2D([], [], color=col, lw=2.2, ls=ls,
+                              label=f"{title}\n{formula}\n"))
 
-    fig.tight_layout()
+    lax = fig.add_subplot(outer[0, 1])
+    lax.axis("off")
+    lax.legend(handles=handles, loc="center left", frameon=False, fontsize=9.3,
+               handlelength=1.9, handletextpad=0.8, labelspacing=1.05,
+               borderaxespad=0.0)
+
+    fig.suptitle(
+        "Потенциалы, приведённые к общей нормировке "
+        r"($\phi_{\text{равн}}=\pm1$, высота барьера $1/4$); серая кривая всюду одна и та же"
+        "\n"
+        r"$R_c$ — порог выживания капли в кубе $1\times1\times1$ при одинаковой ширине границы "
+        f"$W={WIDTH}$; в скобках — отношение к полиномиальному потенциалу",
+        fontsize=11.5, y=0.975)
+
     fig.savefig(OUT, dpi=160)
     print("wrote", OUT)
 
