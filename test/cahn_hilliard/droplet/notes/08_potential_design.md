@@ -230,6 +230,35 @@ $R_0=0.30$, Neumann, 100 steps.
 * $R_{\text{eff}}$ at $R_0=0.30$ settles at 0.303 for $\eta\le0.05$ and does not decrease. Whether
   that holds down at the threshold is what `sweep_eta` (job 96523) measures.
 
+## 4b. The threshold, measured (`sweep_eta`, job 96523)
+
+28 runs, 64³, $\gamma=3.2\times10^{-3}$, Neumann, $dt=2\times10^{-3}$, 1500 steps — the same
+configuration as the validated `r0_dw` run, so the double well's measured bracket is the control.
+Figure: `figs/eta_threshold.png`.
+
+| potential | evaporated at $R_0$ | survived at $R_0$ | midpoint | exact criterion | measured rel. | predicted rel. |
+|---|---|---|---|---|---|---|
+| double well | 0.28 | 0.30 | 0.290 | 0.307 | 1.000 | 1.000 |
+| $\eta=1$ | 0.26 | 0.28 | 0.270 | 0.295 | 0.931 | 0.962 |
+| $\eta=0.5$ | 0.22 | 0.24 | 0.230 | 0.253 | 0.793 | 0.826 |
+| $\eta=0.3$ | 0.18 | 0.20 | 0.190 | 0.215 | 0.655 | 0.702 |
+| $\eta=0.2$ | 0.16 | 0.18 | 0.170 | 0.189 | 0.586 | 0.617 |
+| $\eta=0.15$ | 0.14 | 0.16 | 0.150 | 0.174 | 0.517 | 0.568 |
+| $\eta=0.1$ | 0.12 | 0.15 | 0.135 | 0.158 | 0.466 | 0.514 |
+| $\eta=0.05$ | 0.13 | 0.15 | 0.140 | 0.140 | 0.483 | 0.457 |
+
+* **The prediction of §5.2 holds.** Every bracket contains or sits one $R_0$ step below the exact
+  criterion, and the criterion overshoots by 5–9 % throughout — the same sign and size as for the
+  double well itself (0.307 against a measured bracket of (0.28, 0.30)), so the bias is a property
+  of the criterion, not of the new potential, and it cancels in the ratio.
+* $R_c$ falls from 0.29 to 0.135, a factor **2.1 in radius and 10 in the smallest surviving drop
+  volume**: from 10.2 % of the box down to 1.0 %.
+* **Saturation confirmed.** $\eta=0.1$ and $\eta=0.05$ give brackets that overlap, both straddling
+  the family's floor $R_{floor}=(d-1)\sigma/(2\psi_{max})=0.126$ at this $\gamma$. Below
+  $\eta\approx0.1$ there is nothing left to gain, which is why the true double obstacle is not worth
+  its variational-inequality machinery here.
+* Newton took 2–3 iterations in all 28 runs; no solver failures anywhere in the sweep.
+
 ## 5. What to do here
 
 1. ~~Implement (c)~~ **done** — `smoothed_obstacle_potential` in `kernels/phobic_energy.h`,

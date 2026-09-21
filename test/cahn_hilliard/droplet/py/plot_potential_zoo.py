@@ -71,7 +71,7 @@ def main():
         ax = fig.add_subplot(grid[n // 3, n % 3])
         axes.append(ax)
 
-        axin = ax.inset_axes([0.585, 0.45, 0.40, 0.50], zorder=6)
+        axin = ax.inset_axes([0.030, 0.45, 0.40, 0.50], zorder=6)
         axin.set_facecolor("white")
         axin.patch.set_alpha(1.0)
         for sp in axin.spines.values():
@@ -96,6 +96,7 @@ def main():
         axin.set_ylim(*ZOOM_Y)
         axin.set_xticks([0.90, 1.00, 1.10])
         axin.set_yticks([0.0, 0.02])
+        axin.yaxis.tick_right()
         axin.tick_params(labelsize=7, length=2.5, pad=1.5)
         axin.grid(alpha=0.2)
 
@@ -103,9 +104,9 @@ def main():
         ax.set_xlim(*XLIM)
         ax.set_ylim(*YLIM)
         ax.set_title(title, fontsize=10.5, pad=6)
-        ax.text(0.035, 0.955,
+        ax.text(0.968, 0.955,
                 f"$R_c={rc:.3f}$" + "\n" + f"({rc / rc_dw:.2f}" + r"$\times$)",
-                transform=ax.transAxes, ha="left", va="top", fontsize=9.5, color=col, zorder=7,
+                transform=ax.transAxes, ha="right", va="top", fontsize=9.5, color=col, zorder=7,
                 bbox=dict(boxstyle="round,pad=0.25", fc="white", ec="none", alpha=0.85))
 
         if n // 3 == 1:

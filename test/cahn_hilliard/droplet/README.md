@@ -180,13 +180,19 @@ at fixed *resolved* interface width $W$ identifies the only real lever: the curv
 well at the bulk value, concentrated in a neighbourhood thin compared with $W$. Candidates and
 predicted thresholds are in notes/08 and `figs/potential_zoo.png`.
 
-* [ ] `phobic_energy.h`: add `smoothed_obstacle_potential`,
-  $f_\eta=\tfrac12(\sqrt{(1-\phi^2)^2+\eta^4}-\eta^2)$, $f''(\pm1)=2/\eta^2$, `--eta` on the CLI.
-  $C^\infty$, so convex splitting / Newton / MG are unchanged.
-* [ ] sweep $\eta\in\{1,0.5,0.3,0.2,0.15,0.1,0.05\}$ at matched $W$ around $R_0\in(0.28,0.30)$.
-  Prediction: the bracket walks down to $\approx 0.09$, i.e. $R_c$ falls $3.4\times$ and the
-  minimum surviving drop volume falls $40\times$. Falsifiable.
-* [ ] record where Newton/MG gives out — conditioning degrades as $\eta^{-2}$ and will set the
-  usable $\eta$ long before the criterion does.
-* [ ] only if (2) bottoms out on solver grounds: the true double obstacle (variational inequality,
-  Baňas & Nürnberg multigrid).
+* [x] `phobic_energy.h`: `smoothed_obstacle_potential`,
+  $f_\eta=a_\eta(\sqrt{(1-\phi^2)^2+\eta^4}-\eta^2)$ with $a_\eta$ pinning the barrier at $1/4$,
+  $f''(\pm1)=4a_\eta/\eta^2$, `--potential smoothed_obstacle --eta`. $C^\infty$, so convex
+  splitting / Newton / MG are unchanged. Also `get_profile_scale( gamma )` per potential.
+* [x] `sweep_eta` (job 96523, 28 runs): the bracket walks from (0.28, 0.30) down to (0.12, 0.15),
+  i.e. $R_c$ falls $2.1\times$ and the smallest surviving drop volume $10\times$ — 10.2 % of the
+  box down to 1.0 %. Matches the exact criterion to 5–9 %, the same bias the double well shows.
+  Table in [notes/08](notes/08_potential_design.md) §4b, figure `figs/eta_threshold.png`.
+* [x] `etaprobe` (job 96522): **no** $\eta^{-2}$ conditioning failure — 2 Newton iterations to
+  $10^{-10}$ at $\eta=0.01$ ($f''=10^4$). The prediction that the solver would set the usable
+  $\eta$ was wrong; $\eta$ is limited by saturation of the criterion instead.
+* [x] overshoot: $\max\phi-1=\psi/f''(1)$ to 6 % over four decades; $2.2\times10^{-5}$ at
+  $\eta=0.01$ against $8.9\times10^{-2}$ for the double well at the same radius.
+* [ ] the true double obstacle is **not** worth its variational-inequality machinery here: the
+  measured brackets at $\eta=0.1$ and $0.05$ already straddle the family's floor $0.126$.
+* [ ] open: repeat two points at $128^3$ to separate the 5–9 % criterion bias from discretisation.
