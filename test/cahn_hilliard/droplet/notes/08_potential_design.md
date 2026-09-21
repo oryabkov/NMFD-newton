@@ -101,12 +101,20 @@ $[-1,1]$ (where $f$ grows only like $|\phi|^{2p}$, weaker than the double well f
 
 ### (c) Smoothed obstacle — the one to implement first
 
-$$f_\eta(\phi)=\tfrac12\Bigl(\sqrt{(1-\phi^{2})^{2}+\eta^{4}}-\eta^{2}\Bigr),\qquad
-f_\eta'(\phi)=\frac{-\phi\,(1-\phi^{2})}{\sqrt{(1-\phi^{2})^{2}+\eta^{4}}}$$
+$$f_\eta(\phi)=a_\eta\Bigl(\sqrt{(1-\phi^{2})^{2}+\eta^{4}}-\eta^{2}\Bigr),\qquad
+a_\eta=\frac{1}{4\bigl(\sqrt{1+\eta^{4}}-\eta^{2}\bigr)}$$
+
+$$f_\eta'(\phi)=\frac{-2a_\eta\,\phi\,(1-\phi^{2})}{D},\qquad
+f_\eta''(\phi)=a_\eta\Bigl(\frac{-2(1-\phi^2)}{D}+\frac{4\phi^{2}\eta^{4}}{D^{3}}\Bigr),\quad
+D=\sqrt{(1-\phi^{2})^{2}+\eta^{4}}$$
 
 $C^\infty$ everywhere, minima exactly at $\pm1$, $f_\eta(\pm1)=0$, and
 
-$$f_\eta''(\pm1)=\frac{2}{\eta^{2}} .$$
+$$f_\eta''(\pm1)=\frac{4a_\eta}{\eta^{2}}\;\xrightarrow[\eta\to0]{}\;\frac{1}{\eta^{2}} .$$
+
+$a_\eta$ pins the barrier at $f_\eta(0)=1/4$ for every $\eta$, so $\gamma$ buys the same interface
+width as it does for the double well and the two are directly comparable at equal `--gamma`. It
+also makes the initial profile scale $\sqrt{2\gamma}$ for every $\eta$, the double well's value.
 
 $\eta\to0$ gives the tent (hence the obstacle); $\eta=1$ is a soft flat-bottomed well. Same
 concave-centre / convex-wings structure as the double well, so the existing convex splitting and
@@ -194,18 +202,52 @@ are true; they answer different questions.
   correction, $r=2/\kappa$ from $\kappa=\nabla\!\cdot(\nabla\phi/|\nabla\phi|)$.
   Both are corrections applied on top of a leaking model; §2 removes the leak instead.
 
+## 4a. First measurements (`etaprobe`, job 96522)
+
+Implemented as `smoothed_obstacle_potential` with the prefactor
+$a_\eta=\bigl[4(\sqrt{1+\eta^4}-\eta^2)\bigr]^{-1}$ pinning the barrier at $1/4$ for every $\eta$, so
+`--gamma` means the same thing as for the double well. 64³, $\gamma=3.2\times10^{-3}$,
+$R_0=0.30$, Neumann, 100 steps.
+
+| $\eta$ | 1 | 0.5 | 0.3 | 0.2 | 0.15 | 0.1 | 0.05 | 0.02 | 0.01 |
+|---|---|---|---|---|---|---|---|---|---|
+| $f''(1)$ measured | 2.414 | 5.123 | 12.16 | 26.02 | 45.46 | 101.0 | 401.0 | 2501 | 10001 |
+| $\max\phi-1$ | 5.7e-2 | 3.7e-2 | 1.7e-2 | 8.1e-3 | 4.7e-3 | 2.1e-3 | 5.4e-4 | 8.7e-5 | 2.2e-5 |
+| Newton its | 3 | 2 | 2 | 2 | 2 | 2 | 2 | 2 | 2 |
+| final residual | 4.9e-2 | 1.4e-4 | 2.1e-9 | 8.8e-11 | 8.7e-11 | 8.9e-11 | 9.1e-11 | 8.1e-11 | 9.2e-11 |
+
+* $f''(1)$ reproduces $4a_\eta/\eta^2$ exactly, and $\ell=\sqrt{2\gamma}=0.08$ for every $\eta$, as
+  designed.
+* **The overshoot follows $\max\phi-1=\psi/f''(1)$ to within 6 %** across four decades. At
+  $\eta=0.01$ it is $2.2\times10^{-5}$, against $8.9\times10^{-2}$ for the double well at the same
+  radius — a factor of 4000. The $\phi>1$ complaint that started this study is settled by the same
+  knob that is supposed to settle evaporation.
+* **§5.3 below was wrong.** The predicted $\eta^{-2}$ conditioning failure did not appear: Newton
+  takes two iterations and reaches $10^{-10}$ at $\eta=0.01$, i.e. $f''=10^4$. Nothing in the range
+  we care about is solver-limited, so $\eta$ is free to be chosen on physical grounds. (The runs at
+  $\eta\le0.2$ stop before step 100 on `time_tol` — the drop stops changing, which is the outcome
+  being tested.)
+* $R_{\text{eff}}$ at $R_0=0.30$ settles at 0.303 for $\eta\le0.05$ and does not decrease. Whether
+  that holds down at the threshold is what `sweep_eta` (job 96523) measures.
+
 ## 5. What to do here
 
-1. Implement (c) as a third `phobic_energy` alongside `double_well_potential` and
-   `logarithmic_potential`, with $\eta$ from the command line. `get_phi_eq()` returns 1 exactly and
-   `get_curvature()` returns $2/\eta^2$, so the degenerate-mobility fix and the smoother diagonal
-   both pick it up unchanged.
-2. Sweep $\eta\in\{1,0.5,0.3,0.2,0.15,0.1,0.05\}$ at $R_0$ around the double well's measured
-   bracket $(0.28,0.30)$, matched $W$ rather than matched $\gamma$. Predicted: the bracket walks
-   down to $\approx0.09$. This is the falsifiable statement of this note.
-3. Watch the solver, not the physics. $f''$ in the bulk grows as $2/\eta^2$ while $\gamma/h^2$ is
-   fixed, so the Newton/multigrid conditioning degrades like $\eta^{-2}$. The measured failure mode
-   from the mobility study — Newton hitting its iteration cap with GMRES stalling — is the one to
-   expect, and it is what will set the usable $\eta$, not the criterion.
-4. Only if $\eta$ bottoms out on solver grounds is (a) worth the variational-inequality machinery;
-   Baňas & Nürnberg is then the recipe.
+1. ~~Implement (c)~~ **done** — `smoothed_obstacle_potential` in `kernels/phobic_energy.h`,
+   `--potential smoothed_obstacle --eta <x>`. `get_phi_eq()` returns 1 exactly and
+   `get_curvature()` returns $4a_\eta/\eta^2$, so the degenerate-mobility fix and the smoother
+   diagonal pick it up unchanged. Also added `get_profile_scale( gamma )` per potential, because
+   the old initial condition used $2\epsilon$ and $\epsilon$ is meaningless here; the double well
+   and the logarithmic potential keep their previous value exactly.
+2. `sweep_eta` (job 96523, running): $\eta\in\{1,0.5,0.3,0.2,0.15,0.1,0.05\}$, four radii each,
+   at the *same* $\gamma=3.2\times10^{-3}$, grid and $dt$ as the validated `r0_dw` run, so the
+   double well's measured bracket $(0.28,0.30)$ is the control. Exact criterion predicts
+   $R_c$ = 0.295, 0.253, 0.215, 0.189, 0.174, 0.158, 0.140. This is the falsifiable statement.
+3. ~~Conditioning will degrade like $\eta^{-2}$ and set the usable $\eta$.~~ **Measured false**
+   (§4a): two Newton iterations to $10^{-10}$ at $\eta=0.01$, i.e. $f''=10^4$. $\eta$ is not
+   solver-limited in the useful range.
+4. Since (3) fell, the remaining question is whether the *criterion* saturates where theory says it
+   does. $R_{floor}=(d-1)\sigma/(2\psi_{max})=0.126$ at this $\gamma$, and the predicted $R_c$ is
+   already 0.140 at $\eta=0.05$ — so the family has essentially converged and $\eta\lesssim0.05$
+   buys nothing further. A three-point run at $\eta=0.02$ around $R_0\in\{0.11,0.13,0.15\}$ would
+   confirm the floor. **(a)** is then only worth its variational-inequality machinery if that floor
+   turns out to be wrong; Baňas & Nürnberg is the recipe.
