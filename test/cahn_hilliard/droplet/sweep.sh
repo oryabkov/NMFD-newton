@@ -173,8 +173,41 @@ sweep_cube() {
     done
 }
 
+sweep_eta() {
+    # Smoothed obstacle, f = a(eta) (sqrt((1-phi^2)^2 + eta^4) - eta^2) with a(eta) pinned so the
+    # barrier is 1/4 for every eta. Same gamma, grid and dt as sweep_r0_dw, so the double well's
+    # measured bracket (0.28, 0.30) is the control. Exact criterion (py/potential_zoo.py) predicts
+    #   eta = 1 -> 0.295,  0.5 -> 0.253,  0.3 -> 0.215,  0.2 -> 0.189,
+    #   0.15  -> 0.174,  0.1 -> 0.158,  0.05 -> 0.140.
+    # Each grid brackets its prediction and adds one point well above it.
+    for spec in "1    0.26 0.28 0.30 0.33" \
+                "0.5  0.22 0.24 0.26 0.30" \
+                "0.3  0.18 0.20 0.22 0.26" \
+                "0.2  0.16 0.18 0.20 0.24" \
+                "0.15 0.14 0.16 0.18 0.22" \
+                "0.1  0.12 0.15 0.17 0.20" \
+                "0.05 0.10 0.13 0.15 0.18"; do
+        set -- $spec
+        local e=$1; shift
+        for r0 in "$@"; do
+            one "e${e}_r0${r0}" $(common) --r0 "$r0" --gamma $GAMMA_DW \
+                --potential smoothed_obstacle --eta "$e"
+        done
+    done
+}
+
+sweep_etaprobe() {
+    # Short solver probe: one radius safely above every prediction, eta walking down until the
+    # Newton/MG solve gives out. Conditioning degrades as eta^-2, so this is the run that sets the
+    # usable eta, not sweep_eta.
+    for e in 1 0.5 0.3 0.2 0.15 0.1 0.05 0.02 0.01; do
+        STEPS=100 one "e${e}" --init sphere --bc neumann --dt $DT --max-time-steps 100 \
+            --r0 0.30 --gamma $GAMMA_DW --potential smoothed_obstacle --eta "$e" --verbose
+    done
+}
+
 if [[ $# -lt 1 || "$1" == "list" ]]; then
-    echo "sweeps: pilot r0_dw r0_log omega gamma faceavg frontier solverprobe bc resolution cube"
+    echo "sweeps: pilot r0_dw r0_log omega gamma faceavg frontier solverprobe bc resolution cube eta etaprobe"
     exit 0
 fi
 

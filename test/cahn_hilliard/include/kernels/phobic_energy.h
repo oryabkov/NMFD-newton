@@ -37,6 +37,11 @@ public:
     {
         return Scalar( 2 );
     }
+
+    Scalar get_profile_scale( Scalar gamma ) const
+    {
+        return Scalar( 2 ) * std::sqrt( gamma / get_curvature() );
+    }
 };
 
 template <class Scalar>
@@ -93,6 +98,11 @@ public:
         return get_derivative( get_phi_eq() );
     }
 
+    Scalar get_profile_scale( Scalar gamma ) const
+    {
+        return Scalar( 2 ) * std::sqrt( gamma / get_curvature() );
+    }
+
     Scalar get_omega() const
     {
         return omega_;
@@ -100,6 +110,69 @@ public:
 
 private:
     Scalar omega_;
+};
+
+template <class Scalar>
+class smoothed_obstacle_potential
+{
+    using st = scfd::utils::scalar_traits<Scalar>;
+
+public:
+    smoothed_obstacle_potential(Scalar eta = 0.15)
+        : eta_(eta),
+          a_( Scalar( 0.25 ) / ( std::sqrt( Scalar( 1.0 ) + eta * eta * eta * eta ) - eta * eta ) )
+    {
+    }
+
+    __DEVICE_TAG__ Scalar operator()( Scalar phi_impl, Scalar phi_expl ) const
+    {
+        Scalar e4 = eta_ * eta_ * eta_ * eta_;
+        Scalar s  = Scalar( 1.0 ) - phi_impl * phi_impl;
+        return phi_impl * ( Scalar( 1.0 ) - Scalar( 2.0 ) * a_ * s / st::sqrt( s * s + e4 ) ) - phi_expl;
+    }
+
+    __DEVICE_TAG__ Scalar get_derivative( Scalar phi ) const
+    {
+        Scalar e4 = eta_ * eta_ * eta_ * eta_;
+        Scalar s  = Scalar( 1.0 ) - phi * phi;
+        Scalar d  = st::sqrt( s * s + e4 );
+        return a_ * ( Scalar( -2.0 ) * s / d + Scalar( 4.0 ) * phi * phi * e4 / ( d * d * d ) );
+    }
+
+    __DEVICE_TAG__ Scalar get_energy( Scalar phi ) const
+    {
+        Scalar e2 = eta_ * eta_;
+        Scalar s  = Scalar( 1.0 ) - phi * phi;
+        return a_ * ( st::sqrt( s * s + e2 * e2 ) - e2 );
+    }
+
+    Scalar get_phi_eq() const
+    {
+        return Scalar( 1 );
+    }
+
+    Scalar get_curvature() const
+    {
+        return get_derivative( get_phi_eq() );
+    }
+
+    // The tail length sqrt(gamma/f''(phi_eq)) collapses as eta -> 0 and no longer describes the
+    // profile, so the initial tanh is matched to the slope at phi = 0 instead. The prefactor a_
+    // pins the barrier at 1/4 for every eta, so this returns sqrt(2 gamma) -- the same width the
+    // double well gets at the same gamma, which is what makes --gamma comparable across potentials.
+    Scalar get_profile_scale( Scalar gamma ) const
+    {
+        return std::sqrt( gamma / ( Scalar( 2 ) * ( get_energy( Scalar( 0 ) ) - get_energy( get_phi_eq() ) ) ) );
+    }
+
+    Scalar get_eta() const
+    {
+        return eta_;
+    }
+
+private:
+    Scalar eta_;
+    Scalar a_;
 };
 
 template <class Scalar>
@@ -129,6 +202,11 @@ public:
     Scalar get_curvature() const
     {
         return Scalar( 0 );
+    }
+
+    Scalar get_profile_scale( Scalar gamma ) const
+    {
+        return std::sqrt( Scalar( 2 ) * gamma );
     }
 };
 

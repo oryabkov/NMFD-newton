@@ -27,6 +27,7 @@ constexpr scalar DEFAULT_TIME_TOL       = std::is_same<float, scalar>::value ? 5
 constexpr scalar DEFAULT_R0             = 0.25;
 constexpr scalar DEFAULT_GAMMA          = 1.0;
 constexpr scalar DEFAULT_OMEGA          = 3.0;
+constexpr scalar DEFAULT_ETA            = 0.15;
 constexpr scalar DEFAULT_MOBILITY_D     = 1.0;
 constexpr scalar DEFAULT_MOBILITY_FLOOR = 1e-5;
 constexpr scalar DEFAULT_DT             = 0.0;
@@ -57,6 +58,7 @@ struct options
     scalar      gamma          = DEFAULT_GAMMA;
     std::string potential      = "double_well";
     scalar      omega          = DEFAULT_OMEGA;
+    scalar      eta            = DEFAULT_ETA;
     std::string mobility       = "constant";
     scalar      mobility_D     = DEFAULT_MOBILITY_D;
     scalar      mobility_floor = DEFAULT_MOBILITY_FLOOR;
@@ -106,9 +108,17 @@ static int run( const options &opt, PhobicEnergy phobic_en, Mobility mobility, l
         return 1;
     }
 
+    if ( opt.potential == "smoothed_obstacle" && opt.eta <= scalar( 0 ) )
+    {
+        log.error_f( "eta must be > 0 for the smoothed obstacle potential (got %g)",
+                     static_cast<double>( opt.eta ) );
+        return 1;
+    }
+
     scalar phi_eq = phobic_en.get_phi_eq();
     scalar k      = phobic_en.get_curvature();
     scalar eps    = std::sqrt( opt.gamma / k );
+    scalar ell    = phobic_en.get_profile_scale( opt.gamma );
 
     // Write configuration header to log
     log.info( "========================================" );
@@ -132,6 +142,7 @@ static int run( const options &opt, PhobicEnergy phobic_en, Mobility mobility, l
     log.info_f( "  gamma:         %e", static_cast<double>( opt.gamma ) );
     log.info_f( "  Potential:     %s", opt.potential.c_str() );
     log.info_f( "  omega:         %e", static_cast<double>( opt.omega ) );
+    log.info_f( "  eta:           %e", static_cast<double>( opt.eta ) );
     log.info_f( "  Mobility:      %s", opt.mobility.c_str() );
     log.info_f( "  Mobility D:    %e", static_cast<double>( opt.mobility_D ) );
     log.info_f( "  Mobility floor:%e", static_cast<double>( opt.mobility_floor ) );
@@ -141,6 +152,7 @@ static int run( const options &opt, PhobicEnergy phobic_en, Mobility mobility, l
     log.info_f( "  k=f''(phi_eq): %e", static_cast<double>( k ) );
     log.info_f( "  eps:           %e", static_cast<double>( eps ) );
     log.info_f( "  eps/h:         %e", static_cast<double>( eps / step[0] ) );
+    log.info_f( "  profile scale: %e", static_cast<double>( ell ) );
     log.info( "" );
     log.info( "Newton Solver:" );
     log.info_f( "  Tolerance:     %e", static_cast<double>( opt.newton_tol ) );
@@ -185,11 +197,12 @@ static int run( const options &opt, PhobicEnergy phobic_en, Mobility mobility, l
 
     log.info_f(
         0,
-        "DROPLET_CONFIG init=%s r0=%.6e gamma=%.6e potential=%s omega=%g mobility=%s D=%g floor=%g face_avg=%s bc=%s grid=%d dt=%.6e phi_eq=%.6e k=%.6e eps=%.6e",
+        "DROPLET_CONFIG init=%s r0=%.6e gamma=%.6e potential=%s omega=%g eta=%g mobility=%s D=%g floor=%g face_avg=%s bc=%s grid=%d dt=%.6e phi_eq=%.6e k=%.6e eps=%.6e ell=%.6e",
         opt.init.c_str(), static_cast<double>( opt.r0 ), static_cast<double>( opt.gamma ), opt.potential.c_str(),
-        static_cast<double>( opt.omega ), opt.mobility.c_str(), static_cast<double>( opt.mobility_D ),
+        static_cast<double>( opt.omega ), static_cast<double>( opt.eta ), opt.mobility.c_str(), static_cast<double>( opt.mobility_D ),
         static_cast<double>( opt.mobility_floor ), opt.face_avg.c_str(), opt.bc.c_str(), opt.grid_size,
-        static_cast<double>( dt ), static_cast<double>( phi_eq ), static_cast<double>( k ), static_cast<double>( eps ) );
+        static_cast<double>( dt ), static_cast<double>( phi_eq ), static_cast<double>( k ), static_cast<double>( eps ),
+        static_cast<double>( ell ) );
 
     // Automatic balanced decomposition for any power-of-two process count.
     if ( comm_world.num_procs < 1 || ( comm_world.num_procs & ( comm_world.num_procs - 1 ) ) != 0 )
@@ -315,7 +328,7 @@ static int run( const options &opt, PhobicEnergy phobic_en, Mobility mobility, l
                             ( x - scalar( 0.5 ) ) * ( x - scalar( 0.5 ) ) + ( y - scalar( 0.5 ) ) * ( y - scalar( 0.5 ) ) +
                             ( z - scalar( 0.5 ) ) * ( z - scalar( 0.5 ) ) );
                         solution_view( i, j, k, 0 ) = scalar( 0 );
-                        solution_view( i, j, k, 1 ) = phi_eq * std::tanh( ( opt.r0 - r ) / ( scalar( 2 ) * eps ) );
+                        solution_view( i, j, k, 1 ) = phi_eq * std::tanh( ( opt.r0 - r ) / ell );
                         for ( int t = 0; t < tensor_dim; t++ )
                         {
                             rhs_view( i, j, k, t )   = scalar( 0 );
@@ -656,8 +669,10 @@ int main( int argc, char *argv[] )
     app.add_option( "--gamma", opt.gamma, "Interface parameter" )->capture_default_str();
     app.add_option( "--potential", opt.potential, "Bulk potential" )
         ->capture_default_str()
-        ->check( CLI::IsMember( std::vector<std::string>{ "double_well", "logarithmic" } ) );
+        ->check( CLI::IsMember( std::vector<std::string>{ "double_well", "logarithmic", "smoothed_obstacle" } ) );
     app.add_option( "--omega", opt.omega, "Logarithmic potential parameter" )->capture_default_str();
+    app.add_option( "--eta", opt.eta, "Smoothed obstacle regularisation (curvature at phi_eq is ~1/eta^2)" )
+        ->capture_default_str();
     app.add_option( "--mobility", opt.mobility, "Mobility model" )
         ->capture_default_str()
         ->check( CLI::IsMember( std::vector<std::string>{ "constant", "parabolic" } ) );
@@ -710,12 +725,27 @@ int main( int argc, char *argv[] )
             opt, tests::logarithmic_potential<scalar>( opt.omega ), tests::constant_mobility<scalar>( opt.mobility_D, avg ),
             log, comm_world );
     }
-    else // logarithmic + parabolic
+    else if ( opt.potential == "logarithmic" ) // logarithmic + parabolic
     {
         return run<tests::logarithmic_potential<scalar>, tests::parabolic_mobility<scalar>>(
             opt, tests::logarithmic_potential<scalar>( opt.omega ),
             tests::parabolic_mobility<scalar>(
                 opt.mobility_D, opt.mobility_floor, tests::logarithmic_potential<scalar>( opt.omega ).get_phi_eq(), avg ),
+            log, comm_world );
+    }
+    else if ( opt.mobility == "constant" )
+    {
+        return run<tests::smoothed_obstacle_potential<scalar>, tests::constant_mobility<scalar>>(
+            opt, tests::smoothed_obstacle_potential<scalar>( opt.eta ),
+            tests::constant_mobility<scalar>( opt.mobility_D, avg ), log, comm_world );
+    }
+    else // smoothed_obstacle + parabolic
+    {
+        return run<tests::smoothed_obstacle_potential<scalar>, tests::parabolic_mobility<scalar>>(
+            opt, tests::smoothed_obstacle_potential<scalar>( opt.eta ),
+            tests::parabolic_mobility<scalar>(
+                opt.mobility_D, opt.mobility_floor,
+                tests::smoothed_obstacle_potential<scalar>( opt.eta ).get_phi_eq(), avg ),
             log, comm_world );
     }
 }
