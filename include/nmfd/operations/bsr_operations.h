@@ -23,6 +23,10 @@ void bsr_mat_vec_prod(
     const bsr_matrix<T, Ord, Memory> &A, const scfd::arrays::array<T, Memory> &x, scfd::arrays::array<T, Memory> &y
 )
 {
+    static_assert(
+        Memory::is_host_visible, "bsr_mat_vec_prod is a host implementation; use bsr_mat_vec_prod_cuda on CUDA"
+    );
+
     using ordinal_type = typename bsr_matrix<T, Ord, Memory>::ordinal_type;
 
     const ordinal_type bsr = A.block_sz_r();
@@ -36,27 +40,27 @@ void bsr_mat_vec_prod(
 
     const ordinal_type *row_ptrs = A.row_ptrs_data();
     const ordinal_type *col_inds = A.col_inds_data();
-    scfd::backend::for_each<ordinal_type>()(
-        [=] __DEVICE_TAG__( ordinal_type row ) {
+
+    for ( ordinal_type i = 0; i < A.scalar_rows(); ++i )
+    {
+        y( i ) = T( 0 );
+    }
+
+    for ( ordinal_type row = 0; row < A.nrows(); ++row )
+    {
+        for ( ordinal_type k = row_ptrs[row]; k < row_ptrs[row + 1]; ++k )
+        {
+            const ordinal_type col = col_inds[k];
+
             for ( ordinal_type r = 0; r < bsr; ++r )
-                y( row * bsr + r ) = T( 0 );
-
-            for ( ordinal_type k = row_ptrs[row]; k < row_ptrs[row + 1]; ++k )
             {
-                const ordinal_type col = col_inds[k];
-
-                for ( ordinal_type r = 0; r < bsr; ++r )
+                for ( ordinal_type c = 0; c < bsc; ++c )
                 {
-                    for ( ordinal_type c = 0; c < bsc; ++c )
-                    {
-                        y( row * bsr + r ) += A.vals( k, r, c ) * x( col * bsc + c );
-                    }
+                    y( row * bsr + r ) += A.vals( k, r, c ) * x( col * bsc + c );
                 }
             }
-        },
-        A.nrows()
-    );
-    scfd::backend::for_each<ordinal_type>().wait();
+        }
+    }
 }
 
 
@@ -77,6 +81,10 @@ void bsr_mat_mat_prod_skeleton(
     const bsr_matrix<T, Ord, Memory> &A, const bsr_matrix<T, Ord, Memory> &B, bsr_matrix<T, Ord, Memory> &C
 )
 {
+    static_assert(
+        Memory::is_host_visible, "bsr_mat_mat_prod_skeleton is a host implementation; not available on CUDA"
+    );
+
     using ordinal_type = typename bsr_matrix<T, Ord, Memory>::ordinal_type;
     using marker_type  = std::ptrdiff_t;
     if ( A.ncols() != B.nrows() )
@@ -194,6 +202,8 @@ void bsr_mat_mat_prod(
     const bsr_matrix<T, Ord, Memory> &A, const bsr_matrix<T, Ord, Memory> &B, bsr_matrix<T, Ord, Memory> &C
 )
 {
+    static_assert( Memory::is_host_visible, "bsr_mat_mat_prod is a host implementation; not available on CUDA" );
+
     using ordinal_type = typename bsr_matrix<T, Ord, Memory>::ordinal_type;
     using marker_type  = std::ptrdiff_t;
 

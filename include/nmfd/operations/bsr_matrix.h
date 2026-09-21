@@ -36,6 +36,9 @@ public:
     using array_t      = scfd::arrays::array<ordinal_type, Memory>;
     using vals_t       = scfd::arrays::tensor2_array<
         T, Memory, scfd::arrays::dyn_dim, scfd::arrays::dyn_dim, scfd::arrays::last_index_fast_arranger>;
+    using row_ptrs_view_t = typename array_t::view_type;
+    using col_inds_view_t = typename array_t::view_type;
+    using vals_view_t     = typename vals_t::view_type;
     bsr_matrix() : nrows_( 0 ), ncols_( 0 ), nnzb_( 0 ), block_sz_r_( 0 ), block_sz_c_( 0 )
     {
     }
@@ -143,6 +146,25 @@ public:
     {
         return col_inds_.raw_ptr();
     }
+
+    /// Create a host view of the row pointers (optionally synced from the array)
+    row_ptrs_view_t create_row_ptrs_view( bool sync_from_array_ = true ) const
+    {
+        return row_ptrs_.create_view( sync_from_array_ );
+    }
+
+    /// Create a host view of the column indices (optionally synced from the array)
+    col_inds_view_t create_col_inds_view( bool sync_from_array_ = true ) const
+    {
+        return col_inds_.create_view( sync_from_array_ );
+    }
+
+    /// Create a host view of the block values (optionally synced from the array)
+    vals_view_t create_vals_view( bool sync_from_array_ = true ) const
+    {
+        return vals_.create_view( sync_from_array_ );
+    }
+
     /// Block values
     __DEVICE_TAG__ T &vals( ordinal_type k, ordinal_type r, ordinal_type c ) &
     {

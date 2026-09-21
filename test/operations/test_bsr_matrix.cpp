@@ -4,11 +4,16 @@
 #include <stdexcept>
 
 #include <scfd/arrays/array.h>
-#include <scfd/memory/host.h>
 #include <scfd/backend/backend.h>
 
 #include <nmfd/operations/bsr_matrix.h>
-#include <nmfd/operations/bsr_operations.h>
+
+
+#if PLATFORM_CUDA
+#    include <nmfd/operations/bsr_operations_cuda.h>
+#else
+#    include <nmfd/operations/bsr_operations.h>
+#endif
 
 
 using T      = double;
@@ -18,9 +23,6 @@ using Ord    = std::ptrdiff_t;
 using bsr_t    = nmfd::operations::bsr_matrix<T, Ord, Memory>;
 using vector_t = scfd::arrays::array<T, Memory>;
 
-using host_memory_t = scfd::memory::host;
-using host_vector_t = scfd::arrays::array<T, host_memory_t>;
-
 
 // ============================================================================
 // BSR matrix initialization
@@ -28,21 +30,25 @@ using host_vector_t = scfd::arrays::array<T, host_memory_t>;
 
 void fill_bsr_matrix_1x1( bsr_t &A )
 {
-    Ord *row_ptr = A.row_ptrs_data();
-    Ord *col_ind = A.col_inds_data();
-    T   *vals    = A.vals_data();
-    scfd::backend::for_each<Ord>()( [=] __DEVICE_TAG__( Ord i ) { row_ptr[i] = i; }, 3 );
+    auto row_ptr = A.create_row_ptrs_view( false );
+    auto col_ind = A.create_col_inds_view( false );
+    auto vals    = A.create_vals_view( false );
 
-    scfd::backend::for_each<Ord>()(
-        [=] __DEVICE_TAG__( Ord i ) {
-            col_ind[i] = i;
+    for ( Ord i = 0; i < 3; ++i )
+    {
+        row_ptr( i ) = i;
+    }
 
-            vals[i] = static_cast<T>( i + 2 );
-        },
-        2
-    );
+    for ( Ord i = 0; i < 2; ++i )
+    {
+        col_ind( i ) = i;
 
-    scfd::backend::for_each<Ord>().wait();
+        vals( i, 0, 0 ) = static_cast<T>( i + 2 );
+    }
+
+    row_ptr.release( true );
+    col_ind.release( true );
+    vals.release( true );
 }
 
 
@@ -55,35 +61,171 @@ void fill_bsr_matrix_2x2( bsr_t &A )
             [ 0  0 | 5  6 ]
             [ 0  0 | 7  8 ]
     */
-    Ord *row_ptr = A.row_ptrs_data();
-    Ord *col_ind = A.col_inds_data();
-    T   *vals    = A.vals_data();
+    auto row_ptr = A.create_row_ptrs_view( false );
+    auto col_ind = A.create_col_inds_view( false );
+    auto vals    = A.create_vals_view( false );
 
     // row_ptr = [0, 1, 2]
-    scfd::backend::for_each<Ord>()( [=] __DEVICE_TAG__( Ord i ) { row_ptr[i] = i; }, 3 );
-    scfd::backend::for_each<Ord>()(
-        [=] __DEVICE_TAG__( Ord k ) {
-            col_ind[k] = k;
+    for ( Ord i = 0; i < 3; ++i )
+    {
+        row_ptr( i ) = i;
+    }
 
-            if ( k == 0 )
-            {
-                vals[0] = static_cast<T>( 1 );
-                vals[1] = static_cast<T>( 2 );
-                vals[2] = static_cast<T>( 3 );
-                vals[3] = static_cast<T>( 4 );
-            }
-            else
-            {
-                vals[4] = static_cast<T>( 5 );
-                vals[5] = static_cast<T>( 6 );
-                vals[6] = static_cast<T>( 7 );
-                vals[7] = static_cast<T>( 8 );
-            }
-        },
-        2
-    );
+    const T block_vals[2][4] = { { 1.0, 2.0, 3.0, 4.0 }, { 5.0, 6.0, 7.0, 8.0 } };
 
-    scfd::backend::for_each<Ord>().wait();
+    for ( Ord k = 0; k < 2; ++k )
+    {
+        col_ind( k ) = k;
+
+        for ( Ord r = 0; r < 2; ++r )
+        {
+            for ( Ord c = 0; c < 2; ++c )
+            {
+                vals( k, r, c ) = block_vals[k][r * 2 + c];
+            }
+        }
+    }
+
+    row_ptr.release( true );
+    col_ind.release( true );
+    vals.release( true );
+}
+
+
+void fill_bsr_matrix_2x3( bsr_t &A )
+{
+    /*
+        A = [ 1  2  3 ]   (block 0, block row 0)
+            [ 4  5  6 ]
+            [ 7  8  9 ]   (block 1, block row 1)
+            [ 10 11 12 ]
+    */
+    auto row_ptr = A.create_row_ptrs_view( false );
+    auto col_ind = A.create_col_inds_view( false );
+    auto vals    = A.create_vals_view( false );
+
+    // row_ptr = [0, 1, 2]
+    for ( Ord i = 0; i < 3; ++i )
+    {
+        row_ptr( i ) = i;
+    }
+
+    const T block_vals[2][6] = { { 1.0, 2.0, 3.0, 4.0, 5.0, 6.0 }, { 7.0, 8.0, 9.0, 10.0, 11.0, 12.0 } };
+
+    for ( Ord k = 0; k < 2; ++k )
+    {
+        col_ind( k ) = 0;
+
+        for ( Ord r = 0; r < 2; ++r )
+        {
+            for ( Ord c = 0; c < 3; ++c )
+            {
+                vals( k, r, c ) = block_vals[k][r * 3 + c];
+            }
+        }
+    }
+
+    row_ptr.release( true );
+    col_ind.release( true );
+    vals.release( true );
+}
+
+
+void fill_bsr_matrix_diag_1x1( bsr_t &A, T d0, T d1 )
+{
+    auto row_ptr = A.create_row_ptrs_view( false );
+    auto col_ind = A.create_col_inds_view( false );
+    auto vals    = A.create_vals_view( false );
+
+    row_ptr( 0 ) = 0;
+    row_ptr( 1 ) = 1;
+    row_ptr( 2 ) = 2;
+
+    col_ind( 0 ) = 0;
+    col_ind( 1 ) = 1;
+
+    vals( 0, 0, 0 ) = d0;
+    vals( 1, 0, 0 ) = d1;
+
+    row_ptr.release( true );
+    col_ind.release( true );
+    vals.release( true );
+}
+
+
+void fill_bsr_matrix_diag_2x2( bsr_t &A, const T block0[4], const T block1[4] )
+{
+    auto row_ptr = A.create_row_ptrs_view( false );
+    auto col_ind = A.create_col_inds_view( false );
+    auto vals    = A.create_vals_view( false );
+
+    row_ptr( 0 ) = 0;
+    row_ptr( 1 ) = 1;
+    row_ptr( 2 ) = 2;
+
+    col_ind( 0 ) = 0;
+    col_ind( 1 ) = 1;
+
+    for ( Ord r = 0; r < 2; ++r )
+    {
+        for ( Ord c = 0; c < 2; ++c )
+        {
+            vals( 0, r, c ) = block0[r * 2 + c];
+            vals( 1, r, c ) = block1[r * 2 + c];
+        }
+    }
+
+    row_ptr.release( true );
+    col_ind.release( true );
+    vals.release( true );
+}
+
+
+void fill_bsr_matrix_test5_A( bsr_t &A )
+{
+    auto row_ptr = A.create_row_ptrs_view( false );
+    auto col_ind = A.create_col_inds_view( false );
+    auto vals    = A.create_vals_view( false );
+
+    row_ptr( 0 ) = 0;
+    row_ptr( 1 ) = 2;
+    row_ptr( 2 ) = 3;
+
+    col_ind( 0 ) = 0;
+    col_ind( 1 ) = 1;
+    col_ind( 2 ) = 1;
+
+    vals( 0, 0, 0 ) = 1.0;
+    vals( 1, 0, 0 ) = 1.0;
+    vals( 2, 0, 0 ) = 1.0;
+
+    row_ptr.release( true );
+    col_ind.release( true );
+    vals.release( true );
+}
+
+
+void fill_bsr_matrix_test5_B( bsr_t &B )
+{
+    auto row_ptr = B.create_row_ptrs_view( false );
+    auto col_ind = B.create_col_inds_view( false );
+    auto vals    = B.create_vals_view( false );
+
+    row_ptr( 0 ) = 0;
+    row_ptr( 1 ) = 1;
+    row_ptr( 2 ) = 3;
+
+    col_ind( 0 ) = 0;
+    col_ind( 1 ) = 0;
+    col_ind( 2 ) = 1;
+
+    vals( 0, 0, 0 ) = 1.0;
+    vals( 1, 0, 0 ) = 1.0;
+    vals( 2, 0, 0 ) = 1.0;
+
+    row_ptr.release( true );
+    col_ind.release( true );
+    vals.release( true );
 }
 
 
@@ -91,9 +233,32 @@ void fill_bsr_matrix_2x2( bsr_t &A )
 // Vector initialization
 // ============================================================================
 
+struct fill_vector_iota
+{
+    vector_t x;
+
+    __DEVICE_TAG__ void operator()( Ord i ) const
+    {
+        x( i ) = static_cast<T>( i + 1 );
+    }
+};
+
+
+struct fill_vector_const
+{
+    vector_t x;
+    T        value;
+
+    __DEVICE_TAG__ void operator()( Ord i ) const
+    {
+        x( i ) = value;
+    }
+};
+
+
 void fill_vector_1x1( vector_t &x )
 {
-    scfd::backend::for_each<Ord>()( [=] __DEVICE_TAG__( Ord i ) { x( i ) = static_cast<T>( i + 1 ); }, 2 );
+    scfd::backend::for_each<Ord>()( fill_vector_iota{ x }, 2 );
 
     scfd::backend::for_each<Ord>().wait();
 }
@@ -101,43 +266,26 @@ void fill_vector_1x1( vector_t &x )
 
 void fill_vector_2x2( vector_t &x )
 {
-    scfd::backend::for_each<Ord>()( [=] __DEVICE_TAG__( Ord i ) { x( i ) = 1.0; }, 4 );
+    scfd::backend::for_each<Ord>()( fill_vector_const{ x, 1.0 }, 4 );
+
     scfd::backend::for_each<Ord>().wait();
 }
 
 
-// ============================================================================
-// Copy vector to host
-// ============================================================================
-
-#if PLATFORM_SERIAL_CPU or PLATFORM_OMP
-
-host_vector_t copy_vector_to_host( const vector_t &x )
+void fill_vector_3( vector_t &x )
 {
-    return x;
+    scfd::backend::for_each<Ord>()( fill_vector_const{ x, 1.0 }, 3 );
+
+    scfd::backend::for_each<Ord>().wait();
 }
-
-#else
-
-host_vector_t copy_vector_to_host( const vector_t &x )
-{
-    host_vector_t result;
-
-    result.init( x.size() );
-
-    Memory::copy_to_host( sizeof( T ) * x.size(), x.raw_ptr(), result.raw_ptr() );
-
-    return result;
-}
-
-#endif
 
 
 // ============================================================================
 // Vector check
 // ============================================================================
 
-void check_vector( const host_vector_t &actual, const T *expected, Ord n, const char *name )
+template <class VectorView>
+void check_vector( const VectorView &actual, const T *expected, Ord n, const char *name )
 {
     const T eps = 1e-12;
 
@@ -183,11 +331,15 @@ void check_bsr_matrix(
     if ( A.block_sz_c() != block_sz_c )
         throw std::runtime_error( "wrong block column size" );
 
+    auto row_ptrs = A.create_row_ptrs_view( true );
+    auto col_inds = A.create_col_inds_view( true );
+    auto vals     = A.create_vals_view( true );
+
     for ( Ord i = 0; i < expected_nrows + 1; ++i )
     {
-        if ( A.row_ptr( i ) != expected_row_ptr[i] )
+        if ( row_ptrs( i ) != expected_row_ptr[i] )
         {
-            std::cerr << name << ": row_ptr[" << i << "] = " << A.row_ptr( i ) << ", expected " << expected_row_ptr[i]
+            std::cerr << name << ": row_ptr[" << i << "] = " << row_ptrs( i ) << ", expected " << expected_row_ptr[i]
                       << std::endl;
 
             throw std::runtime_error( "BSR row_ptr check failed" );
@@ -196,9 +348,9 @@ void check_bsr_matrix(
 
     for ( Ord i = 0; i < expected_nnzb; ++i )
     {
-        if ( A.col_ind( i ) != expected_col_ind[i] )
+        if ( col_inds( i ) != expected_col_ind[i] )
         {
-            std::cerr << name << ": col_ind[" << i << "] = " << A.col_ind( i ) << ", expected " << expected_col_ind[i]
+            std::cerr << name << ": col_ind[" << i << "] = " << col_inds( i ) << ", expected " << expected_col_ind[i]
                       << std::endl;
 
             throw std::runtime_error( "BSR col_ind check failed" );
@@ -213,7 +365,7 @@ void check_bsr_matrix(
             {
                 const Ord index = k * block_sz_r * block_sz_c + r * block_sz_c + c;
 
-                const T actual   = A.vals( k, r, c );
+                const T actual   = vals( k, r, c );
                 const T expected = expected_vals[index];
 
                 if ( std::abs( actual - expected ) > eps )
@@ -230,6 +382,31 @@ void check_bsr_matrix(
     std::cout << name << ": OK" << std::endl;
 }
 
+
+// ============================================================================
+// Platform dispatch
+// ============================================================================
+
+void bsr_mat_vec_prod_dispatch( const bsr_t &A, const vector_t &x, vector_t &y )
+{
+#if PLATFORM_CUDA
+    nmfd::operations::bsr_mat_vec_prod_cuda<T, Ord, Memory>( A, x, y );
+#else
+    nmfd::operations::bsr_mat_vec_prod<T, Ord, Memory>( A, x, y );
+#endif
+}
+
+
+void bsr_mat_mat_prod_dispatch( const bsr_t &A, const bsr_t &B, bsr_t &C )
+{
+#if PLATFORM_CUDA
+    nmfd::operations::bsr_mat_mat_prod_skeleton_cuda<T, Ord>( A, B, C );
+    nmfd::operations::bsr_mat_mat_prod_cuda<T, Ord>( A, B, C );
+#else
+    nmfd::operations::bsr_mat_mat_prod_skeleton<T, Ord, Memory>( A, B, C );
+    nmfd::operations::bsr_mat_mat_prod<T, Ord, Memory>( A, B, C );
+#endif
+}
 
 
 // ============================================================================
@@ -254,9 +431,9 @@ void test_bsr_mat_vec_1x1()
 
     fill_vector_1x1( x );
 
-    nmfd::operations::bsr_mat_vec_prod<T, Ord, Memory>( A, x, y );
+    bsr_mat_vec_prod_dispatch( A, x, y );
 
-    host_vector_t y_host = copy_vector_to_host( y );
+    auto y_host = y.create_view( true );
 
     const T expected[] = { 2.0, 6.0 };
 
@@ -286,9 +463,9 @@ void test_bsr_mat_vec_2x2()
 
     fill_vector_2x2( x );
 
-    nmfd::operations::bsr_mat_vec_prod<T, Ord, Memory>( A, x, y );
+    bsr_mat_vec_prod_dispatch( A, x, y );
 
-    host_vector_t y_host = copy_vector_to_host( y );
+    auto y_host = y.create_view( true );
 
     const T expected[] = { 3.0, 7.0, 11.0, 15.0 };
 
@@ -320,32 +497,13 @@ void test_bsr_mat_mat_1x1()
     */
 
     A.init( 2, 2, 2, 1 );
-
-    A.row_ptr( 0 ) = 0;
-    A.row_ptr( 1 ) = 1;
-    A.row_ptr( 2 ) = 2;
-
-    A.col_ind( 0 ) = 0;
-    A.col_ind( 1 ) = 1;
-
-    A.vals( 0, 0, 0 ) = 2.0;
-    A.vals( 1, 0, 0 ) = 3.0;
-
+    fill_bsr_matrix_diag_1x1( A, 2.0, 3.0 );
 
     B.init( 2, 2, 2, 1 );
+    fill_bsr_matrix_diag_1x1( B, 4.0, 5.0 );
 
-    B.row_ptr( 0 ) = 0;
-    B.row_ptr( 1 ) = 1;
-    B.row_ptr( 2 ) = 2;
-
-    B.col_ind( 0 ) = 0;
-    B.col_ind( 1 ) = 1;
-
-    B.vals( 0, 0, 0 ) = 4.0;
-    B.vals( 1, 0, 0 ) = 5.0;
     bsr_t C;
-    nmfd::operations::bsr_mat_mat_prod_skeleton<T, Ord, Memory>( A, B, C );
-    nmfd::operations::bsr_mat_mat_prod<T, Ord, Memory>( A, B, C );
+    bsr_mat_mat_prod_dispatch( A, B, C );
 
     const Ord expected_row_ptr[] = { 0, 1, 2 };
 
@@ -397,47 +555,20 @@ void test_bsr_mat_mat_2x2()
 
     A.init( 2, 2, 2, 2 );
 
-    A.row_ptr( 0 ) = 0;
-    A.row_ptr( 1 ) = 1;
-    A.row_ptr( 2 ) = 2;
+    const T a0[4] = { 1.0, 2.0, 3.0, 4.0 };
+    const T a1[4] = { 5.0, 6.0, 7.0, 8.0 };
 
-    A.col_ind( 0 ) = 0;
-    A.col_ind( 1 ) = 1;
-
-    A.vals( 0, 0, 0 ) = 1.0;
-    A.vals( 0, 0, 1 ) = 2.0;
-    A.vals( 0, 1, 0 ) = 3.0;
-    A.vals( 0, 1, 1 ) = 4.0;
-
-    A.vals( 1, 0, 0 ) = 5.0;
-    A.vals( 1, 0, 1 ) = 6.0;
-    A.vals( 1, 1, 0 ) = 7.0;
-    A.vals( 1, 1, 1 ) = 8.0;
-
+    fill_bsr_matrix_diag_2x2( A, a0, a1 );
 
     B.init( 2, 2, 2, 2 );
 
-    B.row_ptr( 0 ) = 0;
-    B.row_ptr( 1 ) = 1;
-    B.row_ptr( 2 ) = 2;
+    const T b0[4] = { 1.0, 0.0, 0.0, 1.0 };
+    const T b1[4] = { 2.0, 0.0, 0.0, 2.0 };
 
-    B.col_ind( 0 ) = 0;
-    B.col_ind( 1 ) = 1;
-
-    B.vals( 0, 0, 0 ) = 1.0;
-    B.vals( 0, 0, 1 ) = 0.0;
-    B.vals( 0, 1, 0 ) = 0.0;
-    B.vals( 0, 1, 1 ) = 1.0;
-
-    B.vals( 1, 0, 0 ) = 2.0;
-    B.vals( 1, 0, 1 ) = 0.0;
-    B.vals( 1, 1, 0 ) = 0.0;
-    B.vals( 1, 1, 1 ) = 2.0;
-
+    fill_bsr_matrix_diag_2x2( B, b0, b1 );
 
     bsr_t C;
-    nmfd::operations::bsr_mat_mat_prod_skeleton<T, Ord, Memory>( A, B, C );
-    nmfd::operations::bsr_mat_mat_prod<T, Ord, Memory>( A, B, C );
+    bsr_mat_mat_prod_dispatch( A, B, C );
 
     const Ord expected_row_ptr[] = { 0, 1, 2 };
 
@@ -475,38 +606,13 @@ void test_bsr_mat_mat_multiple_blocks()
     */
 
     A.init( 2, 2, 3, 1 );
-
-    A.row_ptr( 0 ) = 0;
-    A.row_ptr( 1 ) = 2;
-    A.row_ptr( 2 ) = 3;
-
-    A.col_ind( 0 ) = 0;
-    A.col_ind( 1 ) = 1;
-    A.col_ind( 2 ) = 1;
-
-    A.vals( 0, 0, 0 ) = 1.0;
-    A.vals( 1, 0, 0 ) = 1.0;
-    A.vals( 2, 0, 0 ) = 1.0;
-
+    fill_bsr_matrix_test5_A( A );
 
     B.init( 2, 2, 3, 1 );
-
-    B.row_ptr( 0 ) = 0;
-    B.row_ptr( 1 ) = 1;
-    B.row_ptr( 2 ) = 3;
-
-    B.col_ind( 0 ) = 0;
-    B.col_ind( 1 ) = 0;
-    B.col_ind( 2 ) = 1;
-
-    B.vals( 0, 0, 0 ) = 1.0;
-    B.vals( 1, 0, 0 ) = 1.0;
-    B.vals( 2, 0, 0 ) = 1.0;
-
+    fill_bsr_matrix_test5_B( B );
 
     bsr_t C;
-    nmfd::operations::bsr_mat_mat_prod_skeleton<T, Ord, Memory>( A, B, C );
-    nmfd::operations::bsr_mat_mat_prod<T, Ord, Memory>( A, B, C );
+    bsr_mat_mat_prod_dispatch( A, B, C );
 
     const Ord expected_row_ptr[] = { 0, 2, 4 };
 
@@ -518,6 +624,36 @@ void test_bsr_mat_mat_multiple_blocks()
 }
 
 
+// ============================================================================
+// Test 6: BSR mat-vec, rectangular 2x3 blocks
+// ============================================================================
+
+void test_bsr_mat_vec_rect()
+{
+    std::cout << "Test 6: BSR mat-vec product (2x3 blocks)" << std::endl;
+
+    bsr_t A;
+
+    A.init( 2, 1, 2, 2, 3 );
+
+    fill_bsr_matrix_2x3( A );
+
+    vector_t x;
+    vector_t y;
+
+    x.init( 3 );
+    y.init( 4 );
+
+    fill_vector_3( x );
+
+    bsr_mat_vec_prod_dispatch( A, x, y );
+
+    auto y_host = y.create_view( true );
+
+    const T expected[] = { 6.0, 15.0, 24.0, 33.0 };
+
+    check_vector( y_host, expected, 4, "Test 6" );
+}
 
 
 // ============================================================================
@@ -530,14 +666,10 @@ int main()
     {
         test_bsr_mat_vec_1x1();
         test_bsr_mat_vec_2x2();
-
-#if PLATFORM_SERIAL_CPU or PLATFORM_OMP
-
         test_bsr_mat_mat_1x1();
         test_bsr_mat_mat_2x2();
         test_bsr_mat_mat_multiple_blocks();
-
-#endif
+        test_bsr_mat_vec_rect();
 
         std::cout << "All tests passed." << std::endl;
 
