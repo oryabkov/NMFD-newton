@@ -19,6 +19,8 @@ OUT = "../figs/potential_zoo.png"
 DW_COLOR = "0.45"
 XLIM = (-1.26, 1.26)
 YLIM = (-0.012, 0.30)
+ZOOM_X = (0.90, 1.12)
+ZOOM_Y = (-0.0016, 0.036)
 
 
 def candidates():
@@ -69,22 +71,42 @@ def main():
         ax = fig.add_subplot(grid[n // 3, n % 3])
         axes.append(ax)
 
+        axin = ax.inset_axes([0.585, 0.45, 0.40, 0.50], zorder=6)
+        axin.set_facecolor("white")
+        axin.patch.set_alpha(1.0)
+        for sp in axin.spines.values():
+            sp.set_color("0.55")
+        xz = np.linspace(*ZOOM_X, 3001)
+
         ax.plot(x, dw.f(x), color=DW_COLOR, lw=2.6, zorder=2)
+        axin.plot(xz, dw.f(xz), color=DW_COLOR, lw=2.2)
         if c.obstacle:
             xo = np.linspace(-1.0, 1.0, 1201)
             ax.plot(xo, c.f(xo), color=col, lw=2.2, ls=ls, zorder=3)
             for s in (-1.0, 1.0):
                 ax.plot([s, s], [0.0, YLIM[1]], color=col, lw=2.2, ls=ls, zorder=3)
+            xoz = xz[xz <= 1.0]
+            axin.plot(xoz, c.f(xoz), color=col, lw=1.9, ls=ls)
+            axin.plot([1.0, 1.0], [0.0, ZOOM_Y[1]], color=col, lw=1.9, ls=ls)
         else:
             ax.plot(x, c.f(x), color=col, lw=2.2, ls=ls, zorder=3)
+            axin.plot(xz, c.f(xz), color=col, lw=1.9, ls=ls)
+
+        axin.set_xlim(*ZOOM_X)
+        axin.set_ylim(*ZOOM_Y)
+        axin.set_xticks([0.90, 1.00, 1.10])
+        axin.set_yticks([0.0, 0.02])
+        axin.tick_params(labelsize=7, length=2.5, pad=1.5)
+        axin.grid(alpha=0.2)
 
         ax.axhline(0.0, color="0.7", lw=0.6)
         ax.set_xlim(*XLIM)
         ax.set_ylim(*YLIM)
         ax.set_title(title, fontsize=10.5, pad=6)
-        ax.text(0.5, 0.955,
-                f"$R_c={rc:.3f}$   ({rc / rc_dw:.2f}" + r"$\times$)",
-                transform=ax.transAxes, ha="center", va="top", fontsize=9.5, color=col)
+        ax.text(0.035, 0.955,
+                f"$R_c={rc:.3f}$" + "\n" + f"({rc / rc_dw:.2f}" + r"$\times$)",
+                transform=ax.transAxes, ha="left", va="top", fontsize=9.5, color=col, zorder=7,
+                bbox=dict(boxstyle="round,pad=0.25", fc="white", ec="none", alpha=0.85))
 
         if n // 3 == 1:
             ax.set_xlabel(r"$\phi$")
@@ -109,7 +131,8 @@ def main():
 
     fig.suptitle(
         "Потенциалы, приведённые к общей нормировке "
-        r"($\phi_{\text{равн}}=\pm1$, высота барьера $1/4$); серая кривая всюду одна и та же"
+        r"($\phi_{\text{равн}}=\pm1$, высота барьера $1/4$); серая кривая всюду одна и та же; "
+        r"во врезке — окрестность $\phi=+1$"
         "\n"
         r"$R_c$ — порог выживания капли в кубе $1\times1\times1$ при одинаковой ширине границы "
         f"$W={WIDTH}$; в скобках — отношение к полиномиальному потенциалу",
