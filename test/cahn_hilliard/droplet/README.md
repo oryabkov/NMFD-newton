@@ -195,4 +195,36 @@ predicted thresholds are in notes/08 and `figs/potential_zoo.png`.
   $\eta=0.01$ against $8.9\times10^{-2}$ for the double well at the same radius.
 * [ ] the true double obstacle is **not** worth its variational-inequality machinery here: the
   measured brackets at $\eta=0.1$ and $0.05$ already straddle the family's floor $0.126$.
-* [ ] open: repeat two points at $128^3$ to separate the 5–9 % criterion bias from discretisation.
+* [x] the 5–9 % criterion bias is **not** discretisation: it is the $O(\gamma)$ interface-mass
+  correction, applied on one side of the balance only. See Phase 6.
+
+## Phase 6 — the sharp-interface asymptotics (open)
+
+Driven by the supervisor's [notes/cahn_hilliard_spherical_droplet_analysis.md](notes/cahn_hilliard_spherical_droplet_analysis.md),
+read against note 03 in [notes/09_sharp_interface_validation.md](notes/09_sharp_interface_validation.md).
+The two derivations — Gibbs–Thomson mass balance and the constrained energy landscape — are the
+same quartic $h(R)=AR^4-mR+\sigma/k$ term for term. What the new note adds is the landscape itself
+($R_c$ unstable, $R_\infty$ stable), zero Tolman length, the second-order bulk shifts, the
+$O(\gamma)$ mass correction, and the metastable/globally-stable boundary.
+
+Already settled from the 34 runs on disk (`py/verify_sharp_interface.py`, `figs/sharp_interface.png`):
+
+* [x] $O(\gamma)$ mass correction $\bar\phi=AR_0^3-1+C\gamma R_0$, $C=4\pi^3/3$: exact to $10^{-8}$.
+* [x] threshold brackets all four $\gamma$; $R_\infty$ to 0.06–1.5 %, mesh-independent — **provided**
+  $m$ and $h$ carry the $C$-terms together. Mixing them is what produced the old 10 % error.
+* [x] second-order bulk shifts $\delta_\pm=\psi/2\mp\frac38\psi^2$ to 0.3 % (first order is off by 8 %
+  in opposite directions), and hence Gibbs–Thomson to 0.2 % without logging $\psi$ at all.
+* [x] nothing ever grows, by an identity: our IC gives $h(R_0)=\sigma/k>0$ for every $R_0$, so the
+  start is always on the outer branch. **$R_c$ and the growth branch are untouched by every run so far.**
+* [x] the quadratic global-stability threshold is off by 10 % at $m=0.27$; the exact-bulk one
+  predicts what is measured.
+* [ ] `threshold` / `threshold_fine`: $R_{0,\mathrm{crit}}$ to 0.2 % at fixed $\xi/h=5.12$ — the only
+  measurement that separates the sharp value from its $O(\gamma)$ correction (0.3 % apart at
+  $\gamma=2\cdot10^{-4}$, 6.6 % at $1.28\cdot10^{-2}$).
+* [ ] `metastable`: the window where the droplet survives but costs more than the homogeneous state.
+* [ ] `--phi-mean` to decouple $m$ from $R_0$, then the critical nucleus and the first **growing**
+  droplet ($\gamma=8\cdot10^{-4}$, $m=0.1256$: $R_c=0.1200$, $R_\infty=0.1860$).
+* [ ] log $\psi$ in `droplet_stats.h` (it is already slot 0 of the state), then the order of the
+  Gibbs–Thomson error — the note's most distinctive claim and currently unverifiable.
+* [ ] the rate law $\dot R=-Mk\,h(R)/(2R^2)$ from note 03 fits with slope 2–7 instead of 1: the
+  monopole capacitance $4\pi R$ is an open-space result and the box is 3–4 radii across.

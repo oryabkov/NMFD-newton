@@ -206,8 +206,49 @@ sweep_etaprobe() {
     done
 }
 
+sweep_threshold() {
+    # R1 of notes/09_sharp_interface_validation.md: R_0,crit to ~0.2 % at fixed interface
+    # resolution. xi/h is pinned to 5.12 so the sweep varies physics and not the mesh:
+    #   gamma 1.28e-2 -> 32^3,  3.2e-3 -> 64^3,  8.0e-4 -> 128^3.
+    # Each R0 grid spans 0.97..1.25 of the sharp-interface prediction; the O(gamma)-corrected
+    # value sits 1..7 % below it, which is what these grids have to separate. Survivors are fitted
+    # through (R_inf - R_f)^2 ~ R_0 - R_0,crit rather than read off as a bracket.
+    # Step budgets follow t_evap ~ 1/sigma ~ gamma^-1/2; near the threshold the lifetime diverges.
+    for spec in "1.280e-2 32   800 0.330 0.337 0.341 0.344 0.351 0.361 0.375 0.395 0.426" \
+                "3.200e-3 64  1500 0.278 0.284 0.287 0.289 0.295 0.304 0.315 0.332 0.358" \
+                "8.000e-4 128 3000 0.234 0.239 0.241 0.243 0.248 0.255 0.265 0.279 0.301"; do
+        set -- $spec
+        local g=$1 n=$2 st=$3; shift 3
+        for r0 in "$@"; do
+            GRID=$n one "g${g}_r0${r0}" --init sphere --bc neumann --dt $DT \
+                --max-time-steps "$st" --r0 "$r0" --gamma "$g" --potential double_well
+        done
+    done
+}
+
+sweep_threshold_fine() {
+    # The 256^3 leg of R1, opt-in because it is ~12 GPU-hours on its own. dt = 4e-3 is safe here:
+    # the dt study moved R_inf by nothing at all between 5e-4 and 4e-3.
+    for r0 in 0.197 0.203 0.209 0.223 0.253; do
+        GRID=256 one "g2.000e-4_r0${r0}" --init sphere --bc neumann --dt 4e-3 \
+            --max-time-steps 3000 --r0 "$r0" --gamma 2.000e-4 --potential double_well
+    done
+}
+
+sweep_metastable() {
+    # R2: the window where the droplet exists but costs more than the homogeneous state.
+    # gamma = 8e-4 because xi/R ~ 0.16 there and the sharp-interface energy is good to ~1 %.
+    # R_0,crit = 0.2409; the quadratic bulk puts the crossover at 0.2517, the exact bulk at 0.2639.
+    # For every survivor compare the converged phobic+philic with f(phibar) = (phibar^2-1)^2/4.
+    for r0 in 0.245 0.250 0.255 0.260 0.265 0.270 0.280; do
+        GRID=128 one "r0${r0}" --init sphere --bc neumann --dt $DT --max-time-steps 3000 \
+            --r0 "$r0" --gamma 8.000e-4 --potential double_well
+    done
+}
+
 if [[ $# -lt 1 || "$1" == "list" ]]; then
-    echo "sweeps: pilot r0_dw r0_log omega gamma faceavg frontier solverprobe bc resolution cube eta etaprobe"
+    echo "sweeps: pilot r0_dw r0_log omega gamma faceavg frontier solverprobe bc resolution cube" \
+         "eta etaprobe threshold threshold_fine metastable"
     exit 0
 fi
 
