@@ -41,6 +41,7 @@ struct options
     int         grid_size   = 32;
     std::string output_dir  = ".";
     bool        save_coords = false;
+    int         save_every  = 1;
     bool        verbose     = false;
 
     int    max_iterations = DEFAULT_MAX_ITERATIONS;
@@ -553,7 +554,7 @@ static int run( const options &opt, PhobicEnergy phobic_en, Mobility mobility, l
         time_derivative->set_previous_state( solution );
 
         // Save numerical solution at each step if requested
-        if ( opt.save_coords )
+        if ( opt.save_coords && opt.save_every > 0 && ( step_idx + 1 ) % opt.save_every == 0 )
         {
             std::string numerical_file = opt.output_dir + "/solution/numerical_" + std::to_string( step_idx + 1 ) + ".bin";
             writer.write( solution, numerical_file );
@@ -576,6 +577,9 @@ static int run( const options &opt, PhobicEnergy phobic_en, Mobility mobility, l
     // Save exact solution once at the end if requested
     if ( opt.save_coords )
     {
+        std::string final_file = opt.output_dir + "/solution/numerical_final.bin";
+        writer.write( solution, final_file );
+
         std::string exact_file = opt.output_dir + "/solution/exact.bin";
         writer.write( exact_solution, exact_file );
     }
@@ -651,6 +655,9 @@ int main( int argc, char *argv[] )
         ->capture_default_str();
 
     app.add_flag( "--save-coords", opt.save_coords, "Save numerical and exact solutions to binary files" );
+    app.add_option( "--save-every", opt.save_every,
+                    "With --save-coords, write every N-th step (0 writes only the first and the last)" )
+        ->capture_default_str();
     app.add_flag( "--verbose", opt.verbose, "Print per-iteration residuals and the profiler breakdown to the log" );
     app.add_option( "--max-iterations", opt.max_iterations, "Maximum solver iterations" )->capture_default_str();
     app.add_option( "--gmres-basis", opt.gmres_basis, "GMRES basis size" )->capture_default_str();

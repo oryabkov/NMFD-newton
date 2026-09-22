@@ -206,6 +206,30 @@ sweep_etaprobe() {
     done
 }
 
+sweep_profile() {
+    # R6 of notes/09_sharp_interface_validation.md: the radial profile against
+    #   phi(r) = -tanh(zeta) + (sigma/2R) tanh^2(zeta),   zeta = (r - R) / sqrt(2 gamma).
+    # R0 is tuned per case so that the *stationary* radius lands on a prescribed R -- solve
+    # h(R) = 0 for m at fixed R, then R0 = (m/A)^(1/3).  That is what makes "fixed R, varying
+    # gamma" a controlled comparison instead of an accident of the initial condition.
+    #   panel A: R = 0.28 across four gamma  (xi/R from 0.07 to 0.57)
+    #   panel B: gamma = 3.2e-3 across four R (sigma/2R from 0.121 to 0.086)
+    # The gamma = 3.2e-3 / R = 0.28 case serves both panels, so it is listed once.
+    # Runs stop themselves on the default time_tol = 1e-10 well before 3000 steps.
+    for spec in "0.28 2.000e-4 0.29160" \
+                "0.28 8.000e-4 0.30234" \
+                "0.28 1.280e-2 0.35487" \
+                "0.28 3.200e-3 0.32179" \
+                "0.22 3.200e-3 0.29286" \
+                "0.25 3.200e-3 0.30495" \
+                "0.31 3.200e-3 0.34216"; do
+        set -- $spec
+        local R=$1 g=$2 r0=$3
+        GRID=128 one "R${R}_g${g}" --init sphere --bc neumann --dt $DT --max-time-steps 3000 \
+            --r0 "$r0" --gamma "$g" --potential double_well --save-coords --save-every 0
+    done
+}
+
 sweep_threshold() {
     # R1 of notes/09_sharp_interface_validation.md: R_0,crit to ~0.2 % at fixed interface
     # resolution. xi/h is pinned to 5.12 so the sweep varies physics and not the mesh:
@@ -248,7 +272,7 @@ sweep_metastable() {
 
 if [[ $# -lt 1 || "$1" == "list" ]]; then
     echo "sweeps: pilot r0_dw r0_log omega gamma faceavg frontier solverprobe bc resolution cube" \
-         "eta etaprobe threshold threshold_fine metastable"
+         "eta etaprobe profile threshold threshold_fine metastable"
     exit 0
 fi
 
