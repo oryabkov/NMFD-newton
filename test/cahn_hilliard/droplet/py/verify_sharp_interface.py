@@ -20,7 +20,8 @@ import os
 
 import numpy as np
 
-ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
+ROOT = os.environ.get(
+    "DROPLET_DATA", os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data"))
 
 A_COEF = 8.0 * np.pi / 3.0            # 2 v(R) / V for the unit cube
 C_COEF = 4.0 * np.pi**3 / 3.0         # interface mass correction, phibar += C gamma R

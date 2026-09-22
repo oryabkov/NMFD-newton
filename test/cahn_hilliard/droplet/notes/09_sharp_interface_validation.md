@@ -235,6 +235,45 @@ for a much smaller change. Low priority, but it is the only independent check of
 Order: **R1 + R2** (ready to launch, no code), then **R4 → R5**, then **R3** (most new physics),
 with R6 free alongside and R7 last.
 
+## 6a. The (R, m) grid: the landscape measured directly
+
+*81 runs, `sweep_landscape`, job 96831, gamma = 3.2e-3, 64^3, with `--phi-mean` setting the
+conserved mean independently of the radius. Validated against 9 runs at a pinned dt = 2e-3
+(`sweep_landscape_ctrl`, job 96834): identical outcomes, and the same stationary radius to five
+digits. Figure `figs/bifurcation.png`.*
+
+Setting m independently is what finally reaches the unstable branch, and 15 of the 81 runs **grew** —
+the first growing droplet in this study.
+
+**The stable branch settles the O(gamma) question.**
+
+| m | measured $R_\infty$ | with $O(\gamma)$ | err | sharp | err |
+|---|---|---|---|---|---|
+| 0.27 | 0.2451 | 0.2495 | −1.8 % | 0.2742 | −10.6 % |
+| 0.30 | 0.2701 | 0.2704 | **−0.1 %** | 0.2921 | −7.5 % |
+| 0.34 | 0.2948 | 0.2927 | **+0.7 %** | 0.3120 | −5.5 % |
+
+The correction is not a refinement here, it is the difference between 1 % and 10 %.
+
+**The existence threshold is still under-predicted.** Everything dies at m ≤ 0.24 and survives from
+m = 0.27, so $m_{\min}\in(0.24,0.27)$ against 0.197 sharp and 0.220 corrected. Both are low; the
+corrected one by ~10 %.
+
+**The barrier is 30–40 % wider than predicted.** Measured brackets (0.140, 0.168) at m = 0.27 and
+(0.113, 0.142) at m = 0.30, against 0.109 and 0.095. That is expected rather than surprising:
+$R_c\simeq\xi/(3m)$, so at m ≈ 0.3 the critical nucleus is 1.4–1.9 interface widths across and the
+thin-interface expansion has nothing left to stand on — exactly the note's own §5 caveat
+"$R_c$ meaningful only for $m\ll1/3$". It also explains the $m_{\min}$ miss, since $m_{\min}$ is
+where $R_c$ and $R_\infty$ merge.
+
+**Two things the grid taught us about method:**
+
+* The adaptive scheduler is safe here. Step counts fell from ~600 to ~15 with no change in the
+  answer, in every control case.
+* The energy sampled at step 0 follows the energy of the *initial condition* (both phases moved by
+  one constant), not the constrained minimiser (phases on the two branches of $f'=\psi$). At these
+  mean values the two differ visibly, so the landscape panel draws both.
+
 ## 7. Errata and nits in the note
 
 - §5's caveat "$R_c$ meaningful only for $m\ll1/3$" is the binding one for us: at

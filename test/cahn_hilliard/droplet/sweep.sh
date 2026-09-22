@@ -207,26 +207,23 @@ sweep_etaprobe() {
 }
 
 sweep_profile() {
-    # R6 of notes/09_sharp_interface_validation.md: the radial profile against
-    #   phi(r) = -tanh(zeta) + (sigma/2R) tanh^2(zeta),   zeta = (r - R) / sqrt(2 gamma).
-    # R0 is tuned per case so that the *stationary* radius lands on a prescribed R -- solve
-    # h(R) = 0 for m at fixed R, then R0 = (m/A)^(1/3).  That is what makes "fixed R, varying
-    # gamma" a controlled comparison instead of an accident of the initial condition.
-    #   panel A: R = 0.28 across four gamma  (xi/R from 0.07 to 0.57)
-    #   panel B: gamma = 3.2e-3 across four R (sigma/2R from 0.121 to 0.086)
-    # The gamma = 3.2e-3 / R = 0.28 case serves both panels, so it is listed once.
-    # Runs stop themselves on the default time_tol = 1e-10 well before 3000 steps.
-    for spec in "0.28 2.000e-4 0.29160" \
-                "0.28 8.000e-4 0.30234" \
-                "0.28 1.280e-2 0.35487" \
-                "0.28 3.200e-3 0.32179" \
-                "0.22 3.200e-3 0.29286" \
-                "0.25 3.200e-3 0.30495" \
-                "0.31 3.200e-3 0.34216"; do
-        set -- $spec
-        local R=$1 g=$2 r0=$3
-        GRID=128 one "R${R}_g${g}" --init sphere --bc neumann --dt $DT --max-time-steps 3000 \
-            --r0 "$r0" --gamma "$g" --potential double_well --save-coords --save-every 0
+    # R6 of notes/09_sharp_interface_validation.md: the radial profile against the first-order
+    # uniformly valid solution phi = -tanh(zeta) + (sigma/2R) tanh^2(zeta), zeta = (r-R)/sqrt(2 gamma).
+    # R0 is tuned per case so that the *stationary* radius lands on a prescribed R: solve
+    # m = A R^3 + C gamma R + sigma/(k R) for the mean, then A R0^3 + C gamma R0 = m for R0.
+    #   panel A: R = 0.28 across six gamma spanning 32x  (xi/R from 0.07 to 0.40)
+    #   panel B: gamma = 2e-4 across five R              (xi/R from 0.13 to 0.06)
+    # The neglected term is O(psi^2) with psi = sigma/R, so the error norm should go as gamma at
+    # fixed R and as R^-2 at fixed gamma -- that is what the sweep is for. Everything runs at 256^3
+    # so that xi/h stays above 5 even at the smallest gamma and the grid does not set the floor;
+    # the 128^3 runs of the earlier pass are kept as the resolution control.
+    local cases=${PROFILE_CASES:-"0.28:2.000e-4:0.29155 0.28:4.000e-4:0.29602 0.28:8.000e-4:0.30202 0.28:1.600e-3:0.30987 0.28:3.200e-3:0.31975 0.28:6.400e-3:0.33143 0.15:2.000e-4:0.20508 0.20:2.000e-4:0.22863 0.25:2.000e-4:0.26586 0.33:2.000e-4:0.33720"}
+    local spec R g r0
+    for spec in $cases; do
+        IFS=: read -r R g r0 <<< "$spec"
+        GRID=${PROFILE_GRID:-256} one "R${R}_g${g}" --init sphere --bc neumann --dt $DT \
+            --max-time-steps 3000 --r0 "$r0" --gamma "$g" --potential double_well \
+            --save-coords --save-every 0
     done
 }
 
