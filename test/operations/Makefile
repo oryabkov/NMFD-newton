@@ -11,6 +11,9 @@ test_pair_vector_space: test_pair_vector_space.cpp
 test_dense1_extended_operator: test_dense1_extended_operator.cpp
 	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) test_dense1_extended_operator.cpp -o test_dense1_extended_operator.bin
 
+test_rect_vector_space: test_rect_vector_space.cpp
+	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) test_rect_vector_space.cpp -o test_rect_vector_space.bin
+
 # test_dense_vector_space
 
 test_dense_vector_space_all: test_dense_vector_space_cpu test_dense_vector_space_cuda

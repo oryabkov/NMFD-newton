@@ -32,7 +32,7 @@
 
 namespace nmfd
 {
-namespace solvers 
+namespace solvers
 {
 namespace detail
 {
@@ -96,7 +96,7 @@ public:
         check_init();
         vec.init(cols_);
     }
-    template<class...Args>    
+    template<class...Args>
     void init_row_vectors(Args&&...args) const
     {
         check_init();
@@ -105,10 +105,10 @@ public:
 
     void init_col_vector(vector_type& vec) const
     {
-        check_init();   
+        check_init();
         vec.init(rows_);
     }
-    template<class...Args>    
+    template<class...Args>
     void init_col_vectors(Args&&...args) const
     {
         check_init();
@@ -118,46 +118,46 @@ public:
     // void init_col_vectors(Args&&...args) const
     // {
     //     (init_col_vector(std::forward<Args>(args)),...);
-    // }  
+    // }
 
     void init_matrix(matrix_type& mat) const
     {
         check_init();
         mat.init(rows_, cols_);
     }
-    template<class...Args>    
+    template<class...Args>
     void init_matrices(Args&&...args) const
     {
         check_init();
         std::initializer_list<int>{((void)init_matrix(std::forward<Args>(args)), 0)...};
-    }    
+    }
     void free_row_vector(vector_type& vec) const
     {
         vec.free();
     }
-    template<class...Args>    
+    template<class...Args>
     void free_row_vectors(Args&&...args) const
     {
         std::initializer_list<int>{((void)free_row_vector(std::forward<Args>(args)), 0)...};
-    }    
+    }
     void free_col_vector(vector_type& vec) const
     {
         vec.free();
     }
-    template<class...Args>    
+    template<class...Args>
     void free_col_vectors(Args&&...args) const
     {
         std::initializer_list<int>{((void)free_col_vector(std::forward<Args>(args)), 0)...};
-    }     
+    }
     void free_matrix(matrix_type& mat) const
     {
         mat.free();
     }
-    template<class...Args>     
+    template<class...Args>
     void free_matrices(Args&&...args) const
     {
         std::initializer_list<int>{((void)free_matrix(std::forward<Args>(args)), 0)...};
-    }       
+    }
     std::pair<Card, Card> size() const
     {
         return {rows_, cols_};
@@ -225,7 +225,7 @@ public:
         for(Card j=0;j<rows_;j++)
         {
             vec(j) = scalar;
-        }        
+        }
     }
     void assign_scalar_matrix(const scalar_type scalar, matrix_type& mat) const
     {
@@ -236,15 +236,15 @@ public:
             {
                 mat(j,k) = scalar;
             }
-        }        
-    }    
+        }
+    }
     void assign_row_vector(const vector_type& x, vector_type& y) const
     {
         check_init();
         for(Card j=0;j<cols_;j++)
         {
             y(j) = x(j);
-        }        
+        }
     }
     void assign_col_vector(const vector_type& x, vector_type& y) const
     {
@@ -252,7 +252,7 @@ public:
         for(Card j=0;j<rows_;j++)
         {
             y(j) = x(j);
-        }        
+        }
     }
     void assign_matrix(const matrix_type& A, matrix_type& B) const
     {
@@ -262,9 +262,9 @@ public:
             for(Card k=0;k<cols_;k++)
             {
                 B(j,k) = A(j,k);
-            }        
+            }
         }
-    }   
+    }
     Type& matrix_at(const matrix_type& A, const Card row, const Card col)
     {
         return A(row, col);
@@ -292,7 +292,7 @@ public:
     }
 
 
-    void set_random_row_vector(vector_type& vec, const T& from = 0, const T& to = 1) const 
+    void set_random_row_vector(vector_type& vec, const T& from = 0, const T& to = 1) const
     {
         for(Card j=0;j<rows_;j++)
         {
@@ -301,7 +301,7 @@ public:
             vec(j) = val;
         }
     }
-    void set_random_col_vector(vector_type& vec, const T& from = 0, const T& to = 1) const 
+    void set_random_col_vector(vector_type& vec, const T& from = 0, const T& to = 1) const
     {
         for(Card j=0;j<cols_;j++)
         {
@@ -319,8 +319,8 @@ public:
                 T val = dis(gen); // map [-1,1] -> [from,to]
                 val = (to-from)*(0.5*(val+1))+from;
                 mat(j,k) = val;
-            }        
-        }        
+            }
+        }
     }
 
     T norm_col_vector(const vector_type& vec) const
@@ -329,24 +329,24 @@ public:
         for(Card j=0;j<cols_;j++)
         {
             norm += vec(j)*vec(j);
-        }  
+        }
         return std::sqrt(norm);
     }
-    
+
     T norm_row_vector(const vector_type& vec) const
     {
         T norm = 0;
         for(Card j=0;j<rows_;j++)
         {
             norm += vec(j)*vec(j);
-        }  
-        return std::sqrt(norm);   
+        }
+        return std::sqrt(norm);
     }
 
-    void solve_upper_triangular_subsystem(const matrix_type& A, vector_type& x, const Card ind) const 
+    void solve_upper_triangular_subsystem(const matrix_type& A, vector_type& x, const Card ind) const
     {
         for(Card j = ind; j-->0;)
-        {   
+        {
             x(j) /= A(j,j);
             for (Card k = 0; k < j; ++k)
             {
@@ -354,20 +354,20 @@ public:
             }
         }
     }
-    void solve_upper_triangular_subsystem(const matrix_type& A, const vector_type& b, vector_type& x, const Card ind) const    
+    void solve_upper_triangular_subsystem(const matrix_type& A, const vector_type& b, vector_type& x, const Card ind) const
     {
         if(ind>0)
         {
             assign_col_vector(b, x);
             solve_upper_triangular_subsystem(A, x, ind);
         }
-    } 
+    }
 
     void apply_plane_rotation(scalar_type& dx, scalar_type& dy, const scalar_type& cs, const scalar_type& sn) const
     {
         T temp = cs * dx + sn * dy;
         dy = -sn * dx + cs * dy; //sn->conj(sn)
-        dx = temp;        
+        dx = temp;
     }
     void generate_plane_rotation(const scalar_type& dx, const scalar_type& dy, scalar_type& cs, scalar_type& sn) const
     {
@@ -391,13 +391,13 @@ public:
             T tmp = dx / dy;
             sn = static_cast<T>(1) / std::sqrt(static_cast<T>(1) + tmp*tmp);
             cs = tmp*sn;
-        } 
+        }
         else
-        {   
+        {
             T tmp = dy / dx;
             cs = static_cast<T>(1) / std::sqrt(static_cast<T>(1) + tmp*tmp);
             sn = tmp*cs;
-        }    
+        }
     }
     void plane_rotation_col(matrix_type& H, vector_type& cs_, vector_type& sn_, vector_type& s, const Card col) const
     {
@@ -411,7 +411,7 @@ public:
         H(col+1,col) = static_cast<T>(0); //remove numerical noise below diagonal
         apply_plane_rotation(s(col), s(col+1), cs_(col), sn_(col) );
     }
-    
+
     void print_col_vector(const vector_type& vec, int prec = 2)
     {
         if(prec > 2)

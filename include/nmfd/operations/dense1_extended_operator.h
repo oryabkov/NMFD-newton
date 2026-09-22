@@ -29,8 +29,8 @@ where A is some origin operator extended with vector u row v^t and number w.
 */
 {
     ///TODO add static assert for scalar_type and vector_type coincidence
-    static_assert(std::is_same_v<typename OrigOperator::scalar_type, typename OrigVectorSpace::scalar_type>, "scalar_type in OrigOperator and OrigVectorSpace must be the same");
-    static_assert(std::is_same_v<typename OrigOperator::vector_type, typename OrigVectorSpace::vector_type>, "vector_type in OrigOperator and OrigVectorSpace must be the same");
+    static_assert(std::is_same<typename OrigOperator::scalar_type, typename OrigVectorSpace::scalar_type>::value, "scalar_type in OrigOperator and OrigVectorSpace must be the same");
+    static_assert(std::is_same<typename OrigOperator::vector_type, typename OrigVectorSpace::vector_type>::value, "vector_type in OrigOperator and OrigVectorSpace must be the same");
 
     using scalar_type = typename OrigOperator::scalar_type;
 

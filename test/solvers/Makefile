@@ -1,12 +1,13 @@
 -include ../common.mk
 
-all: test_gmres.bin test_gmres_mg.bin test_nonlinear_solver.bin test_dense1_extended_solver.bin
+all: test_gmres.bin test_gmres_mg.bin test_nonlinear_solver.bin test_dense1_extended_solver.bin test_nonlinear_solver_сircle.bin
 
 test:
 	./test_gmres.bin
 	./test_gmres_mg.bin
 	./test_nonlinear_solver.bin
 	./test_dense1_extended_solver.bin
+	./test_nonlinear_solver_сircle.bin
 
 test_gmres.bin: test_gmres.cpp
 	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_ROOT) $(INCLUDE_LOCAL) $(INCLUDE_CONTRIB) test_gmres.cpp -o test_gmres.bin
@@ -26,6 +27,9 @@ test_gmres_dense_cpu: test_gmres_dense.cpp
 
 test_gmres_dense_cuda: test_gmres_dense.cpp dense_solvers_cuda_inst.cu
 	$(CUDACOMPILER) $(CUDAFLAGS) $(INCLUDE_ROOT) $(INCLUDE_LOCAL) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA $(PRECISION_DEFINE) -x cu test_gmres_dense.cpp dense_solvers_cuda_inst.cu -o test_gmres_dense_cuda_$(PRECISION_SUFFIX).bin $(CUDA_SOLVER_LIBS)
+
+test_nonlinear_solver_сircle.bin: test_nonlinear_solver_сircle.cpp
+	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_ROOT) $(INCLUDE_LOCAL) $(INCLUDE_CONTRIB) test_nonlinear_solver_сircle.cpp -o test_nonlinear_solver_сircle.bin
 
 # test_nonlinear_solver_dense
 
