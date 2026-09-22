@@ -22,7 +22,10 @@ constexpr int    DEFAULT_MG_SWEEPS_POST = 4;
 constexpr scalar DEFAULT_NEWTON_TOL     = std::is_same<float, scalar>::value ? 5e-6f : 1e-10;
 constexpr scalar DEFAULT_TOLERANCE      = std::is_same<float, scalar>::value ? 5e-6f : 1e-10;
 constexpr int    DEFAULT_MAX_TIME_STEPS = 10;
-constexpr scalar DEFAULT_DT_INF         = 1.0;
+constexpr scalar DEFAULT_DT_INF         = 8.0;
+constexpr int    DEFAULT_NEWTON_MAX_ITERATIONS = 10;
+constexpr int    DEFAULT_MAX_RETRIES    = 10;
+constexpr int    DEFAULT_SUCCESS_STREAK = 5;
 constexpr scalar DEFAULT_TIME_TOL       = std::is_same<float, scalar>::value ? 5e-6f : 1e-10;
 constexpr scalar DEFAULT_R0             = 0.25;
 constexpr scalar DEFAULT_GAMMA          = 1.0;
@@ -45,6 +48,10 @@ struct options
     bool        verbose     = false;
 
     int    max_iterations = DEFAULT_MAX_ITERATIONS;
+    int    newton_max_iterations = DEFAULT_NEWTON_MAX_ITERATIONS;
+    int    max_retries    = DEFAULT_MAX_RETRIES;
+    int    success_streak = DEFAULT_SUCCESS_STREAK;
+    bool   fixed_dt       = false;
     int    gmres_basis    = DEFAULT_GMRES_BASIS;
     int    mg_sweeps_pre  = DEFAULT_MG_SWEEPS_PRE;
     int    mg_sweeps_post = DEFAULT_MG_SWEEPS_POST;
@@ -180,8 +187,18 @@ static int run( const options &opt, PhobicEnergy phobic_en, Mobility mobility, l
     log.info( "" );
     log.info( "Time Integration:" );
     log.info_f( "  Max time steps: %d", opt.max_time_steps );
-    log.info_f( "  dt_inf:         %e", static_cast<double>( opt.dt_inf ) );
+    log.info_f( "  dt_inf (init):  %e", static_cast<double>( opt.dt_inf ) );
     log.info_f( "  Time tol:       %e", static_cast<double>( opt.time_tol ) );
+    if ( opt.fixed_dt )
+    {
+        log.info( "  Adaptive dt:    no" );
+    }
+    else
+    {
+        log.info_f( "  Adaptive dt:    yes (rollback and retry; dt halves on failure, doubles after %d successes, %d retries)",
+                    opt.success_streak, opt.max_retries );
+    }
+    log.info_f( "  Newton max its: %d", opt.newton_max_iterations );
     log.info( "" );
     log.info( "Output:" );
     log.info_f( "  Directory:     %s", opt.output_dir.c_str() );
@@ -198,12 +215,12 @@ static int run( const options &opt, PhobicEnergy phobic_en, Mobility mobility, l
 
     log.info_f(
         0,
-        "DROPLET_CONFIG init=%s r0=%.6e gamma=%.6e potential=%s omega=%g eta=%g mobility=%s D=%g floor=%g face_avg=%s bc=%s grid=%d dt=%.6e phi_eq=%.6e k=%.6e eps=%.6e ell=%.6e",
+        "DROPLET_CONFIG init=%s r0=%.6e gamma=%.6e potential=%s omega=%g eta=%g mobility=%s D=%g floor=%g face_avg=%s bc=%s grid=%d dt=%.6e adaptive=%d phi_eq=%.6e k=%.6e eps=%.6e ell=%.6e",
         opt.init.c_str(), static_cast<double>( opt.r0 ), static_cast<double>( opt.gamma ), opt.potential.c_str(),
         static_cast<double>( opt.omega ), static_cast<double>( opt.eta ), opt.mobility.c_str(), static_cast<double>( opt.mobility_D ),
         static_cast<double>( opt.mobility_floor ), opt.face_avg.c_str(), opt.bc.c_str(), opt.grid_size,
-        static_cast<double>( dt ), static_cast<double>( phi_eq ), static_cast<double>( k ), static_cast<double>( eps ),
-        static_cast<double>( ell ) );
+        static_cast<double>( dt ), opt.fixed_dt ? 0 : 1, static_cast<double>( phi_eq ), static_cast<double>( k ),
+        static_cast<double>( eps ), static_cast<double>( ell ) );
 
     // Automatic balanced decomposition for any power-of-two process count.
     if ( comm_world.num_procs < 1 || ( comm_world.num_procs & ( comm_world.num_procs - 1 ) ) != 0 )
@@ -434,8 +451,8 @@ static int run( const options &opt, PhobicEnergy phobic_en, Mobility mobility, l
     auto stats_init = droplet_stats_calc.compute( solution );
     log.info_f(
         0,
-        "DROPLET step=%d t=%.6e mass=%.9e drop_volume=%.9e R_eff=%.6e phi_max=%.6e phi_min=%.6e phi_centre=%.6e phobic=%.6e philic=%.6e newton=%d resid=%.6e",
-        0, 0.0, static_cast<double>( stats_init.mass ), static_cast<double>( stats_init.drop_volume ),
+        "DROPLET step=%d t=%.6e dt=%.6e mass=%.9e drop_volume=%.9e R_eff=%.6e phi_max=%.6e phi_min=%.6e phi_centre=%.6e phobic=%.6e philic=%.6e newton=%d resid=%.6e",
+        0, 0.0, static_cast<double>( dt ), static_cast<double>( stats_init.mass ), static_cast<double>( stats_init.drop_volume ),
         static_cast<double>( stats_init.r_eff ), static_cast<double>( stats_init.phi_max ),
         static_cast<double>( stats_init.phi_min ), static_cast<double>( stats_init.phi_centre ),
         static_cast<double>( energies_init.phobic ), static_cast<double>( energies_init.philic ), 0,
@@ -482,8 +499,18 @@ static int run( const options &opt, PhobicEnergy phobic_en, Mobility mobility, l
 
     auto newton_solver = std::make_shared<newton_solver_t>( vspace, &log, newton_iteration );
     newton_solver->convergence_strategy()->set_tolerance( opt.newton_tol );
+    newton_solver->convergence_strategy()->set_convergence_constants(
+        /*tolerance_*/ opt.newton_tol,
+        /*maximum_iterations_*/ opt.newton_max_iterations,
+        /*relax_tolerance_factor_*/ scalar( 1 ),
+        /*relax_tolerance_steps_*/ 0 );
 
     auto error_monitor = std::make_shared<error_monitor_t>( vspace, exact_solution, &log );
+
+    tests::scheduler<scalar> dt_scheduler( dt_inf, opt.success_streak );
+    vector_t                 backup_solution;
+    vspace->init_vector( backup_solution );
+    double time_now = 0.0;
 
     for ( int step_idx = 0; step_idx < opt.max_time_steps; step_idx++ )
     {
@@ -491,13 +518,51 @@ static int run( const options &opt, PhobicEnergy phobic_en, Mobility mobility, l
         log.info_f( "Time iteration #%d has started", step_idx + 1 );
         log.info( "" );
 
-        // Solve and measure time
-        SCFD_PROFILING_TIC( "Solve" );
-        newton_solver->solve( cahn_hilliard_op.get(), nullptr, nullptr, solution );
-        double step_time = current_prof::inst().toc( "Solve" );
+        vspace->assign( solution, backup_solution );
+
+        bool         step_accepted = false;
+        double       step_time     = 0.0;
+        scalar       accepted_dt   = scalar( 0 );
+        unsigned int newton_iters  = 0;
+        int          attempts      = opt.fixed_dt ? 1 : opt.max_retries + 1;
+
+        for ( int attempt = 1; attempt <= attempts; attempt++ )
+        {
+            const scalar current_dt_inf = opt.fixed_dt ? dt_inf : dt_scheduler.get_dt_inf();
+            time_derivative->set_dt_inf( current_dt_inf );
+
+            SCFD_PROFILING_TIC( "Solve" );
+            const bool   converged    = newton_solver->solve( cahn_hilliard_op.get(), nullptr, nullptr, solution );
+            const double attempt_time = current_prof::inst().toc( "Solve" );
+
+            if ( !opt.fixed_dt )
+            {
+                dt_scheduler.step( converged );
+            }
+
+            if ( converged || opt.fixed_dt )
+            {
+                step_time     = attempt_time;
+                accepted_dt   = scalar( 1 ) / current_dt_inf;
+                newton_iters  = newton_solver->convergence_strategy()->get_number_of_iterations();
+                step_accepted = true;
+                break;
+            }
+
+            log.info_f( "  step %d rejected at dt = %e, retrying", step_idx + 1,
+                        static_cast<double>( scalar( 1 ) / current_dt_inf ) );
+            vspace->assign( backup_solution, solution );
+        }
+
+        if ( !step_accepted )
+        {
+            log.error_f( "Failed to take time step %d after %d attempts", step_idx + 1, attempts );
+            break;
+        }
+
+        time_now += static_cast<double>( accepted_dt );
         iteration_times.push_back( step_time );
         total_time_ms += step_time;
-        unsigned int newton_iters = newton_solver->convergence_strategy()->get_number_of_iterations();
         total_newton_iters += newton_iters;
 
         // Compute norm F(x) - stationary residual (to check time convergence)
@@ -529,8 +594,8 @@ static int run( const options &opt, PhobicEnergy phobic_en, Mobility mobility, l
         auto stats_step = droplet_stats_calc.compute( solution );
         log.info_f(
             0,
-            "DROPLET step=%d t=%.6e mass=%.9e drop_volume=%.9e R_eff=%.6e phi_max=%.6e phi_min=%.6e phi_centre=%.6e phobic=%.6e philic=%.6e newton=%d resid=%.6e",
-            step_idx + 1, static_cast<double>( ( step_idx + 1 ) * dt ), static_cast<double>( stats_step.mass ),
+            "DROPLET step=%d t=%.6e dt=%.6e mass=%.9e drop_volume=%.9e R_eff=%.6e phi_max=%.6e phi_min=%.6e phi_centre=%.6e phobic=%.6e philic=%.6e newton=%d resid=%.6e",
+            step_idx + 1, time_now, static_cast<double>( accepted_dt ), static_cast<double>( stats_step.mass ),
             static_cast<double>( stats_step.drop_volume ), static_cast<double>( stats_step.r_eff ),
             static_cast<double>( stats_step.phi_max ), static_cast<double>( stats_step.phi_min ),
             static_cast<double>( stats_step.phi_centre ), static_cast<double>( energies.phobic ),
@@ -573,6 +638,10 @@ static int run( const options &opt, PhobicEnergy phobic_en, Mobility mobility, l
             log.info( "" );
         }
     }
+
+    log.info_f( 0, "DROPLET_END steps=%d t_end=%.6e dt_final=%.6e stopped=%s", steps_completed, time_now,
+                static_cast<double>( scalar( 1 ) / ( opt.fixed_dt ? dt_inf : dt_scheduler.get_dt_inf() ) ),
+                stopped_by_time_tol ? "time_tol" : "max_time_steps" );
 
     // Save exact solution once at the end if requested
     if ( opt.save_coords )
@@ -660,6 +729,15 @@ int main( int argc, char *argv[] )
         ->capture_default_str();
     app.add_flag( "--verbose", opt.verbose, "Print per-iteration residuals and the profiler breakdown to the log" );
     app.add_option( "--max-iterations", opt.max_iterations, "Maximum solver iterations" )->capture_default_str();
+    app.add_option( "--newton-max-iterations", opt.newton_max_iterations,
+                    "Maximum Newton iterations per attempt; exceeding it rejects the step" )
+        ->capture_default_str();
+    app.add_option( "--max-retries", opt.max_retries, "Maximum dt reductions per time step" )
+        ->capture_default_str();
+    app.add_option( "--success-streak", opt.success_streak,
+                    "Successful steps before dt is doubled" )
+        ->capture_default_str();
+    app.add_flag( "--fixed-dt", opt.fixed_dt, "Disable the adaptive step and keep dt at its initial value" );
     app.add_option( "--gmres-basis", opt.gmres_basis, "GMRES basis size" )->capture_default_str();
     app.add_option( "--mg-sweeps-pre", opt.mg_sweeps_pre, "Multigrid pre-sweeps" )->capture_default_str();
     app.add_option( "--mg-sweeps-post", opt.mg_sweeps_post, "Multigrid post-sweeps" )->capture_default_str();
@@ -691,7 +769,7 @@ int main( int argc, char *argv[] )
     app.add_option( "--bc", opt.bc, "Boundary condition preset" )
         ->capture_default_str()
         ->check( CLI::IsMember( std::vector<std::string>{ "current", "neumann", "dirichlet", "periodic" } ) );
-    app.add_option( "--dt", opt.dt, "Time step (overrides --dt-inf if > 0)" )->capture_default_str();
+    app.add_option( "--dt", opt.dt, "Initial time step (overrides --dt-inf if > 0)" )->capture_default_str();
 
     try
     {

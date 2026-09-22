@@ -24,7 +24,7 @@ RUN=../run.sh
 SOLVER=${SOLVER:-gmres}
 PRECOND=${PRECOND:-mg}
 GRID=${GRID:-64}
-DT=${DT:-2e-3}
+DT=${DT:-0.125}     # initial step only; the scheduler takes over from dt_inf = 8
 STEPS=${STEPS:-1500}
 
 # gamma = eps^2 * f''(phi_eq) at eps = 0.04 keeps the interface width matched across potentials
@@ -128,7 +128,7 @@ sweep_solverprobe() {
     for dt in 2e-3 5e-4 1e-4; do
         local n
         n=$(awk -v d="$dt" 'BEGIN{printf "%d", 0.30/d}')
-        one "harm1e-4_dt${dt}" --init sphere --bc neumann --dt "$dt" --max-time-steps "$n" \
+        one "harm1e-4_dt${dt}" --init sphere --bc neumann --dt "$dt" --fixed-dt --max-time-steps "$n" \
             --r0 0.26 --gamma $GAMMA_DW --potential double_well --mobility parabolic \
             --mobility-floor 1e-4 --face-avg harmonic
     done
@@ -153,14 +153,14 @@ sweep_resolution() {
     local grids="64 128"
     [[ "${RESOLUTION_MAX_GRID:-128}" == "256" ]] && grids="64 128 256"
     for g in $grids; do
-        GRID=$g one "grid${g}" --init sphere --bc neumann --dt 2e-3 --max-time-steps 500 \
+        GRID=$g one "grid${g}" --init sphere --bc neumann --dt 2e-3 --fixed-dt --max-time-steps 500 \
             --r0 0.30 --gamma $GAMMA_DW --potential double_well
     done
     # dt study at a fixed end time t_end = 1.2
     for dt in 5e-4 1e-3 2e-3 4e-3; do
         local n
         n=$(awk -v d="$dt" 'BEGIN{printf "%d", 1.2/d}')
-        one "dt${dt}" --init sphere --bc neumann --dt "$dt" \
+        one "dt${dt}" --init sphere --bc neumann --dt "$dt" --fixed-dt \
             --max-time-steps "$n" --r0 0.30 --gamma $GAMMA_DW --potential double_well
     done
 }

@@ -89,6 +89,10 @@ def parse(run):
     cfg, rows = {}, []
     with open(os.path.join(run, "log.txt")) as fh:
         for line in fh:
+            # adaptive-dt runs go through the logger, which prefixes every line with its level
+            line = line.strip()
+            if line.startswith("INFO:"):
+                line = line[len("INFO:"):].strip()
             if line.startswith("DROPLET_CONFIG"):
                 for tok in line.split()[1:]:
                     key, _, val = tok.partition("=")
