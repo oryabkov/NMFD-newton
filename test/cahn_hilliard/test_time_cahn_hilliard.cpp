@@ -34,6 +34,7 @@ constexpr scalar DEFAULT_ETA            = 0.15;
 constexpr scalar DEFAULT_MOBILITY_D     = 1.0;
 constexpr scalar DEFAULT_MOBILITY_FLOOR = 1e-5;
 constexpr scalar DEFAULT_DT             = 0.0;
+constexpr scalar DEFAULT_PHI_MEAN       = -9.0;   // sentinel: tie the mean to r0
 
 /**************************************/
 
@@ -63,6 +64,7 @@ struct options
 
     std::string init           = "trig";
     scalar      r0             = DEFAULT_R0;
+    scalar      phi_mean       = DEFAULT_PHI_MEAN;
     scalar      gamma          = DEFAULT_GAMMA;
     std::string potential      = "double_well";
     scalar      omega          = DEFAULT_OMEGA;
@@ -215,11 +217,12 @@ static int run( const options &opt, PhobicEnergy phobic_en, Mobility mobility, l
 
     log.info_f(
         0,
-        "DROPLET_CONFIG init=%s r0=%.6e gamma=%.6e potential=%s omega=%g eta=%g mobility=%s D=%g floor=%g face_avg=%s bc=%s grid=%d dt=%.6e adaptive=%d phi_eq=%.6e k=%.6e eps=%.6e ell=%.6e",
+        "DROPLET_CONFIG init=%s r0=%.6e gamma=%.6e potential=%s omega=%g eta=%g mobility=%s D=%g floor=%g face_avg=%s bc=%s grid=%d dt=%.6e adaptive=%d phi_mean=%g phi_eq=%.6e k=%.6e eps=%.6e ell=%.6e",
         opt.init.c_str(), static_cast<double>( opt.r0 ), static_cast<double>( opt.gamma ), opt.potential.c_str(),
         static_cast<double>( opt.omega ), static_cast<double>( opt.eta ), opt.mobility.c_str(), static_cast<double>( opt.mobility_D ),
         static_cast<double>( opt.mobility_floor ), opt.face_avg.c_str(), opt.bc.c_str(), opt.grid_size,
-        static_cast<double>( dt ), opt.fixed_dt ? 0 : 1, static_cast<double>( phi_eq ), static_cast<double>( k ),
+        static_cast<double>( dt ), opt.fixed_dt ? 0 : 1, static_cast<double>( opt.phi_mean ),
+        static_cast<double>( phi_eq ), static_cast<double>( k ),
         static_cast<double>( eps ), static_cast<double>( ell ) );
 
     // Automatic balanced decomposition for any power-of-two process count.
@@ -310,6 +313,8 @@ static int run( const options &opt, PhobicEnergy phobic_en, Mobility mobility, l
 
     auto vspace = std::make_shared<vec_ops_t>( range, comm_world, false, stencil, max_stencil_order );
 
+    droplet_stats_t droplet_stats_calc( vspace, step, op_dist, comm_world );
+
     vector_t solution, rhs, exact_solution;
     vspace->init_vector( solution );
     vspace->init_vector( rhs );
@@ -374,6 +379,39 @@ static int run( const options &opt, PhobicEnergy phobic_en, Mobility mobility, l
         exact_view.release();
     }
 
+    // Decouple the conserved mean from the droplet radius: the landscape E(R) is a family indexed
+    // by the mean value alone, and tying it to r0 pins every run to h(r0) = sigma/k > 0, i.e. to
+    // the outer branch. Shifting the whole field by a constant moves both bulk phases together,
+    // which is what mass exchange does anyway, and leaves the interface profile untouched.
+    if ( opt.phi_mean > scalar( -2 ) )
+    {
+        scalar shift = opt.phi_mean - droplet_stats_calc.compute( solution ).mass;
+
+        // read-modify-write, so the views must pull the data that is already there
+        vector_view_t solution_view( solution, true ), exact_view( exact_solution, true );
+        for ( int i = 0; i < range[0]; i++ )
+        {
+            for ( int j = 0; j < range[1]; j++ )
+            {
+                for ( int k = 0; k < range[2]; k++ )
+                {
+                    solution_view( i, j, k, 1 ) += shift;
+                    exact_view( i, j, k, 1 ) += shift;
+                }
+            }
+        }
+        solution_view.release();
+        exact_view.release();
+
+        scalar realised = droplet_stats_calc.compute( solution ).mass;
+        if ( std::abs( realised - opt.phi_mean ) > scalar( 1e-8 ) )
+        {
+            log.error_f( "requested mean %.9e but got %.9e", static_cast<double>( opt.phi_mean ),
+                         static_cast<double>( realised ) );
+            return 1;
+        }
+    }
+
     auto time_derivative = std::make_shared<time_derivative_t>( vspace );
     time_derivative->set_dt_inf( dt_inf );
     time_derivative->set_previous_state( solution );
@@ -397,8 +435,7 @@ static int run( const options &opt, PhobicEnergy phobic_en, Mobility mobility, l
     cahn_hilliard_op_stationary->set_mobility( mobility );
     cahn_hilliard_op_stationary->set_phobic_energy( phobic_en );
 
-    free_energy_t   free_energy_calc( vspace, step, cond, op_dist, phobic_en, opt.gamma );
-    droplet_stats_t droplet_stats_calc( vspace, step, op_dist, comm_world );
+    free_energy_t free_energy_calc( vspace, step, cond, op_dist, phobic_en, opt.gamma );
 
     std::shared_ptr<precond_interface> precond;
     if ( opt.preconditioner_type == "diag" )
@@ -751,6 +788,8 @@ int main( int argc, char *argv[] )
         ->capture_default_str()
         ->check( CLI::IsMember( std::vector<std::string>{ "trig", "cube", "sphere" } ) );
     app.add_option( "--r0", opt.r0, "Drop radius" )->capture_default_str();
+    app.add_option( "--phi-mean", opt.phi_mean,
+                    "Conserved mean of phi; unset ties it to --r0 (a drop in a pure matrix)" );
     app.add_option( "--gamma", opt.gamma, "Interface parameter" )->capture_default_str();
     app.add_option( "--potential", opt.potential, "Bulk potential" )
         ->capture_default_str()

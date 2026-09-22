@@ -230,6 +230,53 @@ sweep_profile() {
     done
 }
 
+sweep_landscape() {
+    # A grid over (R0, m) covering the whole energy landscape at one gamma. The mean value is set
+    # independently of the radius with --phi-mean, which is what finally makes the unstable branch
+    # reachable: with m tied to r0 every run starts at h(r0) = sigma/k > 0, i.e. on the outer branch,
+    # and can only shrink.
+    #
+    # Since m is conserved exactly, each run is a horizontal line in the (R, m) plane, and the
+    # theory's two branches R_c(m) < R_inf(m) predict its direction:
+    #   R < R_c(m)            -> collapses to zero
+    #   R_c(m) < R < R_inf(m) -> GROWS to R_inf
+    #   R > R_inf(m)          -> shrinks back to R_inf
+    #
+    # Pairs are skipped when the implied bulk shift delta = m - (8 pi/3) R^3 leaves the two-phase
+    # state: above ~0.42 the matrix crosses the spinodal at -1/sqrt(3) and decomposes on its own,
+    # far below zero the drop is drained so hard it is no longer a drop.
+    local gamma=${LANDSCAPE_GAMMA:-3.200e-3}
+    local m_list=${LANDSCAPE_M:-"0.17 0.19 0.20 0.21 0.22 0.24 0.27 0.30 0.34"}
+    local r_list=${LANDSCAPE_R:-"0.09 0.12 0.15 0.18 0.21 0.24 0.27 0.30 0.33"}
+    for m in $m_list; do
+        for r0 in $r_list; do
+            local keep delta
+            delta=$(awk -v m="$m" -v r="$r0" 'BEGIN{printf "%.4f", m - 8.3775804*r*r*r}')
+            keep=$(awk -v d="$delta" 'BEGIN{print (d < 0.35 && d > -0.20) ? 1 : 0}')
+            [[ "$keep" == "1" ]] || continue
+            one "m${m}_R${r0}" --init sphere --bc neumann --dt $DT --max-time-steps 400 \
+                --r0 "$r0" --gamma "$gamma" --potential double_well \
+                --phi-mean "$(awk -v m="$m" 'BEGIN{printf "%.6f", m - 1}')"
+        done
+    done
+}
+
+sweep_landscape_ctrl() {
+    # Control for sweep_landscape: the same points with the step pinned small. The adaptive
+    # scheduler accepts any step Newton can solve, which says nothing about accuracy, and near the
+    # saddle node the drop can be thrown across the barrier by a step that converges perfectly
+    # well. These points straddle both candidate thresholds (sharp m_min = 0.197, with the
+    # O(gamma) interface mass 0.2204), so the two runs must agree or the adaptive grid is unusable.
+    local gamma=${LANDSCAPE_GAMMA:-3.200e-3}
+    for m in 0.22 0.24 0.27; do
+        for r0 in 0.15 0.18 0.24; do
+            one "m${m}_R${r0}" --init sphere --bc neumann --dt 2e-3 --fixed-dt \
+                --max-time-steps 2000 --r0 "$r0" --gamma "$gamma" --potential double_well \
+                --phi-mean "$(awk -v m="$m" 'BEGIN{printf "%.6f", m - 1}')"
+        done
+    done
+}
+
 sweep_threshold() {
     # R1 of notes/09_sharp_interface_validation.md: R_0,crit to ~0.2 % at fixed interface
     # resolution. xi/h is pinned to 5.12 so the sweep varies physics and not the mesh:
@@ -272,7 +319,7 @@ sweep_metastable() {
 
 if [[ $# -lt 1 || "$1" == "list" ]]; then
     echo "sweeps: pilot r0_dw r0_log omega gamma faceavg frontier solverprobe bc resolution cube" \
-         "eta etaprobe profile threshold threshold_fine metastable"
+         "eta etaprobe profile landscape landscape_ctrl threshold threshold_fine metastable"
     exit 0
 fi
 
