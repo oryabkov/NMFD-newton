@@ -229,7 +229,7 @@ sweep_profile() {
 
 sweep_landscape() {
     # A grid over (R0, m) covering the whole energy landscape at one gamma. The mean value is set
-    # independently of the radius with --phi-mean, which is what finally makes the unstable branch
+    # independently of the radius with --phi-mean, which is what makes the unstable branch
     # reachable: with m tied to r0 every run starts at h(r0) = sigma/k > 0, i.e. on the outer branch,
     # and can only shrink.
     #
@@ -239,19 +239,24 @@ sweep_landscape() {
     #   R_c(m) < R < R_inf(m) -> GROWS to R_inf
     #   R > R_inf(m)          -> shrinks back to R_inf
     #
+    # The default gamma = 2e-4 is the one where the theory is actually supposed to hold: R_c ~
+    # xi/(3m), so the critical nucleus is 3..5 interface widths across (7..13 cells at 128^3),
+    # against 1.4..1.9 widths at gamma = 3.2e-3 where it cannot be resolved at all. The R grid is
+    # geometric because R_c and R_inf together span a factor of ten.
+    #
     # Pairs are skipped when the implied bulk shift delta = m - (8 pi/3) R^3 leaves the two-phase
     # state: above ~0.42 the matrix crosses the spinodal at -1/sqrt(3) and decomposes on its own,
     # far below zero the drop is drained so hard it is no longer a drop.
-    local gamma=${LANDSCAPE_GAMMA:-3.200e-3}
-    local m_list=${LANDSCAPE_M:-"0.17 0.19 0.20 0.21 0.22 0.24 0.27 0.30 0.34"}
-    local r_list=${LANDSCAPE_R:-"0.09 0.12 0.15 0.18 0.21 0.24 0.27 0.30 0.33"}
+    local gamma=${LANDSCAPE_GAMMA:-2.000e-4}
+    local m_list=${LANDSCAPE_M:-"0.060 0.068 0.075 0.085 0.095 0.110 0.130 0.160 0.200"}
+    local r_list=${LANDSCAPE_R:-"0.033 0.040 0.048 0.059 0.071 0.086 0.104 0.126 0.153 0.185 0.224 0.272 0.330"}
     for m in $m_list; do
         for r0 in $r_list; do
             local keep delta
             delta=$(awk -v m="$m" -v r="$r0" 'BEGIN{printf "%.4f", m - 8.3775804*r*r*r}')
-            keep=$(awk -v d="$delta" 'BEGIN{print (d < 0.35 && d > -0.20) ? 1 : 0}')
+            keep=$(awk -v d="$delta" 'BEGIN{print (d < 0.35 && d > -0.30) ? 1 : 0}')
             [[ "$keep" == "1" ]] || continue
-            one "m${m}_R${r0}" --init sphere --bc neumann --dt $DT --max-time-steps 400 \
+            one "g${gamma}_m${m}_R${r0}" --init sphere --bc neumann --dt $DT --max-time-steps 400 \
                 --r0 "$r0" --gamma "$gamma" --potential double_well \
                 --phi-mean "$(awk -v m="$m" 'BEGIN{printf "%.6f", m - 1}')"
         done

@@ -30,16 +30,24 @@ import numpy as np
 
 from verify_sharp_interface import A_COEF, C_COEF, K_DW, _bisect, sigma
 
-OUT = "../figs/bifurcation.png"
+GAMMA = float(os.environ.get("LANDSCAPE_GAMMA", "2.0e-4"))
+GRIDN = int(os.environ.get("LANDSCAPE_GRID", "128"))
+OUT = f"../figs/bifurcation_g{GAMMA:.1e}".replace("e-0", "e-") + ".png"
 DATA = os.environ.get(
     "DROPLET_DATA", os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data"))
 
-C_DEAD, C_GROW, C_SHRINK = "#9a9a9a", "#1b9e77", "#d95f02"
+C_DEAD, C_GROW, C_SHRINK, C_STALL = "#9a9a9a", "#1b9e77", "#d95f02", "#1f78b4"
 C_SHARP, C_CORR = "0.55", "#7570b3"
 
-plt.rcParams.update({"font.size": 9.5, "axes.grid": True, "grid.alpha": 0.25})
+plt.rcParams.update({"font.size": 12, "axes.labelsize": 14, "axes.titlesize": 16,
+                     "xtick.labelsize": 12, "ytick.labelsize": 12, "legend.fontsize": 12})
 
 f_bulk = np.vectorize(lambda p: 0.25 * (p * p - 1.0) ** 2)
+
+
+def style(ax):
+    ax.set_axisbelow(True)
+    ax.grid(True, alpha=0.5, zorder=1)
 
 
 def sci(v):
@@ -113,17 +121,42 @@ def parse_log(run):
 
 
 def load():
+    """Both naming schemes live side by side: landscape_m<m>_R<r> from the first pass and
+    landscape_g<gamma>_m<m>_R<r> since. Select on what the log says, not on the directory name."""
     runs = []
-    for d in sorted(glob.glob(os.path.join(DATA, "landscape_m*_R*_*"))):
+    for d in sorted(glob.glob(os.path.join(DATA, "landscape_*_R*_*"))):
         got = parse_log(d)
         if got is None:
             continue
         cfg, data = got
+        if abs(cfg["gamma"] / GAMMA - 1.0) > 1e-6 or int(cfg["grid"]) != GRIDN:
+            continue
         R0, Rend = data["R_eff"][0], data["R_eff"][-1]
         kind = "dead" if Rend <= 0.0 else ("grow" if Rend > R0 * 1.02 else "shrink")
         runs.append({"m": round(1.0 + cfg["phi_mean"], 4), "R0": R0, "Rend": Rend, "kind": kind,
                      "gamma": cfg["gamma"], "E0": data["phobic"][0] + data["philic"][0]})
+
+    # A run that stops on the steady-state tolerance far below the attractor of its own m-row has
+    # not settled: it stalled on the barrier, where dR/dt vanishes by definition.  Such a point is
+    # neither a survivor nor a corpse, so it must not enter the R_c bracket or the R_inf average.
+    for m in {r["m"] for r in runs}:
+        row = [r for r in runs if r["m"] == m]
+        att = max(r["Rend"] for r in row)
+        for r in row:
+            if 0.0 < r["Rend"] < 0.5 * att:
+                r["kind"] = "stall"
     return runs
+
+
+def sides(runs, m):
+    """Split one m-row into what fell below the barrier, what settled on the stable branch, and
+    the settled runs themselves. A stalled run counts on the side it was already drifting to."""
+    row = sorted([r for r in runs if r["m"] == m], key=lambda r: r["R0"])
+    below = [r["R0"] for r in row
+             if r["kind"] == "dead" or (r["kind"] == "stall" and r["Rend"] < r["R0"])]
+    above = [r["R0"] for r in row
+             if r["kind"] in ("grow", "shrink") or (r["kind"] == "stall" and r["Rend"] >= r["R0"])]
+    return below, above, [r for r in row if r["kind"] in ("grow", "shrink")]
 
 
 def main():
@@ -137,96 +170,92 @@ def main():
           f"dead {sum(r['kind']=='dead' for r in runs)}, grow {sum(r['kind']=='grow' for r in runs)}, "
           f"shrink {sum(r['kind']=='shrink' for r in runs)}")
 
-    fig = plt.figure(figsize=(13.8, 6.9))
-    gs = fig.add_gridspec(1, 2, wspace=0.19, left=0.055, right=0.99, top=0.855, bottom=0.095)
+    fig = plt.figure(figsize=(16.0, 6.0))
+    gs = fig.add_gridspec(1, 2)
     a, b = fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[0, 1])
 
     # ---- phase portrait ------------------------------------------------------------------
-    for corr, col, lw, lab in ((False, C_SHARP, 1.5, "резкая граница"),
-                               (True, C_CORR, 2.3, r"с поправкой $O(\gamma)$")):
+    for corr, col, lw, lab in ((False, C_SHARP, 2.0, "резкая граница"),
+                               (True, C_CORR, 3.0, r"с поправкой $O(\gamma)$")):
         mm = m_min_num(g, corr)
-        mgrid = np.linspace(mm * 1.0001, 0.37, 300)
+        mgrid = np.linspace(mm * 1.0001, ms[-1] * 1.12, 300)
         rc = [roots_m(m, g, corr)[0] for m in mgrid]
         ri = [roots_m(m, g, corr)[-1] for m in mgrid]
         a.plot(rc, mgrid, "--", color=col, lw=lw)
         a.plot(ri, mgrid, "-", color=col, lw=lw, label=rf"{lab}: $m_{{\min}}={mm:.3f}$")
-        a.axhline(mm, color=col, lw=0.9, ls=":")
+        a.axhline(mm, color=col, lw=1.2, ls=":")
 
     for r in runs:
-        col = {"dead": C_DEAD, "grow": C_GROW, "shrink": C_SHRINK}[r["kind"]]
+        col = {"dead": C_DEAD, "grow": C_GROW, "shrink": C_SHRINK, "stall": C_STALL}[r["kind"]]
         a.annotate("", xy=(max(r["Rend"], 0.012), r["m"]), xytext=(r["R0"], r["m"]),
-                   arrowprops=dict(arrowstyle="-|>", color=col, lw=1.2, alpha=0.9,
+                   arrowprops=dict(arrowstyle="-|>", color=col, lw=1.8, alpha=0.9,
                                    shrinkA=0, shrinkB=0), zorder=4)
-        a.plot([r["R0"]], [r["m"]], "o", color=col, ms=3.0, zorder=5)
+        a.plot([r["R0"]], [r["m"]], "o", color=col, ms=4.5, zorder=5)
 
     for m in ms:                                     # measured R_c bracket and R_inf
-        row = sorted([r for r in runs if r["m"] == m], key=lambda r: r["R0"])
-        dead = [r["R0"] for r in row if r["kind"] == "dead"]
-        alive = [r["R0"] for r in row if r["kind"] != "dead"]
-        if dead and alive:
-            a.plot([max(dead), min(alive)], [m, m], "-", color="k", lw=3.2, alpha=0.5, zorder=6)
-        ends = {round(r["Rend"], 4) for r in row if r["kind"] != "dead"}
-        for e in ends:
-            a.plot([e], [m], "D", color="k", ms=4.5, zorder=7)
-    a.plot([], [], "-", color="k", lw=3.2, alpha=0.5, label=r"измеренная вилка на $R_c$")
-    a.plot([], [], "D", color="k", ms=4.5, label=r"измеренный $R_\infty$")
-    for lab, col in (("испарилась", C_DEAD), ("выросла", C_GROW), ("сжалась", C_SHRINK)):
-        a.plot([], [], "-", color=col, lw=1.8, marker="o", ms=3.5, label=lab)
-    a.set_xlim(0.0, 0.36)
-    a.set_ylim(0.155, 0.355)
+        below, above, settled = sides(runs, m)
+        if below and above:
+            a.plot([max(below), min(above)], [m, m], "-", color="k", lw=4.5, alpha=0.5, zorder=6)
+        for e in {round(r["Rend"], 4) for r in settled}:
+            a.plot([e], [m], "D", color="k", ms=6.5, zorder=7)
+    a.plot([], [], "-", color="k", lw=4.5, alpha=0.5, label=r"измеренная вилка на $R_c$")
+    a.plot([], [], "D", color="k", ms=6.5, label=r"измеренный $R_\infty$")
+    for lab, col in (("испарилась", C_DEAD), ("выросла", C_GROW), ("сжалась", C_SHRINK),
+                     ("залипла у барьера", C_STALL)):
+        a.plot([], [], "-", color=col, lw=2.4, marker="o", ms=4.5, label=lab)
+    a.set_xlim(0.0, max(r["R0"] for r in runs) * 1.52)
+    a.set_ylim(ms[0] - 0.4 * (ms[1] - ms[0]), ms[-1] + 0.4 * (ms[-1] - ms[-2]))
     a.set_xlabel(r"радиус капли $R$")
     a.set_ylabel(r"сохраняющееся среднее $m=1+\bar\phi$")
-    a.set_title("Фазовый портрет: точка — старт, стрелка — куда пришло;\n"
-                r"$m$ сохраняется точно, поэтому расчёт — горизонтальная линия", fontsize=10.5)
-    a.legend(fontsize=8.2, loc="lower right", framealpha=0.94, ncol=1)
+    a.set_title("Фазовый портрет")
+    a.legend(loc="center right", framealpha=0.94, ncol=1)
+    style(a)
 
     # ---- E(R) ----------------------------------------------------------------------------
-    show = [ms[0], ms[3], ms[6], ms[-1]]
+    show = sorted({ms[i] for i in (0, len(ms) // 3, 2 * len(ms) // 3, len(ms) - 1)})
     cols = ["#1b9e77", "#d95f02", "#7570b3", "#e7298a"]
-    rr = np.linspace(0.02, 0.36, 260)
+    rr = np.linspace(0.6 * min(r["R0"] for r in runs), 1.06 * max(r["R0"] for r in runs), 260)
     for m, col in zip(show, cols):
         pts = sorted([r for r in runs if r["m"] == m], key=lambda r: r["R0"])
-        b.plot(rr, [E_shifted(x, m, g) for x in rr], "-", color=col, lw=1.7,
+        b.plot(rr, [E_shifted(x, m, g) for x in rr], "-", color=col, lw=2.4,
                label=rf"$m={m:.2f}$")
-        b.plot(rr, [E_equil(x, m, g) for x in rr], "--", color=col, lw=1.1, alpha=0.8)
-        b.plot([p["R0"] for p in pts], [p["E0"] for p in pts], "o", color=col, ms=5,
-               mfc="none", mew=1.3, zorder=4)
+        b.plot(rr, [E_equil(x, m, g) for x in rr], "--", color=col, lw=1.6, alpha=0.8)
+        b.plot([p["R0"] for p in pts], [p["E0"] for p in pts], "o", color=col, ms=7,
+               mfc="none", mew=1.6, zorder=4)
         r = roots_m(m, g, True)
         if r:
-            b.plot([r[0]], [E_equil(r[0], m, g)], "x", color=col, ms=9, mew=2, zorder=5)
-            b.plot([r[-1]], [E_equil(r[-1], m, g)], "*", color=col, ms=12, zorder=5,
-                   mec="0.2", mew=0.5)
-    b.plot([], [], "o", color="0.35", ms=5, mfc="none", mew=1.3, label="измерено (шаг 0)")
-    b.plot([], [], "-", color="0.35", lw=1.7, label="энергия того же НУ (общий сдвиг фаз)")
-    b.plot([], [], "--", color="0.35", lw=1.1, label=r"ландшафт $E(R)$ (равновесные фазы)")
-    b.plot([], [], "x", color="0.35", ms=9, mew=2, label=r"$R_c$")
-    b.plot([], [], "*", color="0.35", ms=12, mec="0.2", mew=0.5, label=r"$R_\infty$")
+            b.plot([r[0]], [E_equil(r[0], m, g)], "x", color=col, ms=11, mew=2.5, zorder=5)
+            b.plot([r[-1]], [E_equil(r[-1], m, g)], "*", color=col, ms=15, zorder=5,
+                   mec="0.2", mew=0.6)
+    b.plot([], [], "o", color="0.35", ms=7, mfc="none", mew=1.6, label="измерено (шаг 0)")
+    b.plot([], [], "-", color="0.35", lw=2.4, label="энергия того же НУ (общий сдвиг фаз)")
+    b.plot([], [], "--", color="0.35", lw=1.6, label=r"ландшафт $E(R)$ (равновесные фазы)")
+    b.plot([], [], "x", color="0.35", ms=11, mew=2.5, label=r"$R_c$")
+    b.plot([], [], "*", color="0.35", ms=15, mec="0.2", mew=0.6, label=r"$R_\infty$")
     b.set_xlabel(r"$R$")
     b.set_ylabel(r"$F/V$")
-    b.set_title("Ландшафт по точкам, включая барьер:\n"
-                r"энергия на нулевом шаге и есть $E(R)$ при заданном $m$", fontsize=10.5)
-    b.legend(fontsize=8.2, loc="upper left", framealpha=0.94)
+    b.set_title(r"Ландшафт $E(R)$")
+    b.legend(loc="upper left", framealpha=0.94)
+    style(b)
 
-    fig.suptitle(
-        rf"Сетка по $(R,m)$ при $\gamma={sci(g)}$, куб $1^3$, $64^3$: "
-        r"среднее задано независимо от радиуса, поэтому достижима и неустойчивая ветвь",
-        fontsize=11.5, y=0.965)
+    fig.suptitle(rf"Сетка по $(R,m)$ при $\gamma={sci(g)}$, куб $1^3$, ${GRIDN}^3$", fontsize=16)
+    fig.tight_layout()
     fig.savefig(OUT, dpi=160)
     print("wrote", OUT)
 
-    print(f"\n{'m':>6} | {'R_c резк':>8} {'R_c O(g)':>9} {'вилка':>15} | "
-          f"{'R_inf резк':>10} {'R_inf O(g)':>10} {'измерено':>9}")
+    print(f"\n{'m':>6} | {'R_c резк':>8} {'R_c O(g)':>9} {'вилка':>15} {'R_c/h':>6} | "
+          f"{'R_inf резк':>10} {'R_inf O(g)':>10} {'измерено':>9} {'ошибка':>8}")
     for m in ms:
-        row = sorted([r for r in runs if r["m"] == m], key=lambda r: r["R0"])
-        dead = [r["R0"] for r in row if r["kind"] == "dead"]
-        alive = [r["R0"] for r in row if r["kind"] != "dead"]
+        below, above, settled = sides(runs, m)
         rs, rk = roots_m(m, g, False), roots_m(m, g, True)
-        br = f"({max(dead):.3f}, {min(alive):.3f})" if dead and alive else (
-            "всё выжило" if alive else "всё умерло")
-        meas = f"{np.mean([r['Rend'] for r in row if r['kind'] != 'dead']):.4f}" if alive else "—"
-        print(f"{m:6.2f} | {rs[0] if rs else float('nan'):8.4f} {rk[0] if rk else float('nan'):9.4f} "
-              f"{br:>15} | {rs[-1] if rs else float('nan'):10.4f} "
-              f"{rk[-1] if rk else float('nan'):10.4f} {meas:>9}")
+        br = f"({max(below):.3f}, {min(above):.3f})" if below and above else (
+            "всё выжило" if above else "всё умерло")
+        meas = np.mean([r["Rend"] for r in settled]) if settled else float("nan")
+        cells = rk[0] * GRIDN if rk else float("nan")
+        print(f"{m:6.3f} | {rs[0] if rs else float('nan'):8.4f} {rk[0] if rk else float('nan'):9.4f} "
+              f"{br:>15} {cells:6.1f} | {rs[-1] if rs else float('nan'):10.4f} "
+              f"{rk[-1] if rk else float('nan'):10.4f} {meas:9.4f} "
+              f"{(meas / rk[-1] - 1 if rk else float('nan')):7.2%}")
 
 
 if __name__ == "__main__":
