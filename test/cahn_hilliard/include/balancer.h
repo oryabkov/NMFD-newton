@@ -33,8 +33,8 @@ public:
         ord_vec_t dims;
         for ( int j = 0; j < Dim; ++j )
         {
-            int e   = base + ( j < rem ? 1 : 0 ); // leading axes take the extra split first
-            dims[j] = Ord( 1 ) << e;              // 2^e blocks along axis j
+            int e   = base + ( j >= Dim - rem ? 1 : 0 ); // trailing axes (z, then y) take the extra split first
+            dims[j] = Ord( 1 ) << e;                     // 2^e blocks along axis j
         }
         return dims;
     }

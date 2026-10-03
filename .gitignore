@@ -20,3 +20,8 @@
 .serena/
 .claude/
 mutagen.yml*
+**/solution
+test/cahn_hilliard/scaling_runs
+test/cahn_hilliard/distributor_runs
+test/cahn_hilliard/comm_perf_runs
+test/cahn_hilliard/verify_builds
