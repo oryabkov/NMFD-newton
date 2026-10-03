@@ -183,7 +183,7 @@ public:
                 range_
             );
         }
-    };
+    }
 
     void set_linearization_point( const vector_type &p )
     {

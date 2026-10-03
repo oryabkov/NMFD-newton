@@ -192,13 +192,13 @@ public:
                 range_
             );
         }
-    };
+    }
 
     void apply( const vector_type &x, vector_type &y ) const
     {
         vspace_->assign( x, y );
         apply( y );
-    };
+    }
 
 private:
     vector_space_ptr   vspace_;

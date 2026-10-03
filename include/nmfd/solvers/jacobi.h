@@ -111,7 +111,7 @@ public:
         }
 
         return res;
-    };
+    }
 
     bool solve(const vector_type& b, vector_type& x) const override
     {

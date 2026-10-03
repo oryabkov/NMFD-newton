@@ -118,7 +118,7 @@ public:
             for_each_nd_type for_each_nd_inst;
             for_each_nd_inst( restrictor_kernel{ from, to, *lin_vector_wrap_, b_cond_, step_, dom_r, use_linearized_ghost }, half_r );
         }
-    };
+    }
 
 private:
     idx_nd_type        range_; // in dom space

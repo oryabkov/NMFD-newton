@@ -182,7 +182,7 @@ public:
                 range_
             );
         }
-    };
+    }
 
 private:
     vector_space_ptr   vspace_;

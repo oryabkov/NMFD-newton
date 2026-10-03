@@ -25,7 +25,7 @@ public:
     {
         pow2_ = static_cast<Ord>(std::ceil( std::log2(sz_) ));
     }
-    ~reductions(){};
+    ~reductions(){}
 
     Type naive_dot(const VectorType &x, const VectorType &y) const
     {
