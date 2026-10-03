@@ -15,7 +15,6 @@
 !**/bin/.gitkeep
 .venv
 .clangd
-.clang-format
 **/#*#
 .serena/
 .claude/
