@@ -7,14 +7,8 @@ namespace kernels
 {
 
 template <
-    class IdxND,
-    class Scalar,
-    class TensorType,
-    class VectorType,
-    class GridStep,
-    class BoundaryCond,
-    class PhobicEnergy,
-    class Mobility>
+    class IdxND, class Scalar, class TensorType, class VectorType, class GridStep, class BoundaryCond,
+    class PhobicEnergy, class Mobility>
 struct jacobi_op_kernel
 {
     VectorType   in, out, lin_vector;
@@ -24,20 +18,20 @@ struct jacobi_op_kernel
     PhobicEnergy phobic_en;
     Mobility     mobility;
     Scalar       dt_inf;
-    Scalar gamma;
+    Scalar       gamma;
 
     __DEVICE_TAG__ void operator()( const IdxND idx ) const
     {
-        TensorType state{ Scalar(0), Scalar(0) };
+        TensorType state{ Scalar( 0 ), Scalar( 0 ) };
 
-        auto curr = in.get_vec( idx ); // [d_psi, d_phi]
+        auto curr     = in.get_vec( idx );         // [d_psi, d_phi]
         auto lin_curr = lin_vector.get_vec( idx ); // [psi_lin, phi_lin]
 
         // First equation Jacobian: div(M(phi_lin) grad(d_psi)) + div(M'(phi_lin) grad(psi)) * d_phi - d(d_phi)/dt
         // Second equation Jacobian: d_psi + gamma * laplace(d_phi) - f'(phi_lin) * d_phi
         state[0] = -curr[1] * dt_inf;
         state[1] = curr[0] - phobic_en.get_derivative( lin_curr[1] ) * curr[1];
-        #pragma unroll
+#pragma unroll
         for ( int j = 0; j < IdxND::dim; j++ ) // iterate over x, y, z,... dimension
         {
             auto N = range[j];
@@ -54,7 +48,7 @@ struct jacobi_op_kernel
             }
             else
             {
-                prev_vec = in.get_vec( idx - ej );
+                prev_vec     = in.get_vec( idx - ej );
                 prev_lin_vec = lin_vector.get_vec( idx - ej );
             }
 
@@ -67,22 +61,22 @@ struct jacobi_op_kernel
             }
             else
             {
-                next_vec = in.get_vec( idx + ej );
+                next_vec     = in.get_vec( idx + ej );
                 next_lin_vec = lin_vector.get_vec( idx + ej );
             }
 
             const Scalar mobility_plus_half  = mobility( ( next_lin_vec[1] + lin_curr[1] ) / Scalar( 2 ) );
             const Scalar mobility_minus_half = mobility( ( prev_lin_vec[1] + lin_curr[1] ) / Scalar( 2 ) );
 
-            const Scalar mobility_deriv_plus_half  = mobility.get_derivative( ( next_lin_vec[1] + lin_curr[1] ) / Scalar( 2 ) );
-            const Scalar mobility_deriv_minus_half = mobility.get_derivative( ( prev_lin_vec[1] + lin_curr[1] ) / Scalar( 2 ) );
+            const Scalar mobility_deriv_plus_half =
+                mobility.get_derivative( ( next_lin_vec[1] + lin_curr[1] ) / Scalar( 2 ) );
+            const Scalar mobility_deriv_minus_half =
+                mobility.get_derivative( ( prev_lin_vec[1] + lin_curr[1] ) / Scalar( 2 ) );
 
             // [eq.1] div(M(phi_lin) grad(d_psi))
-            state[0] += (
-                mobility_plus_half * next_vec[0] +
-                mobility_minus_half * prev_vec[0] -
-                ( mobility_plus_half + mobility_minus_half ) * curr[0]
-            ) / Scalar( hj * hj );
+            state[0] += ( mobility_plus_half * next_vec[0] + mobility_minus_half * prev_vec[0] -
+                          ( mobility_plus_half + mobility_minus_half ) * curr[0] ) /
+                        Scalar( hj * hj );
 
             // [eq.1] div(M'(phi_lin) grad(psi)) * d_phi
             // ============ VARIANT 1: continuous linearization ============
@@ -103,24 +97,21 @@ struct jacobi_op_kernel
 
             // ============ VARIANT 2: discrete linearization ============
             // 1/2 * div(M'(phi_lin) grad(psi)) * d_phi_i
-            state[0] += Scalar( 0.5 ) * (
-                mobility_deriv_plus_half  * next_lin_vec[0] +
-                mobility_deriv_minus_half * prev_lin_vec[0] -
-                ( mobility_deriv_plus_half + mobility_deriv_minus_half ) * lin_curr[0]
-            ) / Scalar( hj * hj ) * curr[1];
+            state[0] += Scalar( 0.5 ) *
+                        ( mobility_deriv_plus_half * next_lin_vec[0] + mobility_deriv_minus_half * prev_lin_vec[0] -
+                          ( mobility_deriv_plus_half + mobility_deriv_minus_half ) * lin_curr[0] ) /
+                        Scalar( hj * hj ) * curr[1];
 
             // + M'_{i+1/2} * (psi_{i+1} - psi_i) / (2 h^2) * d_phi_{i+1}
-            state[0] += mobility_deriv_plus_half
-                      * ( next_lin_vec[0] - lin_curr[0] )
-                      / Scalar( 2 * hj * hj ) * next_vec[1];
+            state[0] +=
+                mobility_deriv_plus_half * ( next_lin_vec[0] - lin_curr[0] ) / Scalar( 2 * hj * hj ) * next_vec[1];
 
             // - M'_{i-1/2} * (psi_i - psi_{i-1}) / (2 h^2) * d_phi_{i-1}
-            state[0] -= mobility_deriv_minus_half
-                      * ( lin_curr[0] - prev_lin_vec[0] )
-                      / Scalar( 2 * hj * hj ) * prev_vec[1];
+            state[0] -=
+                mobility_deriv_minus_half * ( lin_curr[0] - prev_lin_vec[0] ) / Scalar( 2 * hj * hj ) * prev_vec[1];
 
             // [eq.2] gamma * laplace(d_phi)
-            state[1] += gamma * ( next_vec[1] + prev_vec[1] - Scalar(2) * curr[1] ) / Scalar(hj * hj);
+            state[1] += gamma * ( next_vec[1] + prev_vec[1] - Scalar( 2 ) * curr[1] ) / Scalar( hj * hj );
         }
 
         out.set_vec( state, idx );

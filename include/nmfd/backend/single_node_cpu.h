@@ -24,7 +24,7 @@ namespace nmfd
 namespace backend
 {
 
-template<class Log = scfd::utils::log_std>
+template <class Log = scfd::utils::log_std>
 class single_node_cpu
 {
 public:

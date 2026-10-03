@@ -40,10 +40,11 @@ public:
     {
         typename monitor_type::params monitor;
 
-        params(const std::string& log_prefix = "", const std::string& log_name = "jacobi::")
-            : logged_obj_params_t(0, log_prefix + log_name),
-              monitor(typename Monitor::params(this->log_msg_prefix)) // TODO
-        {}
+        params( const std::string &log_prefix = "", const std::string &log_name = "jacobi::" )
+            : logged_obj_params_t( 0, log_prefix + log_name ),
+              monitor( typename Monitor::params( this->log_msg_prefix ) ) // TODO
+        {
+        }
     };
 
 private:
@@ -60,62 +61,58 @@ protected:
 public:
     jacobi(
         vector_operation_ptr vec_ops,
-        log_type*            log  = nullptr, // Not sure this is a good idea
-        const params&        prm  = {},
-        preconditioner_ptr   prec = nullptr
+        log_type            *log = nullptr, // Not sure this is a good idea
+        const params &prm = {}, preconditioner_ptr prec = nullptr
     )
-        : parent_t{std::move(vec_ops), log, prm, prm.monitor, std::move(prec)},
-          prms(prm),
-          tmp_wrap_(*vec_ops_)
-    {}
-
-    jacobi(
-        laplace_operator_ptr A,
-        vector_operation_ptr vec_ops,
-        log_type*            log  = nullptr, // Not sure this is a good idea
-        const params&        prm  = {},
-        preconditioner_ptr   prec = nullptr
-    )
-        : jacobi(vec_ops, log, prm, prec)
+        : parent_t{ std::move( vec_ops ), log, prm, prm.monitor, std::move( prec ) }, prms( prm ),
+          tmp_wrap_( *vec_ops_ )
     {
-        parent_t::set_operator(A);
     }
 
-    bool
-    solve(const laplace_operator_type& A, const vector_type& rhs, vector_type& x) const override
+    jacobi(
+        laplace_operator_ptr A, vector_operation_ptr vec_ops,
+        log_type     *log = nullptr, // Not sure this is a good idea
+        const params &prm = {}, preconditioner_ptr prec = nullptr
+    )
+        : jacobi( vec_ops, log, prm, prec )
+    {
+        parent_t::set_operator( A );
+    }
+
+    bool solve( const laplace_operator_type &A, const vector_type &rhs, vector_type &x ) const override
     {
         SCFD_PROFILING_SCOPED_TIC_PRINT( "Jacobi::solve", logged_obj_t::log_ );
-        A.apply(x, *tmp_wrap_);
-        vec_ops_->add_lin_comb(scalar_type{-1}, rhs, scalar_type{1}, *tmp_wrap_);
+        A.apply( x, *tmp_wrap_ );
+        vec_ops_->add_lin_comb( scalar_type{ -1 }, rhs, scalar_type{ 1 }, *tmp_wrap_ );
         // Now, tmp represents residual
 
-        monitor_.start(rhs);
-        while (!monitor_.check_finished(x, *tmp_wrap_))
+        monitor_.start( rhs );
+        while ( !monitor_.check_finished( x, *tmp_wrap_ ) )
         {
             ++monitor_;
             SCFD_PROFILING_SCOPED_TIC( "Jacobi::iteration" );
             // tmp := P(Ax - b);
-            prec_->apply(*tmp_wrap_);
+            prec_->apply( *tmp_wrap_ );
             // x   := x - P(Ax - b);
-            vec_ops_->add_lin_comb(scalar_type{-1}, *tmp_wrap_, scalar_type{1}, x);
+            vec_ops_->add_lin_comb( scalar_type{ -1 }, *tmp_wrap_, scalar_type{ 1 }, x );
             // tmp := Laplace(x) = Ax;
-            A.apply(x, *tmp_wrap_);
+            A.apply( x, *tmp_wrap_ );
             // tmp := Ax - b;
-            vec_ops_->add_lin_comb(scalar_type{-1}, rhs, scalar_type{1}, *tmp_wrap_);
+            vec_ops_->add_lin_comb( scalar_type{ -1 }, rhs, scalar_type{ 1 }, *tmp_wrap_ );
         }
 
         auto res = monitor_.converged();
-        if (!res)
+        if ( !res )
         {
-            logged_obj_t::error_f("solve: linear solver failed to converge");
+            logged_obj_t::error_f( "solve: linear solver failed to converge" );
         }
 
         return res;
     }
 
-    bool solve(const vector_type& b, vector_type& x) const override
+    bool solve( const vector_type &b, vector_type &x ) const override
     {
-        return solve(*parent_t::A_, b, x);
+        return solve( *parent_t::A_, b, x );
     }
 };
 

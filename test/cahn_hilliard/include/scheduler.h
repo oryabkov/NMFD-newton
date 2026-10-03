@@ -16,8 +16,7 @@ public:
     scheduler() = delete;
 
     scheduler( scalar_type dt_inf_initial, int success_threshold = 5 )
-        : dt_inf_( dt_inf_initial )
-        , success_threshold_( std::max( 1, success_threshold ) )
+        : dt_inf_( dt_inf_initial ), success_threshold_( std::max( 1, success_threshold ) )
     {
         if ( !( dt_inf_ > scalar_type( 0 ) ) )
         {
@@ -55,8 +54,8 @@ public:
 
 private:
     scalar_type dt_inf_;
-    int         success_streak_     = 0;
-    int         success_threshold_  = 5;
+    int         success_streak_    = 0;
+    int         success_threshold_ = 5;
 };
 
 } // namespace tests

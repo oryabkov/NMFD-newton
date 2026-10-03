@@ -13,9 +13,7 @@ namespace tests
 {
 
 template <
-    class VectorSpace,
-    class PhobicEnergy,
-    class Distributor,
+    class VectorSpace, class PhobicEnergy, class Distributor,
     /**********************************************/
     class Backend = typename VectorSpace::backend_type>
 class free_energy
@@ -50,9 +48,13 @@ public: // Especially for SYCL
     };
 
 public:
-    free_energy( vector_space_ptr vspace, grid_step_type step, boundary_cond_type b_cond, dist_ptr dist, PhobicEnergy phobic_en, scalar_type gamma )
+    free_energy(
+        vector_space_ptr vspace, grid_step_type step, boundary_cond_type b_cond, dist_ptr dist, PhobicEnergy phobic_en,
+        scalar_type gamma
+    )
         : vspace_( std::move( vspace ) ), range_( vspace_->get_size() ), step_( step ), b_cond_( b_cond ),
-          dist_( std::move( dist ) ), phobic_en_( std::move( phobic_en ) ), gamma_( gamma ), density_( *vspace_ ), e0_( *vspace_ )
+          dist_( std::move( dist ) ), phobic_en_( std::move( phobic_en ) ), gamma_( gamma ), density_( *vspace_ ),
+          e0_( *vspace_ )
     {
         view_type e0_view( *e0_, false );
         for ( int i = 0; i < range_[0]; i++ )

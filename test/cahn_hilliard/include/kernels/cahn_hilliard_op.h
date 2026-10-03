@@ -7,26 +7,20 @@ namespace kernels
 {
 
 template <
-    class IdxND,
-    class Scalar,
-    class TensorType,
-    class VectorType,
-    class GridStep,
-    class BoundaryCond,
-    class PhobicEnergy,
-    class Mobility>
+    class IdxND, class Scalar, class TensorType, class VectorType, class GridStep, class BoundaryCond,
+    class PhobicEnergy, class Mobility>
 struct cahn_hilliard_op_kernel
 {
-    VectorType     in, out;
-    IdxND          range;
-    GridStep       step;
-    BoundaryCond   cond;
-    PhobicEnergy   phobic_en;
-    VectorType     rhs;
-    Mobility       mobility;
-    VectorType     previous_state;
-    Scalar         dt_inf;
-    Scalar gamma; // squared length of the transition regions between the domains
+    VectorType   in, out;
+    IdxND        range;
+    GridStep     step;
+    BoundaryCond cond;
+    PhobicEnergy phobic_en;
+    VectorType   rhs;
+    Mobility     mobility;
+    VectorType   previous_state;
+    Scalar       dt_inf;
+    Scalar       gamma; // squared length of the transition regions between the domains
 
     __DEVICE_TAG__ void operator()( const IdxND idx ) const
     {
@@ -39,11 +33,11 @@ struct cahn_hilliard_op_kernel
 
         // First equation: div(M(phi) grad(psi))
         // Second equation: psi + gamma * laplace(phi) - F(phi) = 0
-        state[0] -= (curr[1] - prev[1]) * dt_inf; // Apply time derivative
+        state[0] -= ( curr[1] - prev[1] ) * dt_inf; // Apply time derivative
         // state[1] += curr[0] - phobic_en( curr[1], prev[1] );
         state[1] += curr[0] - phobic_en( curr[1], curr[1] );
 
-        #pragma unroll
+#pragma unroll
         for ( int j = 0; j < IdxND::dim; j++ ) // iterate over x, y, z,... dimension
         {
             auto N = range[j];
@@ -74,11 +68,9 @@ struct cahn_hilliard_op_kernel
             const Scalar mobility_plus_half  = mobility( ( next_vec[1] + curr[1] ) / Scalar( 2 ) ); // i+1/2
             const Scalar mobility_minus_half = mobility( ( prev_vec[1] + curr[1] ) / Scalar( 2 ) ); // i-1/2
 
-            state[0] += (
-                mobility_plus_half * next_vec[0] +
-                mobility_minus_half * prev_vec[0] -
-                ( mobility_plus_half + mobility_minus_half ) * curr[0]
-            ) / ( hj * hj );
+            state[0] += ( mobility_plus_half * next_vec[0] + mobility_minus_half * prev_vec[0] -
+                          ( mobility_plus_half + mobility_minus_half ) * curr[0] ) /
+                        ( hj * hj );
             state[1] += gamma * ( next_vec[1] + prev_vec[1] - Scalar( 2 ) * curr[1] ) / ( hj * hj );
         }
 

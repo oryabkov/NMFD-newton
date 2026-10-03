@@ -30,18 +30,20 @@ public:
         auto loc_size  = loc_rect.calc_size();
 
         using big_ordinal = typename Part::big_ordinal;
-        big_ordinal Nx = part_.dom_size[0];
-        big_ordinal Ny = part_.dom_size[1];
-        big_ordinal Nz = part_.dom_size[2];
+        big_ordinal Nx    = part_.dom_size[0];
+        big_ordinal Ny    = part_.dom_size[1];
+        big_ordinal Nz    = part_.dom_size[2];
 
         BinaryFile<float> file( part_.comm_info, filename );
         file.size( 4 + Nx * Ny * Nz * static_cast<big_ordinal>( tensor_dim_ ) );
 
         if ( part_.comm_info.myid == 0 )
         {
-            int32_t header[4] = { static_cast<int32_t>( Nx ), static_cast<int32_t>( Ny ), static_cast<int32_t>( Nz ),
-                                   static_cast<int32_t>( tensor_dim_ ) };
-            float   hdr[4];
+            int32_t header[4] = {
+                static_cast<int32_t>( Nx ), static_cast<int32_t>( Ny ), static_cast<int32_t>( Nz ),
+                static_cast<int32_t>( tensor_dim_ )
+            };
+            float hdr[4];
             std::memcpy( hdr, header, sizeof( hdr ) );
             file.write_at( 0, hdr, 4 );
         }

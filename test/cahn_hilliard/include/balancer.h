@@ -27,7 +27,10 @@ public:
         }
 
         int k = 0; // k = log2(num_procs)
-        while ( ( num_procs >> ( k + 1 ) ) != 0 ) { ++k; }
+        while ( ( num_procs >> ( k + 1 ) ) != 0 )
+        {
+            ++k;
+        }
 
         int       base = k / Dim, rem = k % Dim;
         ord_vec_t dims;
@@ -44,7 +47,8 @@ public:
         const big_ord_vec_t &dom_size, int num_procs, int myid, const int global_left_bc[Dim][TensorDim],
         const int global_right_bc[Dim][TensorDim], std::vector<big_ord_rect_t> &proc_rects,
         big_ord_rect_t &my_glob_rect, int loc_left_bc[Dim][TensorDim], int loc_right_bc[Dim][TensorDim],
-        bool_vec_t &periodic_flags ) const
+        bool_vec_t &periodic_flags
+    ) const
     {
         ord_vec_t dims = grid_dims( num_procs );
 

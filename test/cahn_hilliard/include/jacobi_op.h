@@ -14,12 +14,7 @@ namespace tests
 {
 
 template <
-    class VectorSpace,
-    class Log,
-    class PhobicEnergy,
-    class TimeDerivative,
-    class Mobility,
-    class Distributor,
+    class VectorSpace, class Log, class PhobicEnergy, class TimeDerivative, class Mobility, class Distributor,
     /**********************************************/
     class Backend = typename VectorSpace::backend_type>
 class jacobi_op
@@ -49,33 +44,35 @@ public:
 
 public: // Especially for SYCL
     using jacobi_op_kernel = kernels::jacobi_op_kernel<
-        idx_nd_type,
-        scalar_type,
-        tensor_type,
-        vector_type,
-        grid_step_type,
-        boundary_cond_type,
-        PhobicEnergy,
-        Mobility>;
+        idx_nd_type, scalar_type, tensor_type, vector_type, grid_step_type, boundary_cond_type, PhobicEnergy, Mobility>;
 
 public:
-    jacobi_op( vector_space_ptr vspace, grid_step_type step, boundary_cond_type b_cond, dist_ptr dist, time_derivative_ptr time_derivative )
+    jacobi_op(
+        vector_space_ptr vspace, grid_step_type step, boundary_cond_type b_cond, dist_ptr dist,
+        time_derivative_ptr time_derivative
+    )
         : vspace_( std::move( vspace ) ), range_( vspace_->get_size() ), step_( step ), b_cond_( b_cond ),
-          lin_vector_wrap_( *vspace_ ), phobic_en_(), dist_( std::move(dist) ), time_derivative_( std::move( time_derivative ) )
+          lin_vector_wrap_( *vspace_ ), phobic_en_(), dist_( std::move( dist ) ),
+          time_derivative_( std::move( time_derivative ) )
     {
         vspace_->assign_scalar( 0.0, *lin_vector_wrap_ );
     }
 
     jacobi_op( idx_nd_type range, grid_step_type step, boundary_cond_type b_cond, dist_ptr dist )
         : jacobi_op(
-              std::make_shared<vector_space_type>( range ), step, b_cond, dist, std::make_shared<TimeDerivative>( range )
+              std::make_shared<vector_space_type>( range ), step, b_cond, dist,
+              std::make_shared<TimeDerivative>( range )
           )
     {
     }
 
-    jacobi_op( idx_nd_type range, grid_step_type step, boundary_cond_type b_cond, dist_ptr dist, time_derivative_ptr time_derivative )
+    jacobi_op(
+        idx_nd_type range, grid_step_type step, boundary_cond_type b_cond, dist_ptr dist,
+        time_derivative_ptr time_derivative
+    )
         : jacobi_op(
-              std::make_shared<vector_space_type>( range ), step, b_cond, std::move( dist ), std::move( time_derivative )
+              std::make_shared<vector_space_type>( range ), step, b_cond, std::move( dist ),
+              std::move( time_derivative )
           )
     {
     }
@@ -168,16 +165,8 @@ public:
             for_each_nd_type for_each_nd_inst;
             for_each_nd_inst(
                 jacobi_op_kernel{
-                    in,
-                    out,
-                    *lin_vector_wrap_,
-                    range_,
-                    step_,
-                    b_cond_,
-                    phobic_en_,
-                    mobility_,
-                    time_derivative_->get_dt_inf(),
-                    gamma_
+                    in, out, *lin_vector_wrap_, range_, step_, b_cond_, phobic_en_, mobility_,
+                    time_derivative_->get_dt_inf(), gamma_
                 },
                 range_
             );

@@ -19,14 +19,14 @@
 
 namespace nmfd
 {
-namespace detail 
+namespace detail
 {
 
 struct utils_hierarchy_dummy
 {
     utils_hierarchy_dummy() = default;
-    template<class Backend, class VectorSpace>
-    utils_hierarchy_dummy(Backend &backend, std::shared_ptr<VectorSpace> vec_space)
+    template <class Backend, class VectorSpace>
+    utils_hierarchy_dummy( Backend &backend, std::shared_ptr<VectorSpace> vec_space )
     {
     }
 };

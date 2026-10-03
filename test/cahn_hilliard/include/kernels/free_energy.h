@@ -7,12 +7,7 @@ namespace kernels
 {
 
 template <
-    class IdxND,
-    class Scalar,
-    class TensorType,
-    class VectorType,
-    class GridStep,
-    class BoundaryCond,
+    class IdxND, class Scalar, class TensorType, class VectorType, class GridStep, class BoundaryCond,
     class PhobicEnergy>
 struct free_energy_kernel
 {
@@ -28,9 +23,9 @@ struct free_energy_kernel
     {
         auto curr = in.get_vec( idx );
 
-        Scalar grad_sq = Scalar( 0 );
+        Scalar     grad_sq = Scalar( 0 );
         TensorType neighbor{};
-        #pragma unroll
+#pragma unroll
         for ( int j = 0; j < IdxND::dim; j++ ) // iterate over x, y, z,... dimension
         {
             auto N = range[j];

@@ -1,16 +1,16 @@
 #include "common.h"
 #include "include/solve_report.h"
 
-using phobic_energy_t = tests::zero_potential<scalar>;
-using mobility_t      = tests::constant_mobility<scalar>;
-using zero_rhs_t      = tests::zero_rhs<scalar, tensor_t>;
-using rhs_t           = tests::biharmonic_trig_rhs<scalar, tensor_t>;
+using phobic_energy_t   = tests::zero_potential<scalar>;
+using mobility_t        = tests::constant_mobility<scalar>;
+using zero_rhs_t        = tests::zero_rhs<scalar, tensor_t>;
+using rhs_t             = tests::biharmonic_trig_rhs<scalar, tensor_t>;
 using time_derivative_t = tests::time_derivative<vec_ops_t, tensor_t>;
 
 using free_energy_t = tests::free_energy<vec_ops_t, phobic_energy_t, dist_t>;
 
-using lin_op_t      = tests::jacobi_op<vec_ops_t, log_t, phobic_energy_t, time_derivative_t, mobility_t, dist_t>;
-using smoother_t    = tests::jacobi_pre<vec_ops_t, log_t, phobic_energy_t, time_derivative_t, mobility_t, dist_t>;
+using lin_op_t   = tests::jacobi_op<vec_ops_t, log_t, phobic_energy_t, time_derivative_t, mobility_t, dist_t>;
+using smoother_t = tests::jacobi_pre<vec_ops_t, log_t, phobic_energy_t, time_derivative_t, mobility_t, dist_t>;
 
 using prolongator_t = tests::prolongator<vec_ops_t, log_t, dist_t>;
 using restrictor_t  = tests::restrictor<vec_ops_t, log_t, dist_t>;
@@ -26,7 +26,8 @@ using precond_interface = nmfd::preconditioners::preconditioner_interface<vec_op
 
 using jacobi_solver = nmfd::solvers::jacobi<vec_ops_t, lin_op_t, precond_interface, krylov_monitor_t, log_t>;
 using gmres_solver  = nmfd::solvers::gmres<vec_ops_t, krylov_monitor_t, log_t, lin_op_t, precond_interface>;
-using linsolver_base_t = nmfd::solvers::iter_solver_base<vec_ops_t, krylov_monitor_t, log_t, lin_op_t, precond_interface>;
+using linsolver_base_t =
+    nmfd::solvers::iter_solver_base<vec_ops_t, krylov_monitor_t, log_t, lin_op_t, precond_interface>;
 
 /**************************************/
 // Default solver parameters
@@ -41,7 +42,7 @@ constexpr scalar DEFAULT_TOLERANCE      = std::is_same<float, scalar>::value ? 5
 
 int main( int argc, char *argv[] )
 {
-    comm_platform_t comm( argc, argv );        // mpi_wrap calls MPI_Init; trivial_platform is a single-rank stand-in
+    comm_platform_t comm( argc, argv ); // mpi_wrap calls MPI_Init; trivial_platform is a single-rank stand-in
     comm_info_t     comm_world = comm.comm_world();
 
     auto prof = std::make_shared<current_prof>();
@@ -80,7 +81,9 @@ int main( int argc, char *argv[] )
                 return "grid_size must be a power of two, got " + str + ".";
             return std::string();
         } );
-    app.add_option( "output_dir", output_dir, "Output directory (must already exist; created by the caller, e.g. run.sh)" )
+    app.add_option(
+           "output_dir", output_dir, "Output directory (must already exist; created by the caller, e.g. run.sh)"
+    )
         ->capture_default_str();
 
     app.add_flag( "--save-coords", save_coords, "Save numerical and exact solutions to binary files" );
@@ -144,7 +147,7 @@ int main( int argc, char *argv[] )
     log.info( "========================================" );
     log.info( "" );
 
-    auto step  = grid_step_type::make_ones() / scalar( grid_size );
+    auto step = grid_step_type::make_ones() / scalar( grid_size );
 
     // Automatic balanced decomposition for any power-of-two process count.
     if ( comm_world.num_procs < 1 || ( comm_world.num_procs & ( comm_world.num_procs - 1 ) ) != 0 )
@@ -157,7 +160,7 @@ int main( int argc, char *argv[] )
     //   left  = dirichlet (-1) on every axis, right = periodic (0) on every axis  [psi, phi].
     //   -1 = dirichlet (value 0), +1 = neumann (derivative 0), 0 = periodic (reads opposite side).
     int global_left_bc[3][2]  = { { -1, -1 }, { -1, -1 }, { -1, -1 } };
-    int global_right_bc[3][2] = { {  0,  0 }, {  0,  0 }, {  0,  0 } };
+    int global_right_bc[3][2] = { { 0, 0 }, { 0, 0 }, { 0, 0 } };
 
     big_idx_t dom_sz( grid_size, grid_size, grid_size );
     part_t    part( comm_world, dom_sz );
@@ -175,7 +178,8 @@ int main( int argc, char *argv[] )
     {
         bal.balance(
             dom_sz, comm_world.num_procs, comm_world.myid, global_left_bc, global_right_bc, proc_rects,
-            my_own_glob_rect, left_bc, right_bc, periodic_flags );
+            my_own_glob_rect, left_bc, right_bc, periodic_flags
+        );
     }
     catch ( const std::exception &e )
     {
@@ -194,12 +198,14 @@ int main( int argc, char *argv[] )
     // Distributor initialization: fills interior-interface halos and wraps the physical periodic
     // walls; halos at dirichlet walls are filled but ignored by the kernel.
     auto dist = std::make_shared<dist_t>();
-    dist->init_for_tensors( tensor_dim, part, periodic_flags, stencil, max_stencil_order ); // mg stencil (restrictor/prolongator)
+    dist->init_for_tensors(
+        tensor_dim, part, periodic_flags, stencil, max_stencil_order
+    ); // mg stencil (restrictor/prolongator)
 
     auto op_dist = std::make_shared<dist_t>();
     op_dist->init_for_tensors( tensor_dim, part, periodic_flags, ord_t( 1 ), 1 ); // fast stencil (per-sweep halo)
 
-    rhs_t    rhs_function;
+    rhs_t rhs_function;
 
     auto vspace = std::make_shared<vec_ops_t>( range, comm_world, false, stencil, max_stencil_order );
 
@@ -244,7 +250,7 @@ int main( int argc, char *argv[] )
     if ( preconditioner_type == "diag" )
     {
         auto smoother = std::make_shared<smoother_t>( l_op, op_dist );
-        precond = smoother;
+        precond       = smoother;
     }
     else // mg
     {

@@ -10,16 +10,11 @@ namespace tests
 {
 
 template <class IdxND, class Scalar, class TensorType, class VectorType>
-__DEVICE_TAG__ TensorType periodic_bc_vector(
-    const VectorType       &vector,
-    const IdxND            &idx,
-    int                     axis,
-    int                     N,
-    bool                    is_left
-)
+__DEVICE_TAG__ TensorType
+periodic_bc_vector( const VectorType &vector, const IdxND &idx, int axis, int N, bool is_left )
 {
     TensorType periodic_vals;
-    #pragma unroll
+#pragma unroll
     for ( int c = 0; c < TensorType::dim; ++c )
     {
         IdxND periodic_idx = idx;
@@ -46,48 +41,49 @@ public:
     static const int dim        = VectorSpace::dim;
     static const int tensor_dim = VectorSpace::tensor_dim;
 
-    using scalar_type  = typename VectorSpace::scalar_type;
-    using vector_type  = typename VectorSpace::vector_type;
-    using tensor_type  = scfd::static_vec::vec<scalar_type, tensor_dim>;
+    using scalar_type = typename VectorSpace::scalar_type;
+    using vector_type = typename VectorSpace::vector_type;
+    using tensor_type = scfd::static_vec::vec<scalar_type, tensor_dim>;
 
-    using idx_nd_type      = typename VectorSpace::idx_nd_type;
-    using grid_step_type   = scfd::static_vec::vec<scalar_type, dim>;
+    using idx_nd_type    = typename VectorSpace::idx_nd_type;
+    using grid_step_type = scfd::static_vec::vec<scalar_type, dim>;
 
-    using conditions   = int;
-    using st = scfd::utils::scalar_traits<scalar_type>;
+    using conditions = int;
+    using st         = scfd::utils::scalar_traits<scalar_type>;
 
 public:
     // -1 for dirichlet
     // +1 for neumann
     //  0 for periodic
     //  2 for nonlinear
-    conditions left[dim][tensor_dim];   // left  boundary condition
-    conditions right[dim][tensor_dim];  // right boundary condition
+    conditions left[dim][tensor_dim];  // left  boundary condition
+    conditions right[dim][tensor_dim]; // right boundary condition
 
 public:
-    boundary_cond( conditions left[dim][tensor_dim], conditions right[dim][tensor_dim] )
-        : gamma_( 0 ), cos_theta_( 0 )
+    boundary_cond( conditions left[dim][tensor_dim], conditions right[dim][tensor_dim] ) : gamma_( 0 ), cos_theta_( 0 )
     {
         for ( int j = 0; j < dim; ++j )
         {
             for ( int jj = 0; jj < tensor_dim; ++jj )
             {
-                this->left[j][jj] = left[j][jj];
+                this->left[j][jj]  = left[j][jj];
                 this->right[j][jj] = right[j][jj];
             }
         }
     }
 
-    boundary_cond( conditions left[dim][tensor_dim], conditions right[dim][tensor_dim], scalar_type gamma, scalar_type cos_theta)
-        : boundary_cond(left, right)
+    boundary_cond(
+        conditions left[dim][tensor_dim], conditions right[dim][tensor_dim], scalar_type gamma, scalar_type cos_theta
+    )
+        : boundary_cond( left, right )
     {
-        gamma_ = gamma;
+        gamma_     = gamma;
         cos_theta_ = cos_theta;
     }
 
     __DEVICE_TAG__ scalar_type compute_A( scalar_type h_j, scalar_type delta_val ) const
     {
-        return delta_val * h_j * cos_theta_ / st::sqrt(2 * gamma_);
+        return delta_val * h_j * cos_theta_ / st::sqrt( 2 * gamma_ );
     }
 
     __DEVICE_TAG__ scalar_type compute_D( scalar_type C0, scalar_type A ) const
@@ -99,7 +95,7 @@ public:
 
     __DEVICE_TAG__ scalar_type nonlinear_ghost( scalar_type C0, scalar_type A ) const
     {
-        if ( st::abs(cos_theta_) < scalar_type( 1e-7 ) )
+        if ( st::abs( cos_theta_ ) < scalar_type( 1e-7 ) )
         {
             return C0;
         }
@@ -110,9 +106,9 @@ public:
         scalar_type D = compute_D( Cq, A );
         if ( D <= scalar_type( 0 ) )
         {
-            #if !defined(PLATFORM_CUDA)
-                std::cout << "D <= 0 in nonlinear_ghost" << " C0: " << C0 << " A: " << A << " D: " << D << std::endl;
-            #endif
+#if !defined( PLATFORM_CUDA )
+            std::cout << "D <= 0 in nonlinear_ghost" << " C0: " << C0 << " A: " << A << " D: " << D << std::endl;
+#endif
         }
 
         // return ( -( scalar_type( 2 ) + A * C0 ) + 2 * st::sqrt( D ) ) / A;
@@ -122,7 +118,7 @@ public:
 
     __DEVICE_TAG__ scalar_type nonlinear_ghost_coef_linearized( scalar_type C0_lin, scalar_type A ) const
     {
-        if ( st::abs(cos_theta_) < scalar_type( 1e-7 ) )
+        if ( st::abs( cos_theta_ ) < scalar_type( 1e-7 ) )
         {
             return scalar_type( 1 );
         }
@@ -133,11 +129,12 @@ public:
         scalar_type D = compute_D( Cq, A );
         if ( D <= scalar_type( 0 ) )
         {
-            #if !defined(PLATFORM_CUDA)
-                std::cout << "D <= 0 in nonlinear_ghost_coef_linearized" << " C0: " << C0_lin << " A: " << A << " D: " << D << std::endl;
-                // assert();
-                // printf();
-            #endif
+#if !defined( PLATFORM_CUDA )
+            std::cout << "D <= 0 in nonlinear_ghost_coef_linearized" << " C0: " << C0_lin << " A: " << A << " D: " << D
+                      << std::endl;
+            // assert();
+            // printf();
+#endif
         }
 
         // D = st::max( D, scalar_type( 1e-14 ) );
@@ -155,12 +152,12 @@ public:
 
     // Used only in cahn_hilliard_op. Support only 1 stencil size!!!
     __DEVICE_TAG__ void get_ghost_tensor(
-        const vector_type &vector, const idx_nd_type &dom_sz, const idx_nd_type &ghost_idx,
-        const grid_step_type &step, tensor_type &res
+        const vector_type &vector, const idx_nd_type &dom_sz, const idx_nd_type &ghost_idx, const grid_step_type &step,
+        tensor_type &res
     ) const
     {
-        idx_nd_type internal_idx = ghost_idx;
-        grid_step_type scaled_step = step;
+        idx_nd_type    internal_idx = ghost_idx;
+        grid_step_type scaled_step  = step;
         get_internal_idx( ghost_idx, dom_sz, step, internal_idx, scaled_step );
 
         vector.get_vec( res, internal_idx );
@@ -169,12 +166,12 @@ public:
         // auto delta_ = delta_wrap_.get_vec( internal_idx );
         auto delta_ = 1;
 
-        #pragma unroll
+#pragma unroll
         for ( int j = 0; j < dim; ++j )
         {
             if ( ghost_idx[j] < 0 )
             {
-                #pragma unroll
+#pragma unroll
                 for ( int jj = 0; jj < tensor_dim; ++jj )
                 {
                     if ( left[j][jj] == 0 )
@@ -193,7 +190,7 @@ public:
             }
             else if ( ghost_idx[j] >= dom_sz[j] )
             {
-                #pragma unroll
+#pragma unroll
                 for ( int jj = 0; jj < tensor_dim; ++jj )
                 {
                     if ( right[j][jj] == 0 )
@@ -221,8 +218,8 @@ public:
         const idx_nd_type &ghost_idx, const grid_step_type &step, tensor_type &res
     ) const
     {
-        idx_nd_type internal_idx = ghost_idx;
-        grid_step_type scaled_step = step;
+        idx_nd_type    internal_idx = ghost_idx;
+        grid_step_type scaled_step  = step;
         get_internal_idx( ghost_idx, dom_sz, step, internal_idx, scaled_step );
 
         vector.get_vec( res, internal_idx );
@@ -230,12 +227,11 @@ public:
         tensor_type mul = tensor_type::make_ones();
         get_ghost_coef_linearized( lin_vector, dom_sz, ghost_idx, step, mul );
 
-        #pragma unroll
+#pragma unroll
         for ( int j = 0; j < tensor_dim; ++j )
         {
             res[j] *= mul[j];
         }
-
     }
 
 
@@ -244,26 +240,26 @@ public:
         const grid_step_type &step, tensor_type &mul
     ) const
     {
-        idx_nd_type internal_idx = ghost_idx;
-        grid_step_type scaled_step = step;
+        idx_nd_type    internal_idx = ghost_idx;
+        grid_step_type scaled_step  = step;
         get_internal_idx( ghost_idx, dom_sz, step, internal_idx, scaled_step );
 
         auto lin_res = lin_vector.get_vec( internal_idx );
         // auto delta_  = delta_wrap_.get_vec( internal_idx );
         auto delta_ = 1;
 
-        #pragma unroll
+#pragma unroll
         for ( int j = 0; j < tensor_dim; ++j )
         {
             mul[j] = 1;
         }
 
-        #pragma unroll
+#pragma unroll
         for ( int j = 0; j < dim; ++j )
         {
             if ( ghost_idx[j] < 0 )
             {
-                #pragma unroll
+#pragma unroll
                 for ( int jj = 0; jj < tensor_dim; ++jj )
                 {
                     if ( left[j][jj] == 0 )
@@ -283,7 +279,7 @@ public:
 
             if ( ghost_idx[j] >= dom_sz[j] )
             {
-                #pragma unroll
+#pragma unroll
                 for ( int jj = 0; jj < tensor_dim; ++jj )
                 {
                     if ( right[j][jj] == 0 )
@@ -304,13 +300,13 @@ public:
     }
 
     __DEVICE_TAG__ void get_diag_ghost_coef_linearized(
-        const vector_type &lin_vector, const idx_nd_type &dom_sz, const idx_nd_type &ghost_idx,
-        int axis, bool is_left, const grid_step_type &step, tensor_type &mul
+        const vector_type &lin_vector, const idx_nd_type &dom_sz, const idx_nd_type &ghost_idx, int axis, bool is_left,
+        const grid_step_type &step, tensor_type &mul
     ) const
     {
         get_ghost_coef_linearized( lin_vector, dom_sz, ghost_idx, step, mul );
 
-        #pragma unroll
+#pragma unroll
         for ( int c = 0; c < tensor_dim; ++c )
         {
             if ( ( is_left ? left[axis][c] : right[axis][c] ) == 0 )
@@ -321,8 +317,8 @@ public:
     }
 
     __DEVICE_TAG__ void get_lin_neighbor(
-        const vector_type &lin_vector, const idx_nd_type &dom_sz, const idx_nd_type &ghost_idx,
-        int axis, bool is_left, const grid_step_type &step, tensor_type &res
+        const vector_type &lin_vector, const idx_nd_type &dom_sz, const idx_nd_type &ghost_idx, int axis, bool is_left,
+        const grid_step_type &step, tensor_type &res
     ) const
     {
         tensor_type reflect{};
@@ -331,7 +327,7 @@ public:
         tensor_type halo{};
         lin_vector.get_vec( halo, ghost_idx );
 
-        #pragma unroll
+#pragma unroll
         for ( int c = 0; c < tensor_dim; ++c )
         {
             res[c] = ( ( is_left ? left[axis][c] : right[axis][c] ) == 0 ) ? halo[c] : reflect[c];
@@ -349,25 +345,28 @@ public:
         tensor_type halo{};
         vector.get_vec( halo, ghost_idx );
 
-        #pragma unroll
+#pragma unroll
         for ( int c = 0; c < tensor_dim; ++c )
             res[c] = ( ( is_left ? left[axis][c] : right[axis][c] ) == 0 ) ? halo[c] : reflect[c];
     }
 
-    __DEVICE_TAG__ void get_internal_idx( const idx_nd_type &ghost_idx, const idx_nd_type &dom_sz, const grid_step_type &step, idx_nd_type &internal_idx, grid_step_type &scaled_step) const
+    __DEVICE_TAG__ void get_internal_idx(
+        const idx_nd_type &ghost_idx, const idx_nd_type &dom_sz, const grid_step_type &step, idx_nd_type &internal_idx,
+        grid_step_type &scaled_step
+    ) const
     {
-        #pragma unroll
+#pragma unroll
         for ( int j = 0; j < dim; ++j )
         {
             if ( ghost_idx[j] < 0 && left[j][0] != 0 )
             {
                 internal_idx[j] = -ghost_idx[j] - 1;
-                scaled_step[j] = (internal_idx[j] - ghost_idx[j]) * step[j];
+                scaled_step[j]  = ( internal_idx[j] - ghost_idx[j] ) * step[j];
             }
             else if ( ghost_idx[j] >= dom_sz[j] && right[j][0] != 0 )
             {
                 internal_idx[j] = 2 * dom_sz[j] - ghost_idx[j] - 1;
-                scaled_step[j] = (ghost_idx[j] - internal_idx[j]) * step[j];
+                scaled_step[j]  = ( ghost_idx[j] - internal_idx[j] ) * step[j];
             }
         }
     }
@@ -379,8 +378,8 @@ public:
 
 private:
     // Parameters for nonlinear boundary condition
-    scalar_type     gamma_;
-    scalar_type     cos_theta_;
+    scalar_type gamma_;
+    scalar_type cos_theta_;
 };
 
 } // namespace tests

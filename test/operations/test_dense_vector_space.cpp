@@ -7,10 +7,10 @@
 #include <nmfd/operations/dense_vector_space.h>
 
 #ifndef USE_DOUBLE_PRECISION
-using scalar           = float;
+using scalar                = float;
 inline constexpr scalar eps = 1e-5f;
 #else
-using scalar           = double;
+using scalar                = double;
 inline constexpr scalar eps = 1e-10;
 #endif
 
@@ -484,7 +484,7 @@ int main( int argc, char const *args[] )
             2, tmp_x, 3, tmp_y, 4,
             tmp_z
         ); // z = 2*{1,2,3} + 3*{4,5,6} + 4*{7,8,9} = {2,4,6} + {12,15,18}
-            // + {28,32,36} = {42,51,60}
+        // + {28,32,36} = {42,51,60}
         const auto tmp_z_view = tmp_z.create_view( true );
         if ( ( tmp_z_view( 0 ) - 42 ) < eps && ( tmp_z_view( 1 ) - 51 ) < eps && ( tmp_z_view( 2 ) - 60 ) < eps )
         {
@@ -560,11 +560,9 @@ int main( int argc, char const *args[] )
     {
         vector_type tmp_x = { 1, -2, 3 };
         vector_type tmp_y = { 4, 5, -6 };
-        vec_space->max_pointwise(
-            2, tmp_x,
-            tmp_y
-        ); // y = max(2, {1,-2,3}, {4,5,-6}) = max(2, max({1,-2,3},
-            // {4,5,-6})) = max(2, {4,5,3}) = {4,5,3}
+        vec_space->max_pointwise( 2, tmp_x,
+                                  tmp_y ); // y = max(2, {1,-2,3}, {4,5,-6}) = max(2, max({1,-2,3},
+        // {4,5,-6})) = max(2, {4,5,3}) = {4,5,3}
         const auto tmp_y_view = tmp_y.create_view( true );
         if ( ( tmp_y_view( 0 ) - 4 ) < eps && ( tmp_y_view( 1 ) - 5 ) < eps && ( tmp_y_view( 2 ) - 3 ) < eps )
         {
@@ -609,11 +607,9 @@ int main( int argc, char const *args[] )
     {
         vector_type tmp_x = { 1, -2, 3 };
         vector_type tmp_y = { 4, 5, -6 };
-        vec_space->min_pointwise(
-            2, tmp_x,
-            tmp_y
-        ); // y = min(2, {1,-2,3}, {4,5,-6}) = min(2, min({1,-2,3},
-            // {4,5,-6})) = min(2, {1,-2,-6}) = {1,-2,-6}
+        vec_space->min_pointwise( 2, tmp_x,
+                                  tmp_y ); // y = min(2, {1,-2,3}, {4,5,-6}) = min(2, min({1,-2,3},
+        // {4,5,-6})) = min(2, {1,-2,-6}) = {1,-2,-6}
         const auto tmp_y_view = tmp_y.create_view( true );
         if ( ( tmp_y_view( 0 ) - 1 ) < eps && ( tmp_y_view( 1 ) + 2 ) < eps && ( tmp_y_view( 2 ) + 6 ) < eps )
         {
@@ -688,11 +684,9 @@ int main( int argc, char const *args[] )
         vector_type tmp_x = { 1, 2, 3 };
         vector_type tmp_y = { 4, 5, 6 };
         vector_type tmp_z = { 0, 0, 0 };
-        vec_space->mul_pointwise(
-            2, tmp_x, 3, tmp_y,
-            tmp_z
-        ); // z = (2*{1,2,3}) * (3*{4,5,6}) = {2,4,6}
-            // * {12,15,18} = {24,60,108}
+        vec_space->mul_pointwise( 2, tmp_x, 3, tmp_y,
+                                  tmp_z ); // z = (2*{1,2,3}) * (3*{4,5,6}) = {2,4,6}
+        // * {12,15,18} = {24,60,108}
         const auto tmp_z_view = tmp_z.create_view( true );
         if ( ( tmp_z_view( 0 ) - 24 ) < eps && ( tmp_z_view( 1 ) - 60 ) < eps && ( tmp_z_view( 2 ) - 108 ) < eps )
         {
@@ -716,11 +710,9 @@ int main( int argc, char const *args[] )
         vector_type tmp_x = { 1, 2, 3 };
         vector_type tmp_y = { 4, 5, 6 };
         vector_type tmp_z = { 0, 0, 0 };
-        vec_space->div_pointwise(
-            2, tmp_x, 3, tmp_y,
-            tmp_z
-        ); // z = (2*{1,2,3}) / (3*{4,5,6}) = {2,4,6}
-            // / {12,15,18} = {2/12, 4/15, 6/18}
+        vec_space->div_pointwise( 2, tmp_x, 3, tmp_y,
+                                  tmp_z ); // z = (2*{1,2,3}) / (3*{4,5,6}) = {2,4,6}
+        // / {12,15,18} = {2/12, 4/15, 6/18}
         const auto tmp_z_view = tmp_z.create_view( true );
         if ( ( 12 * tmp_z_view( 0 ) - 2 ) < eps && ( 15 * tmp_z_view( 1 ) - 4 ) < eps &&
              ( 18 * tmp_z_view( 2 ) - 6 ) < eps )
@@ -744,11 +736,9 @@ int main( int argc, char const *args[] )
     {
         vector_type tmp_x = { 1, 2, 3 };
         vector_type tmp_y = { 4, 5, 6 };
-        vec_space->div_pointwise(
-            tmp_x, 3,
-            tmp_y
-        ); // x = {1,2,3} / (3 * {4,5,6}) = {1,2,3} /
-            // {12,15,18} = {1/12, 2/15, 3/18}
+        vec_space->div_pointwise( tmp_x, 3,
+                                  tmp_y ); // x = {1,2,3} / (3 * {4,5,6}) = {1,2,3} /
+        // {12,15,18} = {1/12, 2/15, 3/18}
         const auto tmp_x_view = tmp_x.create_view( true );
         if ( ( 12 * tmp_x_view( 0 ) - 1 ) < eps && ( 15 * tmp_x_view( 1 ) - 2 ) < eps &&
              ( 18 * tmp_x_view( 2 ) - 3 ) < eps )

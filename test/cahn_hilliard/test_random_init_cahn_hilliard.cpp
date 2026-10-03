@@ -25,12 +25,14 @@ using mg_utils_t  = mg_t::utils_hierarchy;
 
 using jacobi_solver = nmfd::solvers::jacobi<vec_ops_t, jacobi_op_t, precond_interface, krylov_monitor_t, log_t>;
 using gmres_solver  = nmfd::solvers::gmres<vec_ops_t, krylov_monitor_t, log_t, jacobi_op_t, precond_interface>;
-using linsolver_base_t = nmfd::solvers::iter_solver_base<vec_ops_t, krylov_monitor_t, log_t, jacobi_op_t, precond_interface>;
+using linsolver_base_t =
+    nmfd::solvers::iter_solver_base<vec_ops_t, krylov_monitor_t, log_t, jacobi_op_t, precond_interface>;
 
 // Newton
-using cahn_hilliard_op_t = tests::cahn_hilliard_op<vec_ops_t, jacobi_op_t, log_t, phobic_energy, time_derivative_t, mobility_t, dist_t>;
+using cahn_hilliard_op_t =
+    tests::cahn_hilliard_op<vec_ops_t, jacobi_op_t, log_t, phobic_energy, time_derivative_t, mobility_t, dist_t>;
 using newton_iteration_t = nmfd::solvers::newton_iteration<vec_ops_t, cahn_hilliard_op_t, linsolver_base_t>;
-using newton_solver_t = nmfd::solvers::nonlinear_solver<vec_ops_t, log_t, cahn_hilliard_op_t, newton_iteration_t>;
+using newton_solver_t    = nmfd::solvers::nonlinear_solver<vec_ops_t, log_t, cahn_hilliard_op_t, newton_iteration_t>;
 
 /**************************************/
 // Default solver parameters
@@ -97,7 +99,9 @@ int main( int argc, char *argv[] )
                 return "grid_size must be a power of two, got " + str + ".";
             return std::string();
         } );
-    app.add_option( "output_dir", output_dir, "Output directory (must already exist; created by the caller, e.g. run.sh)" )
+    app.add_option(
+           "output_dir", output_dir, "Output directory (must already exist; created by the caller, e.g. run.sh)"
+    )
         ->capture_default_str();
 
     app.add_flag( "--save-coords", save_coords, "Save numerical solutions to binary files" );
@@ -112,7 +116,8 @@ int main( int argc, char *argv[] )
     app.add_option( "--dt-inf", dt_inf, "dt_inf parameter (1/dt)" )->capture_default_str();
     app.add_option( "--noise-seed", noise_seed, "Random seed for Perlin noise" )->capture_default_str();
     app.add_option( "--noise-amplitude", noise_amplitude, "Amplitude of Perlin noise" )->capture_default_str();
-    app.add_option( "--noise-frequency", noise_frequency, "Frequency scale factor for Perlin noise" )->capture_default_str();
+    app.add_option( "--noise-frequency", noise_frequency, "Frequency scale factor for Perlin noise" )
+        ->capture_default_str();
     app.add_option( "--D", D, "Diffusion coefficient" )->capture_default_str();
     app.add_option( "--gamma", gamma, "Squared length of transition regions" )->capture_default_str();
 
@@ -148,8 +153,10 @@ int main( int argc, char *argv[] )
     log.info_f( "  Scalar type:   %s", scalar_label.c_str() );
     log.info_f( "  DOFs:          %lld", static_cast<long long>( grid_size ) * grid_size * grid_size * tensor_dim );
     log.info_f( "  Processes:     %d", comm_world.num_procs );
-    log.info_f( "  Initial cond:  3D Perlin noise (amplitude %e, frequency %e, seed %u)",
-               static_cast<double>( noise_amplitude ), static_cast<double>( noise_frequency ), noise_seed );
+    log.info_f(
+        "  Initial cond:  3D Perlin noise (amplitude %e, frequency %e, seed %u)",
+        static_cast<double>( noise_amplitude ), static_cast<double>( noise_frequency ), noise_seed
+    );
     log.info( "  RHS:           Zero" );
     log.info_f( "  D:             %e", static_cast<double>( D ) );
     log.info_f( "  gamma:         %e", static_cast<double>( gamma ) );
@@ -187,7 +194,7 @@ int main( int argc, char *argv[] )
     log.info( "========================================" );
     log.info( "" );
 
-    auto step  = grid_step_type::make_ones() / scalar( grid_size );
+    auto step = grid_step_type::make_ones() / scalar( grid_size );
 
     // Automatic balanced decomposition for any power-of-two process count.
     if ( comm_world.num_procs < 1 || ( comm_world.num_procs & ( comm_world.num_procs - 1 ) ) != 0 )
@@ -218,7 +225,8 @@ int main( int argc, char *argv[] )
     {
         bal.balance(
             dom_sz, comm_world.num_procs, comm_world.myid, global_left_bc, global_right_bc, proc_rects,
-            my_own_glob_rect, left_bc, right_bc, periodic_flags );
+            my_own_glob_rect, left_bc, right_bc, periodic_flags
+        );
     }
     catch ( const std::exception &e )
     {
@@ -237,7 +245,9 @@ int main( int argc, char *argv[] )
     // Distributor initialization: fills interior-interface halos and wraps the physical periodic
     // walls; halos at dirichlet walls are filled but ignored by the kernel.
     auto dist = std::make_shared<dist_t>();
-    dist->init_for_tensors( tensor_dim, part, periodic_flags, stencil, max_stencil_order ); // mg stencil (restrictor/prolongator)
+    dist->init_for_tensors(
+        tensor_dim, part, periodic_flags, stencil, max_stencil_order
+    ); // mg stencil (restrictor/prolongator)
 
     auto op_dist = std::make_shared<dist_t>();
     op_dist->init_for_tensors( tensor_dim, part, periodic_flags, ord_t( 1 ), 1 ); // fast stencil (per-sweep halo)
@@ -264,12 +274,14 @@ int main( int argc, char *argv[] )
                     scalar z = step[2] * ( 0.5 + k + my_own_glob_rect.i1[2] );
 
                     scalar noise_val_psi = perlin_noise_3d<scalar>(
-                        x * noise_frequency, y * noise_frequency, z * noise_frequency, noise_seed );
+                        x * noise_frequency, y * noise_frequency, z * noise_frequency, noise_seed
+                    );
                     noise_val_psi *= noise_amplitude;
                     solution_view( i, j, k, 0 ) = noise_val_psi;
 
                     scalar noise_val_phi = perlin_noise_3d<scalar>(
-                        x * noise_frequency, y * noise_frequency, z * noise_frequency, noise_seed + 1000 );
+                        x * noise_frequency, y * noise_frequency, z * noise_frequency, noise_seed + 1000
+                    );
                     noise_val_phi *= noise_amplitude;
                     solution_view( i, j, k, 1 ) = noise_val_phi;
                 }
@@ -285,7 +297,8 @@ int main( int argc, char *argv[] )
 
     auto cahn_hilliard_jacobi_op = std::make_shared<jacobi_op_t>( vspace, step, cond, op_dist, time_derivative );
     auto cahn_hilliard_op        = std::make_shared<cahn_hilliard_op_t>(
-        vspace, step, cond, op_dist, rhs, cahn_hilliard_jacobi_op, time_derivative );
+        vspace, step, cond, op_dist, rhs, cahn_hilliard_jacobi_op, time_derivative
+    );
 
     cahn_hilliard_op->set_mobility( mobility_t( D ) );
     cahn_hilliard_op->set_gamma( gamma );
@@ -294,11 +307,14 @@ int main( int argc, char *argv[] )
     auto time_derivative_stationary         = std::make_shared<time_derivative_t>( vspace );
     auto cahn_hilliard_jacobi_op_stationary = std::make_shared<jacobi_op_t>( vspace, step, cond, op_dist );
     auto cahn_hilliard_op_stationary        = std::make_shared<cahn_hilliard_op_t>(
-        vspace, step, cond, op_dist, rhs, cahn_hilliard_jacobi_op_stationary, time_derivative_stationary );
+        vspace, step, cond, op_dist, rhs, cahn_hilliard_jacobi_op_stationary, time_derivative_stationary
+    );
     cahn_hilliard_op_stationary->set_mobility( mobility_t( D ) );
     cahn_hilliard_op_stationary->set_gamma( gamma );
 
-    free_energy_t free_energy_calc( vspace, step, cond, op_dist, phobic_energy{}, cahn_hilliard_jacobi_op->get_gamma() );
+    free_energy_t free_energy_calc(
+        vspace, step, cond, op_dist, phobic_energy{}, cahn_hilliard_jacobi_op->get_gamma()
+    );
 
     std::shared_ptr<precond_interface> precond;
     if ( preconditioner_type == "diag" )
@@ -357,8 +373,8 @@ int main( int argc, char *argv[] )
     if ( solver_type == "jacobi" )
     {
         jacobi_solver::params solver_params;
-        solver_params.monitor.rel_tol                  = tolerance;
-        solver_params.monitor.max_iters_num            = max_iterations;
+        solver_params.monitor.rel_tol       = tolerance;
+        solver_params.monitor.max_iters_num = max_iterations;
         lin_solver = std::make_shared<jacobi_solver>( cahn_hilliard_jacobi_op, vspace, &log, solver_params, precond );
     }
     else // gmres

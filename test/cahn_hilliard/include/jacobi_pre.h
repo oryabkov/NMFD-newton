@@ -16,12 +16,7 @@ namespace tests
 {
 
 template <
-    class VectorSpace,
-    class Log,
-    class PhobicEnergy,
-    class TimeDerivative,
-    class Mobility,
-    class Distributor,
+    class VectorSpace, class Log, class PhobicEnergy, class TimeDerivative, class Mobility, class Distributor,
     /**********************************************/
     class LinOp   = jacobi_op<VectorSpace, Log, PhobicEnergy, TimeDerivative, Mobility, Distributor>,
     class Backend = typename VectorSpace::backend_type>
@@ -38,10 +33,10 @@ public:
     using scalar_type  = typename VectorSpace::scalar_type;
     using ordinal_type = typename VectorSpace::ordinal_type;
     using tensor_type  = scfd::static_vec::vec<scalar_type, tensor_dim>;
-    using vector_type = typename VectorSpace::vector_type;
-    using idx_nd_type = typename VectorSpace::idx_nd_type;
-    using dist_type   = Distributor;
-    using dist_ptr    = std::shared_ptr<const dist_type>;
+    using vector_type  = typename VectorSpace::vector_type;
+    using idx_nd_type  = typename VectorSpace::idx_nd_type;
+    using dist_type    = Distributor;
+    using dist_ptr     = std::shared_ptr<const dist_type>;
 
     using for_each_nd_type = typename Backend::template for_each_nd_type<dim>;
 
@@ -53,14 +48,7 @@ public:
 
 public: // Especially for SYCL
     using preconditioner_kernel = kernels::jacobi_pre_kernel<
-        idx_nd_type,
-        scalar_type,
-        tensor_type,
-        vector_type,
-        mat_type,
-        grid_step_type,
-        boundary_cond_type,
-        PhobicEnergy,
+        idx_nd_type, scalar_type, tensor_type, vector_type, mat_type, grid_step_type, boundary_cond_type, PhobicEnergy,
         Mobility>;
 
 public:
@@ -69,8 +57,8 @@ public:
         scalar_type alpha_min;
         scalar_type alpha_max;
 
-        params( const std::string &log_prefix = "", const std::string &log_name = "smoother_elliptic::" ) :
-            alpha_min(0.05), alpha_max(1.5)
+        params( const std::string &log_prefix = "", const std::string &log_name = "smoother_elliptic::" )
+            : alpha_min( 0.05 ), alpha_max( 1.5 )
         {
         }
     };
@@ -80,8 +68,7 @@ public:
     };
     using utils_hierarchy = utils;
 
-    jacobi_pre( const utils_hierarchy &u, const params_hierarchy &p ) :
-        params_(p)
+    jacobi_pre( const utils_hierarchy &u, const params_hierarchy &p ) : params_( p )
     {
     }
 
@@ -93,11 +80,11 @@ public:
 
     void set_operator( std::shared_ptr<const lin_op_t> op )
     {
-        vspace_ = op->get_space();
-        range_  = op->get_size();
-        step_   = op->get_h();
-        b_cond_ = std::make_unique<boundary_cond_type>( op->get_b_cond() );
-        gamma_  = op->get_gamma();
+        vspace_   = op->get_space();
+        range_    = op->get_size();
+        step_     = op->get_h();
+        b_cond_   = std::make_unique<boundary_cond_type>( op->get_b_cond() );
+        gamma_    = op->get_gamma();
         mobility_ = op->get_mobility();
 
         // Always recreate lin_vector_wrap_ with the current VectorSpace
@@ -177,17 +164,8 @@ public:
             for_each_nd_type for_each_nd_inst;
             for_each_nd_inst(
                 preconditioner_kernel{
-                    vector,
-                    **lin_vector_wrap_,
-                    range_,
-                    step_,
-                    *b_cond_,
-                    phobic_en_,
-                    mobility_,
-                    time_derivative_->get_dt_inf(),
-                    gamma_,
-                    params_.alpha_min,
-                    params_.alpha_max
+                    vector, **lin_vector_wrap_, range_, step_, *b_cond_, phobic_en_, mobility_,
+                    time_derivative_->get_dt_inf(), gamma_, params_.alpha_min, params_.alpha_max
                 },
                 range_
             );
@@ -201,9 +179,9 @@ public:
     }
 
 private:
-    vector_space_ptr   vspace_;
-    idx_nd_type        range_;
-    grid_step_type     step_;
+    vector_space_ptr                    vspace_;
+    idx_nd_type                         range_;
+    grid_step_type                      step_;
     std::unique_ptr<boundary_cond_type> b_cond_;
 
     using vector_wrap_t = nmfd::detail::vector_wrap<VectorSpace, true, true>;

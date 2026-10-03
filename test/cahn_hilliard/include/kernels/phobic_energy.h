@@ -35,25 +35,24 @@ class logarithmic_potential
     using st = scfd::utils::scalar_traits<Scalar>;
 
 public:
-    logarithmic_potential(Scalar omega = 3.0): omega_(omega)
+    logarithmic_potential( Scalar omega = 3.0 ) : omega_( omega )
     {
     }
 
     __DEVICE_TAG__ Scalar operator()( Scalar phi_impl, Scalar phi_expl ) const
     {
-        return std::log((Scalar( 1.0 ) + phi_impl) / (Scalar( 1.0 ) - phi_impl)) - omega_ * phi_expl;
+        return std::log( ( Scalar( 1.0 ) + phi_impl ) / ( Scalar( 1.0 ) - phi_impl ) ) - omega_ * phi_expl;
     }
 
     __DEVICE_TAG__ Scalar get_derivative( Scalar phi ) const
     {
-        return Scalar( 2.0 ) / (Scalar( 1.0 ) - phi * phi) - omega_;
+        return Scalar( 2.0 ) / ( Scalar( 1.0 ) - phi * phi ) - omega_;
     }
 
     __DEVICE_TAG__ Scalar get_energy( Scalar phi ) const
     {
-        return ( Scalar( 1.0 ) + phi ) * std::log( Scalar( 1.0 ) + phi )
-             + ( Scalar( 1.0 ) - phi ) * std::log( Scalar( 1.0 ) - phi )
-             - ( omega_ / Scalar( 2.0 ) ) * phi * phi;
+        return ( Scalar( 1.0 ) + phi ) * std::log( Scalar( 1.0 ) + phi ) +
+               ( Scalar( 1.0 ) - phi ) * std::log( Scalar( 1.0 ) - phi ) - ( omega_ / Scalar( 2.0 ) ) * phi * phi;
     }
 
 private:

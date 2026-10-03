@@ -25,17 +25,17 @@
 namespace tests
 {
 
-template<class VectorSpace, class Log> 
+template <class VectorSpace, class Log>
 class smoother_elliptic
 {
 public:
-    using T = typename VectorSpace::scalar_type;
-    using T_vec = typename VectorSpace::vector_type;
-    using operator_type = linear_operator_elliptic<VectorSpace,Log>;
+    using T             = typename VectorSpace::scalar_type;
+    using T_vec         = typename VectorSpace::vector_type;
+    using operator_type = linear_operator_elliptic<VectorSpace, Log>;
 
     struct params
     {
-        params(const std::string &log_prefix = "", const std::string &log_name = "smoother_elliptic::")
+        params( const std::string &log_prefix = "", const std::string &log_name = "smoother_elliptic::" )
         {
         }
     };
@@ -45,33 +45,32 @@ public:
     };
     using utils_hierarchy = utils;
 
-    smoother_elliptic(const utils_hierarchy &u, const params_hierarchy &p)
+    smoother_elliptic( const utils_hierarchy &u, const params_hierarchy &p )
     {
     }
     ~smoother_elliptic()
     {
     }
-    
-    void set_operator(std::shared_ptr<const operator_type> op_) 
+
+    void set_operator( std::shared_ptr<const operator_type> op_ )
     {
-        N = op_->get_size();
-        h_ = op_->get_h();
-        diag_coeff_ = (2/h_/h_);
+        N           = op_->get_size();
+        h_          = op_->get_h();
+        diag_coeff_ = ( 2 / h_ / h_ );
     }
 
-    void apply(T_vec& x)const
+    void apply( T_vec &x ) const
     {
-        for(std::size_t j=0; j<N;j++)
+        for ( std::size_t j = 0; j < N; j++ )
         {
-            x[j] = x[j]/diag_coeff_;
+            x[j] = x[j] / diag_coeff_;
         }
     }
 
 private:
-    T diag_coeff_;
+    T           diag_coeff_;
     std::size_t N;
-    T h_;
-
+    T           h_;
 };
 
 

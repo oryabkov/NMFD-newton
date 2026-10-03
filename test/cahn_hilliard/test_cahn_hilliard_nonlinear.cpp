@@ -3,9 +3,9 @@
 
 // Problem
 // using phobic_energy     = tests::logarithmic_potential<scalar>;
-using phobic_energy     = tests::double_well_potential<scalar>;
+using phobic_energy = tests::double_well_potential<scalar>;
 // using mobility_t        = tests::parabolic_mobility<scalar>;
-using mobility_t        = tests::constant_mobility<scalar>;
+using mobility_t = tests::constant_mobility<scalar>;
 
 using time_derivative_t = tests::time_derivative<vec_ops_t, tensor_t>;
 
@@ -28,30 +28,32 @@ using mg_utils_t  = mg_t::utils_hierarchy;
 
 using jacobi_solver = nmfd::solvers::jacobi<vec_ops_t, jacobi_op_t, precond_interface, krylov_monitor_t, log_t>;
 using gmres_solver  = nmfd::solvers::gmres<vec_ops_t, krylov_monitor_t, log_t, jacobi_op_t, precond_interface>;
-using linsolver_base_t = nmfd::solvers::iter_solver_base<vec_ops_t, krylov_monitor_t, log_t, jacobi_op_t, precond_interface>;
+using linsolver_base_t =
+    nmfd::solvers::iter_solver_base<vec_ops_t, krylov_monitor_t, log_t, jacobi_op_t, precond_interface>;
 
 // Newton
-using cahn_hilliard_op_t = tests::cahn_hilliard_op<vec_ops_t, jacobi_op_t, log_t, phobic_energy, time_derivative_t, mobility_t, dist_t>;
+using cahn_hilliard_op_t =
+    tests::cahn_hilliard_op<vec_ops_t, jacobi_op_t, log_t, phobic_energy, time_derivative_t, mobility_t, dist_t>;
 using newton_iteration_t = nmfd::solvers::newton_iteration<vec_ops_t, cahn_hilliard_op_t, linsolver_base_t>;
-using newton_solver_t = nmfd::solvers::nonlinear_solver<vec_ops_t, log_t, cahn_hilliard_op_t, newton_iteration_t>;
+using newton_solver_t    = nmfd::solvers::nonlinear_solver<vec_ops_t, log_t, cahn_hilliard_op_t, newton_iteration_t>;
 
 /**************************************/
 // Default solver parameters
 /**************************************/
-constexpr int    DEFAULT_MAX_ITERATIONS = 100;
-constexpr int    DEFAULT_GMRES_BASIS    = 25;
-constexpr int    DEFAULT_MG_SWEEPS_PRE  = 4;
-constexpr int    DEFAULT_MG_SWEEPS_POST = 4;
-constexpr scalar DEFAULT_NEWTON_TOL     = std::is_same<float, scalar>::value ? 5e-6f : 1e-10;
+constexpr int    DEFAULT_MAX_ITERATIONS        = 100;
+constexpr int    DEFAULT_GMRES_BASIS           = 25;
+constexpr int    DEFAULT_MG_SWEEPS_PRE         = 4;
+constexpr int    DEFAULT_MG_SWEEPS_POST        = 4;
+constexpr scalar DEFAULT_NEWTON_TOL            = std::is_same<float, scalar>::value ? 5e-6f : 1e-10;
 constexpr int    DEFAULT_NEWTON_MAX_ITERATIONS = 10;
-constexpr scalar DEFAULT_TOLERANCE      = std::is_same<float, scalar>::value ? 5e-6f : 1e-10;
-constexpr scalar DEFAULT_D              = 1.0;
-constexpr scalar DEFAULT_GAMMA          = 1e-4;
-constexpr scalar DEFAULT_COS_THETA      = 0.5;
-constexpr scalar DEFAULT_DT_INF         = 1.0;
-constexpr int    DEFAULT_MAX_TIME_STEPS = 10;
-constexpr int    DEFAULT_MAX_RETRIES    = 10;
-constexpr scalar DEFAULT_TIME_TOL       = std::is_same<float, scalar>::value ? 5e-6f : 1e-10;
+constexpr scalar DEFAULT_TOLERANCE             = std::is_same<float, scalar>::value ? 5e-6f : 1e-10;
+constexpr scalar DEFAULT_D                     = 1.0;
+constexpr scalar DEFAULT_GAMMA                 = 1e-4;
+constexpr scalar DEFAULT_COS_THETA             = 0.5;
+constexpr scalar DEFAULT_DT_INF                = 1.0;
+constexpr int    DEFAULT_MAX_TIME_STEPS        = 10;
+constexpr int    DEFAULT_MAX_RETRIES           = 10;
+constexpr scalar DEFAULT_TIME_TOL              = std::is_same<float, scalar>::value ? 5e-6f : 1e-10;
 
 /**************************************/
 
@@ -75,19 +77,19 @@ int main( int argc, char *argv[] )
     bool        verbose     = false;
 
     // Solver parameters (initialized to defaults)
-    int    max_iterations = DEFAULT_MAX_ITERATIONS;
-    int    gmres_basis    = DEFAULT_GMRES_BASIS;
-    int    mg_sweeps_pre  = DEFAULT_MG_SWEEPS_PRE;
-    int    mg_sweeps_post = DEFAULT_MG_SWEEPS_POST;
-    scalar newton_tol     = DEFAULT_NEWTON_TOL;
+    int    max_iterations        = DEFAULT_MAX_ITERATIONS;
+    int    gmres_basis           = DEFAULT_GMRES_BASIS;
+    int    mg_sweeps_pre         = DEFAULT_MG_SWEEPS_PRE;
+    int    mg_sweeps_post        = DEFAULT_MG_SWEEPS_POST;
+    scalar newton_tol            = DEFAULT_NEWTON_TOL;
     int    newton_max_iterations = DEFAULT_NEWTON_MAX_ITERATIONS;
-    scalar tolerance      = DEFAULT_TOLERANCE;
-    scalar D              = DEFAULT_D;
-    scalar gamma          = DEFAULT_GAMMA;
-    scalar cos_theta      = DEFAULT_COS_THETA;
-    scalar dt_inf         = DEFAULT_DT_INF;
-    int    max_time_steps = DEFAULT_MAX_TIME_STEPS;
-    scalar time_tol       = DEFAULT_TIME_TOL;
+    scalar tolerance             = DEFAULT_TOLERANCE;
+    scalar D                     = DEFAULT_D;
+    scalar gamma                 = DEFAULT_GAMMA;
+    scalar cos_theta             = DEFAULT_COS_THETA;
+    scalar dt_inf                = DEFAULT_DT_INF;
+    int    max_time_steps        = DEFAULT_MAX_TIME_STEPS;
+    scalar time_tol              = DEFAULT_TIME_TOL;
 
     app.add_option( "solver", solver_type, "Solver type" )
         ->required()
@@ -104,7 +106,9 @@ int main( int argc, char *argv[] )
                 return "grid_size must be a power of two, got " + str + ".";
             return std::string();
         } );
-    app.add_option( "output_dir", output_dir, "Output directory (must already exist; created by the caller, e.g. run.sh)" )
+    app.add_option(
+           "output_dir", output_dir, "Output directory (must already exist; created by the caller, e.g. run.sh)"
+    )
         ->capture_default_str();
 
     app.add_flag( "--save-coords", save_coords, "Save numerical solutions to binary files" );
@@ -119,7 +123,8 @@ int main( int argc, char *argv[] )
         ->capture_default_str();
     app.add_option( "--D", D, "Diffusion coefficient" )->capture_default_str();
     app.add_option( "--gamma", gamma, "Squared length of transition regions" )->capture_default_str();
-    app.add_option( "--cos-theta", cos_theta, "Cos(equilibrium contact angle) for boundary condition" )->capture_default_str();
+    app.add_option( "--cos-theta", cos_theta, "Cos(equilibrium contact angle) for boundary condition" )
+        ->capture_default_str();
     app.add_option( "--dt-inf", dt_inf, "1/dt for implicit time stepping" )->capture_default_str();
     app.add_option( "--max-time-steps", max_time_steps, "Maximum number of time steps" )->capture_default_str();
     app.add_option( "--time-tol", time_tol, "Time convergence tolerance" )->capture_default_str();
@@ -214,7 +219,7 @@ int main( int argc, char *argv[] )
     log.info( "========================================" );
     log.info( "" );
 
-    auto step  = grid_step_type::make_ones() / scalar( grid_size );
+    auto step = grid_step_type::make_ones() / scalar( grid_size );
 
     // Automatic balanced decomposition for any power-of-two process count.
     if ( comm_world.num_procs < 1 || ( comm_world.num_procs & ( comm_world.num_procs - 1 ) ) != 0 )
@@ -239,7 +244,8 @@ int main( int argc, char *argv[] )
     {
         bal.balance(
             dom_sz, comm_world.num_procs, comm_world.myid, global_left_bc, global_right_bc, proc_rects,
-            my_own_glob_rect, left_bc, right_bc, periodic_flags );
+            my_own_glob_rect, left_bc, right_bc, periodic_flags
+        );
     }
     catch ( const std::exception &e )
     {
@@ -258,7 +264,9 @@ int main( int argc, char *argv[] )
     // Distributor initialization: fills interior-interface halos and wraps the physical periodic
     // walls; halos at dirichlet walls are filled but ignored by the kernel.
     auto dist = std::make_shared<dist_t>();
-    dist->init_for_tensors( tensor_dim, part, periodic_flags, stencil, max_stencil_order ); // mg stencil (restrictor/prolongator)
+    dist->init_for_tensors(
+        tensor_dim, part, periodic_flags, stencil, max_stencil_order
+    ); // mg stencil (restrictor/prolongator)
 
     auto op_dist = std::make_shared<dist_t>();
     op_dist->init_for_tensors( tensor_dim, part, periodic_flags, ord_t( 1 ), 1 ); // fast stencil (per-sweep halo)
@@ -311,7 +319,8 @@ int main( int argc, char *argv[] )
     // Time-dependent operators (used for solving the time-dependent equation)
     auto cahn_hilliard_jacobi_op = std::make_shared<jacobi_op_t>( vspace, step, cond, op_dist, time_derivative );
     auto cahn_hilliard_op        = std::make_shared<cahn_hilliard_op_t>(
-        vspace, step, cond, op_dist, rhs, cahn_hilliard_jacobi_op, time_derivative );
+        vspace, step, cond, op_dist, rhs, cahn_hilliard_jacobi_op, time_derivative
+    );
 
     // Set D and gamma parameters
     auto mobility = mobility_t( D );
@@ -322,17 +331,20 @@ int main( int argc, char *argv[] )
     auto time_derivative_stationary         = std::make_shared<time_derivative_t>( vspace );
     auto cahn_hilliard_jacobi_op_stationary = std::make_shared<jacobi_op_t>( vspace, step, cond, op_dist );
     auto cahn_hilliard_op_stationary        = std::make_shared<cahn_hilliard_op_t>(
-        vspace, step, cond, op_dist, rhs, cahn_hilliard_jacobi_op_stationary, time_derivative_stationary );
+        vspace, step, cond, op_dist, rhs, cahn_hilliard_jacobi_op_stationary, time_derivative_stationary
+    );
     cahn_hilliard_op_stationary->set_mobility( mobility );
     cahn_hilliard_op_stationary->set_gamma( gamma );
 
-    free_energy_t free_energy_calc( vspace, step, cond, op_dist, phobic_energy{}, cahn_hilliard_jacobi_op->get_gamma() );
+    free_energy_t free_energy_calc(
+        vspace, step, cond, op_dist, phobic_energy{}, cahn_hilliard_jacobi_op->get_gamma()
+    );
 
     std::shared_ptr<precond_interface> precond;
     if ( preconditioner_type == "diag" )
     {
         auto diag_precond = std::make_shared<smoother_t>( cahn_hilliard_jacobi_op, op_dist );
-        precond = diag_precond;
+        precond           = diag_precond;
     }
     else // mg
     {
@@ -384,12 +396,13 @@ int main( int argc, char *argv[] )
 
     const scalar dV = step.components_prod();
 
-    auto write_component_sums = [&]( int step_idx, const vector_t &x )
-    {
+    auto write_component_sums = [&]( int step_idx, const vector_t &x ) {
         scalar sum_psi = vspace->scalar_prod( x, e_psi );
         scalar sum_phi = vspace->sum( x ) - sum_psi;
-        log.info_f( "Component sums @ step %d: %le, %le", step_idx, static_cast<double>( sum_psi * dV ),
-                   static_cast<double>( sum_phi * dV ) );
+        log.info_f(
+            "Component sums @ step %d: %le, %le", step_idx, static_cast<double>( sum_psi * dV ),
+            static_cast<double>( sum_phi * dV )
+        );
     };
 
     // Log initial free energy (step 0)
@@ -415,8 +428,8 @@ int main( int argc, char *argv[] )
     if ( solver_type == "jacobi" )
     {
         jacobi_solver::params solver_params;
-        solver_params.monitor.rel_tol                  = tolerance;
-        solver_params.monitor.max_iters_num            = max_iterations;
+        solver_params.monitor.rel_tol       = tolerance;
+        solver_params.monitor.max_iters_num = max_iterations;
         lin_solver = std::make_shared<jacobi_solver>( cahn_hilliard_jacobi_op, vspace, &log, solver_params, precond );
     }
     else // gmres
@@ -453,11 +466,11 @@ int main( int argc, char *argv[] )
         vector_t backup_solution;
         vspace->init_vector( backup_solution );
         vspace->assign( solution, backup_solution );
-        bool         step_accepted        = false;
-        double       accepted_step_time   = 0.0;
-        scalar       accepted_dt_inf      = scalar( 0 );
+        bool         step_accepted         = false;
+        double       accepted_step_time    = 0.0;
+        scalar       accepted_dt_inf       = scalar( 0 );
         unsigned int accepted_newton_iters = 0;
-        int          attempt_idx          = 0;
+        int          attempt_idx           = 0;
         for ( attempt_idx = 1; attempt_idx <= DEFAULT_MAX_RETRIES + 1; ++attempt_idx )
         {
             const scalar current_dt_inf = dt_scheduler.get_dt_inf();

@@ -26,13 +26,15 @@ using mg_utils_t  = mg_t::utils_hierarchy;
 
 using jacobi_solver = nmfd::solvers::jacobi<vec_ops_t, jacobi_op_t, precond_interface, krylov_monitor_t, log_t>;
 using gmres_solver  = nmfd::solvers::gmres<vec_ops_t, krylov_monitor_t, log_t, jacobi_op_t, precond_interface>;
-using linsolver_base_t = nmfd::solvers::iter_solver_base<vec_ops_t, krylov_monitor_t, log_t, jacobi_op_t, precond_interface>;
+using linsolver_base_t =
+    nmfd::solvers::iter_solver_base<vec_ops_t, krylov_monitor_t, log_t, jacobi_op_t, precond_interface>;
 
 // Newton
-using cahn_hilliard_op_t = tests::cahn_hilliard_op<vec_ops_t, jacobi_op_t, log_t, phobic_energy, time_derivative_t, mobility_t, dist_t>;
+using cahn_hilliard_op_t =
+    tests::cahn_hilliard_op<vec_ops_t, jacobi_op_t, log_t, phobic_energy, time_derivative_t, mobility_t, dist_t>;
 using newton_iteration_t = nmfd::solvers::newton_iteration<vec_ops_t, cahn_hilliard_op_t, linsolver_base_t>;
-using newton_solver_t = nmfd::solvers::nonlinear_solver<vec_ops_t, log_t, cahn_hilliard_op_t, newton_iteration_t>;
-using error_monitor_t = tests::error_monitor<vec_ops_t, log_t>;
+using newton_solver_t    = nmfd::solvers::nonlinear_solver<vec_ops_t, log_t, cahn_hilliard_op_t, newton_iteration_t>;
+using error_monitor_t    = tests::error_monitor<vec_ops_t, log_t>;
 
 /**************************************/
 // Default solver parameters
@@ -94,7 +96,9 @@ int main( int argc, char *argv[] )
                 return "grid_size must be a power of two, got " + str + ".";
             return std::string();
         } );
-    app.add_option( "output_dir", output_dir, "Output directory (must already exist; created by the caller, e.g. run.sh)" )
+    app.add_option(
+           "output_dir", output_dir, "Output directory (must already exist; created by the caller, e.g. run.sh)"
+    )
         ->capture_default_str();
 
     app.add_flag( "--save-coords", save_coords, "Save numerical and exact solutions to binary files" );
@@ -176,7 +180,7 @@ int main( int argc, char *argv[] )
     log.info( "========================================" );
     log.info( "" );
 
-    auto step  = grid_step_type::make_ones() / scalar( grid_size );
+    auto step = grid_step_type::make_ones() / scalar( grid_size );
 
     // Automatic balanced decomposition for any power-of-two process count.
     if ( comm_world.num_procs < 1 || ( comm_world.num_procs & ( comm_world.num_procs - 1 ) ) != 0 )
@@ -188,7 +192,7 @@ int main( int argc, char *argv[] )
     // Boundary conditions of the WHOLE computational domain (same as the serial test):
     //   left  = dirichlet (-1) on every axis, right = dirichlet (-1) on every axis  [psi, phi].
     //   -1 = dirichlet (value 0), +1 = neumann (derivative 0), 0 = periodic (reads opposite side).
-    int global_left_bc[3][2]  = { { -1, -1 }, { -1, -1 }, { -1, -1 } };
+    int global_left_bc[3][2] = { { -1, -1 }, { -1, -1 }, { -1, -1 } };
     // int global_right_bc[3][2] = { { -1, -1 }, { -1, -1 }, { -1, -1 } };
     int global_right_bc[3][2] = { { 0, 0 }, { 0, 0 }, { 0, 0 } };
 
@@ -208,7 +212,8 @@ int main( int argc, char *argv[] )
     {
         bal.balance(
             dom_sz, comm_world.num_procs, comm_world.myid, global_left_bc, global_right_bc, proc_rects,
-            my_own_glob_rect, left_bc, right_bc, periodic_flags );
+            my_own_glob_rect, left_bc, right_bc, periodic_flags
+        );
     }
     catch ( const std::exception &e )
     {
@@ -227,7 +232,9 @@ int main( int argc, char *argv[] )
     // Distributor initialization: fills interior-interface halos and wraps the physical periodic
     // walls; halos at dirichlet walls are filled but ignored by the kernel.
     auto dist = std::make_shared<dist_t>();
-    dist->init_for_tensors( tensor_dim, part, periodic_flags, stencil, max_stencil_order ); // mg stencil (restrictor/prolongator)
+    dist->init_for_tensors(
+        tensor_dim, part, periodic_flags, stencil, max_stencil_order
+    ); // mg stencil (restrictor/prolongator)
 
     auto op_dist = std::make_shared<dist_t>();
     op_dist->init_for_tensors( tensor_dim, part, periodic_flags, ord_t( 1 ), 1 ); // fast stencil (per-sweep halo)
@@ -275,15 +282,19 @@ int main( int argc, char *argv[] )
     // Time-dependent operators (used for solving the time-dependent equation)
     auto cahn_hilliard_jacobi_op = std::make_shared<jacobi_op_t>( vspace, step, cond, op_dist, time_derivative );
     auto cahn_hilliard_op        = std::make_shared<cahn_hilliard_op_t>(
-        vspace, step, cond, op_dist, rhs, cahn_hilliard_jacobi_op, time_derivative );
+        vspace, step, cond, op_dist, rhs, cahn_hilliard_jacobi_op, time_derivative
+    );
 
     // Stationary operators (used for checking time convergence to stationary solution)
     auto time_derivative_stationary         = std::make_shared<time_derivative_t>( vspace );
     auto cahn_hilliard_jacobi_op_stationary = std::make_shared<jacobi_op_t>( vspace, step, cond, op_dist );
     auto cahn_hilliard_op_stationary        = std::make_shared<cahn_hilliard_op_t>(
-        vspace, step, cond, op_dist, rhs, cahn_hilliard_jacobi_op_stationary, time_derivative_stationary );
+        vspace, step, cond, op_dist, rhs, cahn_hilliard_jacobi_op_stationary, time_derivative_stationary
+    );
 
-    free_energy_t free_energy_calc( vspace, step, cond, op_dist, phobic_energy{}, cahn_hilliard_jacobi_op->get_gamma() );
+    free_energy_t free_energy_calc(
+        vspace, step, cond, op_dist, phobic_energy{}, cahn_hilliard_jacobi_op->get_gamma()
+    );
 
     std::shared_ptr<precond_interface> precond;
     if ( preconditioner_type == "diag" )
@@ -353,8 +364,8 @@ int main( int argc, char *argv[] )
     if ( solver_type == "jacobi" )
     {
         jacobi_solver::params solver_params;
-        solver_params.monitor.rel_tol                  = tolerance;
-        solver_params.monitor.max_iters_num            = max_iterations;
+        solver_params.monitor.rel_tol       = tolerance;
+        solver_params.monitor.max_iters_num = max_iterations;
         lin_solver = std::make_shared<jacobi_solver>( cahn_hilliard_jacobi_op, vspace, &log, solver_params, precond );
     }
     else // gmres

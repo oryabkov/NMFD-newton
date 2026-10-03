@@ -15,7 +15,7 @@ struct prolongator_kernel
     VectorType   lin_dom;
     BoundaryCond cond;
     GridStep     step;
-    Rect dom_r; // Real rect [0, 1, ..., N-1]
+    Rect         dom_r; // Real rect [0, 1, ..., N-1]
 
 #if 0
 
@@ -42,7 +42,8 @@ struct prolongator_kernel
     static const int                      stencil_1d_half_sz                = 3;
     const typename VectorType::value_type coeffs_1d[stencil_1d_half_sz * 2] = {
         5.2083333333793015e-03, 1.3020833333335308e-01, 3.6458333333330939e-01,
-        3.6458333333330939e-01, 1.3020833333335308e-01, 5.2083333333793015e-03 };
+        3.6458333333330939e-01, 1.3020833333335308e-01, 5.2083333333793015e-03
+    };
 
     __DEVICE_TAG__ void operator()( const IdxND idx ) const
     {

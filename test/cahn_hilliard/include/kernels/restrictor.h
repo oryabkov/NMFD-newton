@@ -10,14 +10,14 @@ namespace kernels
 template <class IdxND, class Ord, class VectorType, int TensorDim, class BoundaryCond, class GridStep>
 struct restrictor_kernel
 {
-    using Rect   = typename scfd::static_vec::rect<Ord, IdxND::dim>;
+    using Rect = typename scfd::static_vec::rect<Ord, IdxND::dim>;
 
     VectorType   dom, img;
     VectorType   lin_dom;
     BoundaryCond cond;
     GridStep     step;
-    Rect dom_r;
-    bool use_linearized_ghost = true;
+    Rect         dom_r;
+    bool         use_linearized_ghost = true;
 
 #if 0
 
@@ -58,7 +58,8 @@ struct restrictor_kernel
     static const int                      stencil_1d_half_sz                = 3;
     const typename VectorType::value_type coeffs_1d[stencil_1d_half_sz * 2] = {
         5.2083333333793015e-03, 1.3020833333335308e-01, 3.6458333333330939e-01,
-        3.6458333333330939e-01, 1.3020833333335308e-01, 5.2083333333793015e-03 };
+        3.6458333333330939e-01, 1.3020833333335308e-01, 5.2083333333793015e-03
+    };
 
     __DEVICE_TAG__ void operator()( const IdxND idx ) const // traversing image space
     {

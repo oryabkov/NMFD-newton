@@ -12,29 +12,29 @@
 #include <scfd/backend/backend.h>
 
 #ifdef SCFD_BACKEND_ENABLE_MPI
-#include <scfd/communication/mpi_binary_file.h>
-#include <scfd/communication/mpi_rect_distributor.h>
-#include <scfd/communication/mpi_wrap.h>
+#    include <scfd/communication/mpi_binary_file.h>
+#    include <scfd/communication/mpi_rect_distributor.h>
+#    include <scfd/communication/mpi_wrap.h>
 #else
-#include <scfd/communication/rect_distributor.h>
-#include <scfd/communication/trivial_binary_file.h>
-#include <scfd/communication/trivial_comm.h>
-#include <scfd/communication/trivial_platform.h>
+#    include <scfd/communication/rect_distributor.h>
+#    include <scfd/communication/trivial_binary_file.h>
+#    include <scfd/communication/trivial_comm.h>
+#    include <scfd/communication/trivial_platform.h>
 #endif
 
 #include <scfd/communication/rect_partitioner.h>
 #include <scfd/utils/log.h>
 #include <scfd/utils/profiling.h>
 
-#if defined(PLATFORM_CUDA)
-#include <scfd/utils/cuda_timer_event.h>
-SCFD_GLOBAL_PROFILING(scfd::utils::cuda_timer_event)
-#elif defined(SCFD_BACKEND_ENABLE_MPI)
-#include <scfd/utils/mpi_timer_event.h>
-SCFD_GLOBAL_PROFILING(scfd::utils::mpi_timer_event)
+#if defined( PLATFORM_CUDA )
+#    include <scfd/utils/cuda_timer_event.h>
+SCFD_GLOBAL_PROFILING( scfd::utils::cuda_timer_event )
+#elif defined( SCFD_BACKEND_ENABLE_MPI )
+#    include <scfd/utils/mpi_timer_event.h>
+SCFD_GLOBAL_PROFILING( scfd::utils::mpi_timer_event )
 #else
-#include <scfd/utils/system_timer_event.h>
-SCFD_GLOBAL_PROFILING(scfd::utils::system_timer_event)
+#    include <scfd/utils/system_timer_event.h>
+SCFD_GLOBAL_PROFILING( scfd::utils::system_timer_event )
 #endif
 
 #include <nmfd/operations/rect_vector_space.h>
@@ -70,8 +70,8 @@ SCFD_GLOBAL_PROFILING(scfd::utils::system_timer_event)
 
 using backend = scfd::backend::current;
 
-constexpr int dim               = 3;
-constexpr int tensor_dim        = 2;
+constexpr int dim        = 3;
+constexpr int tensor_dim = 2;
 // The multigrid restriction stencil reaches two cells past the block and spans the full diagonal,
 // so the halo has to be two cells wide and exchanged with the corner neighbours as well.
 constexpr int stencil           = 2;   // ghost width per side; must match the distributor stencil
@@ -96,13 +96,17 @@ using dist_for_each_t = backend::for_each_nd_type<dim, ord_t>;
 #ifdef SCFD_BACKEND_ENABLE_MPI
 using comm_platform_t = scfd::communication::mpi_wrap;
 using comm_info_t     = scfd::communication::mpi_comm_info;
-using dist_t          = scfd::communication::mpi_rect_distributor<scalar, dim, mem_t, dist_for_each_t, ord_t, big_ord_t, comm_info_t>;
-template <class T> using binary_file_t = scfd::communication::mpi_binary_file<T>;
+using dist_t =
+    scfd::communication::mpi_rect_distributor<scalar, dim, mem_t, dist_for_each_t, ord_t, big_ord_t, comm_info_t>;
+template <class T>
+using binary_file_t = scfd::communication::mpi_binary_file<T>;
 #else
 using comm_platform_t = scfd::communication::trivial_platform<mem_t>;
 using comm_info_t     = scfd::communication::trivial_comm<mem_t>;
-using dist_t          = scfd::communication::rect_distributor<scalar, dim, mem_t, dist_for_each_t, ord_t, big_ord_t, comm_info_t>;
-template <class T> using binary_file_t = scfd::communication::trivial_binary_file<T>;
+using dist_t =
+    scfd::communication::rect_distributor<scalar, dim, mem_t, dist_for_each_t, ord_t, big_ord_t, comm_info_t>;
+template <class T>
+using binary_file_t = scfd::communication::trivial_binary_file<T>;
 #endif
 
 using part_t = scfd::communication::rect_partitioner<dim, ord_t, big_ord_t, comm_info_t>;

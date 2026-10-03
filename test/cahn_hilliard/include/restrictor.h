@@ -15,8 +15,7 @@ namespace tests
 template <
     class VectorSpace, class Log, class Distributor,
     /**********************************************/
-    class Comm    = typename VectorSpace::comm_type,
-    class Backend = typename VectorSpace::backend_type>
+    class Comm = typename VectorSpace::comm_type, class Backend = typename VectorSpace::backend_type>
 class restrictor
 {
 public:
@@ -41,14 +40,15 @@ public:
     using for_each_nd_type = typename Backend::template for_each_nd_type<dim>;
 
 public: // Especially for SYCL
-    using restrictor_kernel =
-        kernels::restrictor_kernel<idx_nd_type, ordinal_type, vector_type, tensor_dim, boundary_cond_type, grid_step_type>;
+    using restrictor_kernel = kernels::restrictor_kernel<
+        idx_nd_type, ordinal_type, vector_type, tensor_dim, boundary_cond_type, grid_step_type>;
     using rect_type = typename restrictor_kernel::Rect;
 
 public:
     restrictor(
         idx_nd_type range, grid_step_type step, boundary_cond_type b_cond, const comm_type &comm, dist_ptr dist,
-        ordinal_type stencil, int max_stencil_order )
+        ordinal_type stencil, int max_stencil_order
+    )
         : range_( range ), step_( step ), b_cond_( b_cond ), dist_( std::move( dist ) ),
           vspace_( std::make_shared<vector_space_type>( range, comm, false, stencil, max_stencil_order ) ),
           lin_vector_wrap_( *vspace_ )
@@ -111,12 +111,14 @@ public:
 
         // The computed region, not the allocation: everything outside it goes through the boundary
         // condition, which is what tells a halo cell apart from a physical boundary.
-        rect_type        dom_r{ idx_nd_type::make_zero(), range_ };
-        auto             half_r = range_ / Ord{ 2u };
+        rect_type dom_r{ idx_nd_type::make_zero(), range_ };
+        auto      half_r = range_ / Ord{ 2u };
         {
             SCFD_PROFILING_SCOPED_TIC( "Restrictor::apply" );
             for_each_nd_type for_each_nd_inst;
-            for_each_nd_inst( restrictor_kernel{ from, to, *lin_vector_wrap_, b_cond_, step_, dom_r, use_linearized_ghost }, half_r );
+            for_each_nd_inst(
+                restrictor_kernel{ from, to, *lin_vector_wrap_, b_cond_, step_, dom_r, use_linearized_ghost }, half_r
+            );
         }
     }
 
@@ -128,7 +130,7 @@ private:
 
     vector_space_ptr vspace_;
     using vector_wrap_t = nmfd::detail::vector_wrap<VectorSpace, true, true>;
-    vector_wrap_t    lin_vector_wrap_;
+    vector_wrap_t lin_vector_wrap_;
 };
 
 } // namespace tests

@@ -14,7 +14,7 @@ template <class Scalar>
 class constant_mobility
 {
 public:
-    constant_mobility(Scalar D = 1.0): D_(D)
+    constant_mobility( Scalar D = 1.0 ) : D_( D )
     {
     }
 
@@ -39,18 +39,18 @@ class parabolic_mobility
     using st = scfd::utils::scalar_traits<Scalar>;
 
 public:
-    parabolic_mobility(Scalar D = 1.0, Scalar offset=0.5): D_(1), offset_(1e-5)
+    parabolic_mobility( Scalar D = 1.0, Scalar offset = 0.5 ) : D_( 1 ), offset_( 1e-5 )
     {
-        A_ = D_*D_ - offset_*offset_;
+        A_ = D_ * D_ - offset_ * offset_;
         // B_ = offset_*offset_ / A_;
     }
 
     __DEVICE_TAG__ Scalar operator()( Scalar phi ) const
     {
-        if (st::abs(phi) <= 1)
+        if ( st::abs( phi ) <= 1 )
         {
             // return D_ * st::sqrt((1 + phi) * (1 + phi) * (1 - phi) * (1 - phi) + offset_ * offset_);
-            return st::sqrt(A_ * (1 + phi) * (1 + phi) * (1 - phi) * (1 - phi) + offset_ * offset_);
+            return st::sqrt( A_ * ( 1 + phi ) * ( 1 + phi ) * ( 1 - phi ) * ( 1 - phi ) + offset_ * offset_ );
         }
         else
         {
@@ -61,10 +61,11 @@ public:
 
     __DEVICE_TAG__ Scalar get_derivative( Scalar phi ) const
     {
-        if (st::abs(phi) <= 1)
+        if ( st::abs( phi ) <= 1 )
         {
             // return 2 * D_ * phi * (phi * phi - 1) / st::sqrt((1 + phi) * (1 + phi) * (1 - phi) * (1 - phi) + offset_ * offset_);
-            return 2 * A_ * phi * (phi * phi - 1) / st::sqrt(A_ * (1 + phi) * (1 + phi) * (1 - phi) * (1 - phi) + offset_ * offset_);
+            return 2 * A_ * phi * ( phi * phi - 1 ) /
+                   st::sqrt( A_ * ( 1 + phi ) * ( 1 + phi ) * ( 1 - phi ) * ( 1 - phi ) + offset_ * offset_ );
         }
         else
         {

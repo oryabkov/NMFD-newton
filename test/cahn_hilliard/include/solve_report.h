@@ -9,7 +9,7 @@ namespace tests
 
 struct step_report
 {
-    int index;
+    int                   index;
     std::optional<double> dt;
     std::optional<double> t;
     std::optional<int>    newton_iters;
@@ -38,7 +38,7 @@ struct final_report
     std::optional<double>      philic_energy;
 };
 
-template<class Log>
+template <class Log>
 void log_step_report( Log &log, const step_report &r )
 {
     log.info( "----------------------------------------" );
@@ -69,7 +69,7 @@ void log_step_report( Log &log, const step_report &r )
         log.info_f( "  %-28s:  %.2f ms", "Step time", *r.step_time_ms );
 }
 
-template<class Log>
+template <class Log>
 void log_final_report( Log &log, const final_report &r )
 {
     log.info( "" );

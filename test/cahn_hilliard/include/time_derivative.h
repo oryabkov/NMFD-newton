@@ -30,8 +30,7 @@ public:
     using idx_nd_type       = typename VectorSpace::idx_nd_type;
 
 public:
-    time_derivative( vector_space_ptr vspace )
-        : vspace_( std::move( vspace ) ), previous_state_wrap_( *vspace_ )
+    time_derivative( vector_space_ptr vspace ) : vspace_( std::move( vspace ) ), previous_state_wrap_( *vspace_ )
     {
         vspace_->assign_scalar( 0.0, *previous_state_wrap_ );
     }
