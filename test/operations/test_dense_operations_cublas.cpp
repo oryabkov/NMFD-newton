@@ -1,10 +1,13 @@
 #include <cmath>
 #include <memory>
-#include <nmfd/operations/dense_operations_cuda.h>
+
 #include <scfd/arrays/array.h>
+#include <scfd/backend/cuda.h>
 #include <scfd/arrays/array_nd.h>
 #include <scfd/external_libraries/cublas_wrap_singleton_impl.h>
 #include <scfd/utils/log.h>
+
+#include <nmfd/operations/dense_operations_cuda_hip.h>
 
 const double eps = 1e-10;
 
@@ -18,7 +21,7 @@ int main( int argc, char const *args[] )
 {
     using log_t       = scfd::utils::log_std;
     using T           = double;
-    using dense_ops_t = nmfd::operations::dense_operations_cuda<T>;
+    using dense_ops_t = nmfd::operations::dense_operations_cuda_hip<T, scfd::backend::cuda>;
     using vector_type = typename dense_ops_t::vector_type;
     using matrix_type = typename dense_ops_t::matrix_type;
 
@@ -28,7 +31,7 @@ int main( int argc, char const *args[] )
     size_t passed_counter = 0;
     size_t failed_counter = 0;
 
-    log.info( "Testing dense_operations_cuda (cuBLAS)" );
+    log.info( "Testing dense_operations_cuda_hip (cuBLAS)" );
 
     auto ops = std::make_shared<dense_ops_t>();
 
