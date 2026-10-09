@@ -25,20 +25,20 @@ namespace mesh
 namespace detail
 {
 
-template<class T,class Memory,int Dim,class Ord>
-__DEVICE_TAG__ const device_mesh<T,Memory,Dim,Ord> &get_mesh()
+template <class T, class Memory, int Dim, class Ord>
+__DEVICE_TAG__ const device_mesh<T, Memory, Dim, Ord> &get_mesh()
 {
     //TODO some kind of error
 }
 
-template<class T>
+template <class T>
 __DEVICE_TAG__ const gmsh_mesh_elem_reference<T> &get_elem_ref()
 {
     //TODO some kind of error
 }
 
-}  /// namespace detail
-}  /// namespace mesh
-}  /// namespace scfd
+} /// namespace detail
+} /// namespace mesh
+} /// namespace scfd
 
 #endif

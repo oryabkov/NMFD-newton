@@ -79,311 +79,379 @@ namespace mesh
 * Ordinal is also not needed (not much elements, int is more then enoght)
 */
 
-//TODO we don't account for these parameters (ElemTypesNum,...) below when initilize this 
+//TODO we don't account for these parameters (ElemTypesNum,...) below when initilize this
 //structure (i.e. we initialize data for hexahedra whatever ElemTypesNum equals)
 //if these macros somehow will be changed we can get some errors
 //on the other hand i don't see any porblems with storing ALL possible element types data
 
-template
-<
-    class T,
-    int ElemTypesNum = 8,
-    int MaxFacesNum = 6,
-    int MaxVertsNum = 8,
-    int FaceMaxVertsNum = 4
->
+template <class T, int ElemTypesNum = 8, int MaxFacesNum = 6, int MaxVertsNum = 8, int FaceMaxVertsNum = 4>
 struct gmsh_mesh_elem_reference
 {
-    using vec = static_vec::vec<T,3>;
+    using vec = static_vec::vec<T, 3>;
 
-    int             faces_n[ElemTypesNum];
-    int             verts_n[ElemTypesNum];
-    int             prim_verts_n[ElemTypesNum];
-    vec             verts[ElemTypesNum][MaxVertsNum];
-    vec             prim_verts[ElemTypesNum][MaxVertsNum];
-    int             face_elem_type[ElemTypesNum][MaxFacesNum];
-    int             face_verts_n[ElemTypesNum][MaxFacesNum];
-    int             face_prim_verts_n[ElemTypesNum][MaxFacesNum];
-    int             face_verts[ElemTypesNum][MaxFacesNum][FaceMaxVertsNum];
-    int             face_prim_verts[ElemTypesNum][MaxFacesNum][FaceMaxVertsNum];
+    int faces_n[ElemTypesNum];
+    int verts_n[ElemTypesNum];
+    int prim_verts_n[ElemTypesNum];
+    vec verts[ElemTypesNum][MaxVertsNum];
+    vec prim_verts[ElemTypesNum][MaxVertsNum];
+    int face_elem_type[ElemTypesNum][MaxFacesNum];
+    int face_verts_n[ElemTypesNum][MaxFacesNum];
+    int face_prim_verts_n[ElemTypesNum][MaxFacesNum];
+    int face_verts[ElemTypesNum][MaxFacesNum][FaceMaxVertsNum];
+    int face_prim_verts[ElemTypesNum][MaxFacesNum][FaceMaxVertsNum];
 
-    __DEVICE_TAG__ int              get_faces_n(int elem_type)const
+    __DEVICE_TAG__ int get_faces_n( int elem_type ) const
     {
         return faces_n[elem_type];
         //TODO elem_type error
     }
-    __DEVICE_TAG__ int              get_verts_n(int elem_type)const
+    __DEVICE_TAG__ int get_verts_n( int elem_type ) const
     {
         return verts_n[elem_type];
         //TODO elem_type error
     }
-    __DEVICE_TAG__ int              get_prim_verts_n(int elem_type)const
+    __DEVICE_TAG__ int get_prim_verts_n( int elem_type ) const
     {
         return prim_verts_n[elem_type];
         //TODO elem_type error
     }
-    __DEVICE_TAG__ const vec        &get_vert(int elem_type,int vert_i)const
+    __DEVICE_TAG__ const vec &get_vert( int elem_type, int vert_i ) const
     {
         return verts[elem_type][vert_i];
         //TODO elem_type/vert_i error
     }
-    __DEVICE_TAG__ void             get_vert(int elem_type,int vert_i, vec &res)const
+    __DEVICE_TAG__ void get_vert( int elem_type, int vert_i, vec &res ) const
     {
         res = verts[elem_type][vert_i];
         //TODO elem_type/vert_i error
     }
-    __DEVICE_TAG__ T                get_vert(int elem_type,int vert_i, int j)const
+    __DEVICE_TAG__ T get_vert( int elem_type, int vert_i, int j ) const
     {
         return verts[elem_type][vert_i][j];
         //TODO elem_type/vert_i/j error
     }
-    __DEVICE_TAG__ const vec        &get_prim_vert(int elem_type,int vert_i)const
+    __DEVICE_TAG__ const vec &get_prim_vert( int elem_type, int vert_i ) const
     {
         return prim_verts[elem_type][vert_i];
         //TODO elem_type/vert_i error
     }
-    __DEVICE_TAG__ void             get_prim_vert(int elem_type,int vert_i, vec &res)const
+    __DEVICE_TAG__ void get_prim_vert( int elem_type, int vert_i, vec &res ) const
     {
         res = prim_verts[elem_type][vert_i];
         //TODO elem_type/vert_i error
     }
-    __DEVICE_TAG__ T                get_prim_vert(int elem_type,int vert_i, int j)const
+    __DEVICE_TAG__ T get_prim_vert( int elem_type, int vert_i, int j ) const
     {
         return prim_verts[elem_type][vert_i][j];
         //TODO elem_type/vert_i/j error
     }
-    __DEVICE_TAG__ int              get_face_elem_type(int elem_type, int face_i)const
+    __DEVICE_TAG__ int get_face_elem_type( int elem_type, int face_i ) const
     {
         return face_elem_type[elem_type][face_i];
     }
-    __DEVICE_TAG__ int              get_face_verts_n(int elem_type, int face_i)const
+    __DEVICE_TAG__ int get_face_verts_n( int elem_type, int face_i ) const
     {
         return face_verts_n[elem_type][face_i];
         //TODO elem_type/face_i error
     }
-    __DEVICE_TAG__ int              get_face_prim_verts_n(int elem_type, int face_i)const
+    __DEVICE_TAG__ int get_face_prim_verts_n( int elem_type, int face_i ) const
     {
         return face_prim_verts_n[elem_type][face_i];
         //TODO elem_type/face_i error
     }
-    __DEVICE_TAG__ int              get_face_vert_i(int elem_type,int face_i, int face_vert_i)const
+    __DEVICE_TAG__ int get_face_vert_i( int elem_type, int face_i, int face_vert_i ) const
     {
         return face_verts[elem_type][face_i][face_vert_i];
     }
-    __DEVICE_TAG__ const vec        &get_face_vert(int elem_type,int face_i, int vert_i)const
+    __DEVICE_TAG__ const vec &get_face_vert( int elem_type, int face_i, int vert_i ) const
     {
-        return verts[elem_type][ face_verts[elem_type][face_i][vert_i] ];
+        return verts[elem_type][face_verts[elem_type][face_i][vert_i]];
     }
-    __DEVICE_TAG__ void             get_face_vert(int elem_type,int face_i, int vert_i, vec &res)const
+    __DEVICE_TAG__ void get_face_vert( int elem_type, int face_i, int vert_i, vec &res ) const
     {
-        res = verts[elem_type][ face_verts[elem_type][face_i][vert_i] ];
+        res = verts[elem_type][face_verts[elem_type][face_i][vert_i]];
     }
-    __DEVICE_TAG__ T                get_face_vert(int elem_type,int face_i, int vert_i, int j)const
+    __DEVICE_TAG__ T get_face_vert( int elem_type, int face_i, int vert_i, int j ) const
     {
-        return verts[elem_type][ face_verts[elem_type][face_i][vert_i] ][j];
+        return verts[elem_type][face_verts[elem_type][face_i][vert_i]][j];
     }
-    __DEVICE_TAG__ void             get_face_verts(int elem_type,int face_i, vec vertexes[FaceMaxVertsNum])const
+    __DEVICE_TAG__ void get_face_verts( int elem_type, int face_i, vec vertexes[FaceMaxVertsNum] ) const
     {
         //to make unroll possible
         //TODO excplicit unroll??
-        for (int i = 0;i < FaceMaxVertsNum;++i) {
-            if (i == get_face_verts_n(elem_type, face_i)) break;
-            vertexes[i] = get_face_vert(elem_type,face_i, i);
+        for ( int i = 0; i < FaceMaxVertsNum; ++i )
+        {
+            if ( i == get_face_verts_n( elem_type, face_i ) )
+                break;
+            vertexes[i] = get_face_vert( elem_type, face_i, i );
         }
     }
-    __DEVICE_TAG__ int              get_face_prim_vert_i(int elem_type,int face_i, int face_vert_i)const
+    __DEVICE_TAG__ int get_face_prim_vert_i( int elem_type, int face_i, int face_vert_i ) const
     {
         return face_prim_verts[elem_type][face_i][face_vert_i];
     }
-    __DEVICE_TAG__ const vec        &get_face_prim_vert(int elem_type,int face_i, int vert_i)const
+    __DEVICE_TAG__ const vec &get_face_prim_vert( int elem_type, int face_i, int vert_i ) const
     {
-        return prim_verts[elem_type][ face_verts[elem_type][face_i][vert_i] ];
+        return prim_verts[elem_type][face_verts[elem_type][face_i][vert_i]];
     }
-    __DEVICE_TAG__ void             get_face_prim_vert(int elem_type,int face_i, int vert_i, vec &res)const
+    __DEVICE_TAG__ void get_face_prim_vert( int elem_type, int face_i, int vert_i, vec &res ) const
     {
-        res = prim_verts[elem_type][ face_prim_verts[elem_type][face_i][vert_i] ];
+        res = prim_verts[elem_type][face_prim_verts[elem_type][face_i][vert_i]];
     }
-    __DEVICE_TAG__ T                get_face_prim_vert(int elem_type,int face_i, int vert_i, int j)const
+    __DEVICE_TAG__ T get_face_prim_vert( int elem_type, int face_i, int vert_i, int j ) const
     {
-        return prim_verts[elem_type][ face_prim_verts[elem_type][face_i][vert_i] ][j];
+        return prim_verts[elem_type][face_prim_verts[elem_type][face_i][vert_i]][j];
     }
-    __DEVICE_TAG__ void             get_face_prim_verts(int elem_type,int face_i, vec vertexes[FaceMaxVertsNum])const
+    __DEVICE_TAG__ void get_face_prim_verts( int elem_type, int face_i, vec vertexes[FaceMaxVertsNum] ) const
     {
         //to make unroll possible
         //TODO excplicit unroll??
-        for (int i = 0;i < FaceMaxVertsNum;++i) {
-            if (i == get_face_prim_verts_n(elem_type, face_i)) break;
-            vertexes[i] = get_face_prim_vert(elem_type,face_i, i);
+        for ( int i = 0; i < FaceMaxVertsNum; ++i )
+        {
+            if ( i == get_face_prim_verts_n( elem_type, face_i ) )
+                break;
+            vertexes[i] = get_face_prim_vert( elem_type, face_i, i );
         }
     }
 
-    __DEVICE_TAG__ void             get_face_verts_phys(int elem_type, const vec *elem_vertexes,int face_i, vec   vertexes[FaceMaxVertsNum])const
+    __DEVICE_TAG__ void
+    get_face_verts_phys( int elem_type, const vec *elem_vertexes, int face_i, vec vertexes[FaceMaxVertsNum] ) const
     {
         //to make unroll possible
         //TODO excplicit unroll??
-        for (int i = 0;i < FaceMaxVertsNum;++i) {
-            if (i == get_face_verts_n(elem_type, face_i)) break;
-            ref_to_phys(elem_type, elem_vertexes, get_face_vert(elem_type,face_i, i), vertexes[i]);
+        for ( int i = 0; i < FaceMaxVertsNum; ++i )
+        {
+            if ( i == get_face_verts_n( elem_type, face_i ) )
+                break;
+            ref_to_phys( elem_type, elem_vertexes, get_face_vert( elem_type, face_i, i ), vertexes[i] );
         }
     }
-    __DEVICE_TAG__ bool             is_3d(int elem_type)const
+    __DEVICE_TAG__ bool is_3d( int elem_type ) const
     {
-        if ((elem_type == 2)||(elem_type == 3)) return false;
+        if ( ( elem_type == 2 ) || ( elem_type == 3 ) )
+            return false;
         return true;
     }
     //TODO for now seems that it has too many if's clauses so it's better not use it frequently; for now it's used only in preface
     //unfortunatly i did not figure out how to make all this static (there is no template methods specialization inside template classes)
     //NOTE for plananr elements 3rd component in reference coordinates is simply ignored
-    __DEVICE_TAG__ T                shape_func(int elem_type, int vert_i,const vec &ref)const
+    __DEVICE_TAG__ T shape_func( int elem_type, int vert_i, const vec &ref ) const
     {
-        if (elem_type == 2) {
-            if (vert_i == 0) return (T(1.f) - ref[0] - ref[1]); else
-            if (vert_i == 1) return ref[0]; else
-            if (vert_i == 2) return ref[1]; //TODO else ERROR
-        } else if (elem_type == 3) {
+        if ( elem_type == 2 )
+        {
+            if ( vert_i == 0 )
+                return ( T( 1.f ) - ref[0] - ref[1] );
+            else if ( vert_i == 1 )
+                return ref[0];
+            else if ( vert_i == 2 )
+                return ref[1]; //TODO else ERROR
+        }
+        else if ( elem_type == 3 )
+        {
             //from course http://www.colorado.edu/engineering/CAS/courses.d/AFEM.d/AFEM.Ch11.d/AFEM.Ch11.pdf
-            return  (T(1.f) + verts[elem_type][vert_i][0]*ref[0])*
-                (T(1.f) + verts[elem_type][vert_i][1]*ref[1])/T(4.f);
-        } else if (elem_type == 4) {
-            if (vert_i == 0) return (T(1.f) - ref[0] - ref[1] - ref[2]); else
-            if (vert_i == 1) return ref[0]; else
-            if (vert_i == 2) return ref[1]; else
-            if (vert_i == 3) return ref[2]; //TODO else ERROR
-        } else if (elem_type == 5) {
+            return ( T( 1.f ) + verts[elem_type][vert_i][0] * ref[0] ) *
+                   ( T( 1.f ) + verts[elem_type][vert_i][1] * ref[1] ) / T( 4.f );
+        }
+        else if ( elem_type == 4 )
+        {
+            if ( vert_i == 0 )
+                return ( T( 1.f ) - ref[0] - ref[1] - ref[2] );
+            else if ( vert_i == 1 )
+                return ref[0];
+            else if ( vert_i == 2 )
+                return ref[1];
+            else if ( vert_i == 3 )
+                return ref[2]; //TODO else ERROR
+        }
+        else if ( elem_type == 5 )
+        {
             //from course http://www.colorado.edu/engineering/CAS/courses.d/AFEM.d/AFEM.Ch11.d/AFEM.Ch11.pdf
-            return  (T(1.f) + verts[elem_type][vert_i][0]*ref[0])*
-                (T(1.f) + verts[elem_type][vert_i][1]*ref[1])*
-                (T(1.f) + verts[elem_type][vert_i][2]*ref[2])/T(8.f);
-        } else if (elem_type == 6) {
-            T       tri_res, lin_res;
-            if ((vert_i == 0)||(vert_i == 3)) tri_res = (T(1.f) - ref[0] - ref[1]); else
-            if ((vert_i == 1)||(vert_i == 4)) tri_res = ref[0]; else
-            if ((vert_i == 2)||(vert_i == 5)) tri_res = ref[1];
+            return ( T( 1.f ) + verts[elem_type][vert_i][0] * ref[0] ) *
+                   ( T( 1.f ) + verts[elem_type][vert_i][1] * ref[1] ) *
+                   ( T( 1.f ) + verts[elem_type][vert_i][2] * ref[2] ) / T( 8.f );
+        }
+        else if ( elem_type == 6 )
+        {
+            T tri_res, lin_res;
+            if ( ( vert_i == 0 ) || ( vert_i == 3 ) )
+                tri_res = ( T( 1.f ) - ref[0] - ref[1] );
+            else if ( ( vert_i == 1 ) || ( vert_i == 4 ) )
+                tri_res = ref[0];
+            else if ( ( vert_i == 2 ) || ( vert_i == 5 ) )
+                tri_res = ref[1];
             //TODO error else
-            lin_res = (T(1.f) + verts[elem_type][vert_i][2]*ref[2])/T(2.f);
-            return lin_res*tri_res;
-        } else {
+            lin_res = ( T( 1.f ) + verts[elem_type][vert_i][2] * ref[2] ) / T( 2.f );
+            return lin_res * tri_res;
+        }
+        else
+        {
             //TODO others
         }
     }
-    __DEVICE_TAG__ T                shape_func_der(int elem_type, int vert_i,const vec &ref, int j)const
+    __DEVICE_TAG__ T shape_func_der( int elem_type, int vert_i, const vec &ref, int j ) const
     {
-        if (elem_type == 2) {
-            if (j == 2) return T(0.f);
-            if (vert_i == 0) return T(-1.f); else
-            return (vert_i-1 == j?T(1.f):T(0.f));
+        if ( elem_type == 2 )
+        {
+            if ( j == 2 )
+                return T( 0.f );
+            if ( vert_i == 0 )
+                return T( -1.f );
+            else
+                return ( vert_i - 1 == j ? T( 1.f ) : T( 0.f ) );
             //TODO check whether vert_i < 3, otherwise ERROR (use assert, because it's logic_error)
-        } else if (elem_type == 3) {
-            if (j == 2) return T(0.f);
+        }
+        else if ( elem_type == 3 )
+        {
+            if ( j == 2 )
+                return T( 0.f );
             //from course http://www.colorado.edu/engineering/CAS/courses.d/AFEM.d/AFEM.Ch11.d/AFEM.Ch11.pdf
-            T       res( verts[elem_type][vert_i][j] );
-            for (int jj = 0;jj < 2;++jj) if (jj != j)
-                res *= (T(1.f) + verts[elem_type][vert_i][jj]*ref[jj]);
-            return  res/T(4.f);
-        } else if (elem_type == 4) {
-            if (vert_i == 0) return T(-1.f); else
-            return (vert_i-1 == j?T(1.f):T(0.f));
+            T res( verts[elem_type][vert_i][j] );
+            for ( int jj = 0; jj < 2; ++jj )
+                if ( jj != j )
+                    res *= ( T( 1.f ) + verts[elem_type][vert_i][jj] * ref[jj] );
+            return res / T( 4.f );
+        }
+        else if ( elem_type == 4 )
+        {
+            if ( vert_i == 0 )
+                return T( -1.f );
+            else
+                return ( vert_i - 1 == j ? T( 1.f ) : T( 0.f ) );
             //TODO check whether vert_i < 4, otherwise ERROR (use assert, because it's logic_error)
-        } else if (elem_type == 5) {
+        }
+        else if ( elem_type == 5 )
+        {
             //from course http://www.colorado.edu/engineering/CAS/courses.d/AFEM.d/AFEM.Ch11.d/AFEM.Ch11.pdf
-            T       res( verts[elem_type][vert_i][j] );
-            for (int jj = 0;jj < 3;++jj) if (jj != j)
-                res *= (T(1.f) + verts[elem_type][vert_i][jj]*ref[jj]);
-            return  res/T(8.f);
-        } else if (elem_type == 6) {
-            if (j == 2) {
-                T       tri_res;
-                if ((vert_i == 0)||(vert_i == 3)) tri_res = (T(1.f) - ref[0] - ref[1]); else
-                if ((vert_i == 1)||(vert_i == 4)) tri_res = ref[0]; else
-                if ((vert_i == 2)||(vert_i == 5)) tri_res = ref[1];
+            T res( verts[elem_type][vert_i][j] );
+            for ( int jj = 0; jj < 3; ++jj )
+                if ( jj != j )
+                    res *= ( T( 1.f ) + verts[elem_type][vert_i][jj] * ref[jj] );
+            return res / T( 8.f );
+        }
+        else if ( elem_type == 6 )
+        {
+            if ( j == 2 )
+            {
+                T tri_res;
+                if ( ( vert_i == 0 ) || ( vert_i == 3 ) )
+                    tri_res = ( T( 1.f ) - ref[0] - ref[1] );
+                else if ( ( vert_i == 1 ) || ( vert_i == 4 ) )
+                    tri_res = ref[0];
+                else if ( ( vert_i == 2 ) || ( vert_i == 5 ) )
+                    tri_res = ref[1];
                 //TODO error else
-                return tri_res*verts[elem_type][vert_i][2]/T(2.f);
+                return tri_res * verts[elem_type][vert_i][2] / T( 2.f );
             }
-            T       lin_res;
-            lin_res = (T(1.f) + verts[elem_type][vert_i][2]*ref[2])/T(2.f);
-            if (vert_i%3 == 0) return lin_res*T(-1.f); else
-            return lin_res*(vert_i%3-1 == j?T(1.f):T(0.f));
-        } else {
+            T lin_res;
+            lin_res = ( T( 1.f ) + verts[elem_type][vert_i][2] * ref[2] ) / T( 2.f );
+            if ( vert_i % 3 == 0 )
+                return lin_res * T( -1.f );
+            else
+                return lin_res * ( vert_i % 3 - 1 == j ? T( 1.f ) : T( 0.f ) );
+        }
+        else
+        {
             //TODO others
         }
     }
     //TODO we use pointer to vec   here which is unaccaptable for __device__ code
     //for 2d elements eembedded in 3d this is not actualy Jacobian but rather metric multiplier that appears in surface integral
-    __DEVICE_TAG__ T                ref_to_phys_jacob_det(int elem_type, const vec *vertexes, const vec   &ref)const
+    __DEVICE_TAG__ T ref_to_phys_jacob_det( int elem_type, const vec *vertexes, const vec &ref ) const
     {
-        if (is_3d(elem_type)) {
-            T       J[3][3];
-            for (int i = 0;i < 3;++i)
-            for (int j = 0;j < 3;++j) {
-                J[i][j] = T(0.f);
-                for (int vert_i = 0;vert_i < get_verts_n(elem_type);++vert_i) {
+        if ( is_3d( elem_type ) )
+        {
+            T J[3][3];
+            for ( int i = 0; i < 3; ++i )
+                for ( int j = 0; j < 3; ++j )
+                {
+                    J[i][j] = T( 0.f );
+                    for ( int vert_i = 0; vert_i < get_verts_n( elem_type ); ++vert_i )
+                    {
+                        //TODO check order of i and j
+                        J[i][j] += vertexes[vert_i][i] * shape_func_der( elem_type, vert_i, ref, j );
+                    }
+                }
+            return mat33_det( J );
+        }
+        else
+        {
+            vec r_u, r_v;
+            for ( int i = 0; i < 3; ++i )
+            {
+                r_u[i] = T( 0.f );
+                r_v[i] = T( 0.f );
+                for ( int vert_i = 0; vert_i < get_verts_n( elem_type ); ++vert_i )
+                {
                     //TODO check order of i and j
-                    J[i][j] += vertexes[vert_i][i] * shape_func_der(elem_type, vert_i, ref, j);
+                    r_u[i] += vertexes[vert_i][i] * shape_func_der( elem_type, vert_i, ref, 0 );
+                    r_v[i] += vertexes[vert_i][i] * shape_func_der( elem_type, vert_i, ref, 1 );
                 }
             }
-            return mat33_det(J);
-        } else {
-            vec     r_u, r_v;
-            for (int i = 0;i < 3;++i) {
-                r_u[i] = T(0.f);
-                r_v[i] = T(0.f);
-                for (int vert_i = 0;vert_i < get_verts_n(elem_type);++vert_i) {
-                    //TODO check order of i and j
-                    r_u[i] += vertexes[vert_i][i] * shape_func_der(elem_type, vert_i, ref, 0);
-                    r_v[i] += vertexes[vert_i][i] * shape_func_der(elem_type, vert_i, ref, 1);
-                }
-            }
-            T       E = scalar_prod( r_u, r_u ),
-                G = scalar_prod( r_v, r_v ),
-                F = scalar_prod( r_u, r_v );
-            return sqrt( E*G - F*F );
+            T E = scalar_prod( r_u, r_u ), G = scalar_prod( r_v, r_v ), F = scalar_prod( r_u, r_v );
+            return sqrt( E * G - F * F );
         }
     }
     //TODO see shape_func comment and ref_to_phys_jacob_det comment
     //NOTE for plananr elements 3rd component in reference coordinates is simply ignored
-    __DEVICE_TAG__ void             ref_to_phys(int elem_type, const vec *vertexes, const vec &ref, vec &res)const
+    __DEVICE_TAG__ void ref_to_phys( int elem_type, const vec *vertexes, const vec &ref, vec &res ) const
     {
-        if (elem_type == 2) {
-            for (int j = 0;j < 3;++j) {
-                res[j] =        vertexes[0][j] * shape_func(elem_type,0,ref) +
-                        vertexes[1][j] * shape_func(elem_type,1,ref) +
-                        vertexes[2][j] * shape_func(elem_type,2,ref);
+        if ( elem_type == 2 )
+        {
+            for ( int j = 0; j < 3; ++j )
+            {
+                res[j] = vertexes[0][j] * shape_func( elem_type, 0, ref ) +
+                         vertexes[1][j] * shape_func( elem_type, 1, ref ) +
+                         vertexes[2][j] * shape_func( elem_type, 2, ref );
             }
-        } else if (elem_type == 3) {
-            for (int j = 0;j < 3;++j) {
-                res[j] =        vertexes[0][j] * shape_func(elem_type,0,ref) +
-                        vertexes[1][j] * shape_func(elem_type,1,ref) +
-                        vertexes[2][j] * shape_func(elem_type,2,ref) +
-                        vertexes[3][j] * shape_func(elem_type,3,ref);
+        }
+        else if ( elem_type == 3 )
+        {
+            for ( int j = 0; j < 3; ++j )
+            {
+                res[j] = vertexes[0][j] * shape_func( elem_type, 0, ref ) +
+                         vertexes[1][j] * shape_func( elem_type, 1, ref ) +
+                         vertexes[2][j] * shape_func( elem_type, 2, ref ) +
+                         vertexes[3][j] * shape_func( elem_type, 3, ref );
             }
-        } else if (elem_type == 4) {
-            for (int j = 0;j < 3;++j) {
-                res[j] =        vertexes[0][j] * shape_func(elem_type,0,ref) +
-                        vertexes[1][j] * shape_func(elem_type,1,ref) +
-                        vertexes[2][j] * shape_func(elem_type,2,ref) +
-                        vertexes[3][j] * shape_func(elem_type,3,ref);
+        }
+        else if ( elem_type == 4 )
+        {
+            for ( int j = 0; j < 3; ++j )
+            {
+                res[j] = vertexes[0][j] * shape_func( elem_type, 0, ref ) +
+                         vertexes[1][j] * shape_func( elem_type, 1, ref ) +
+                         vertexes[2][j] * shape_func( elem_type, 2, ref ) +
+                         vertexes[3][j] * shape_func( elem_type, 3, ref );
             }
-        } else if (elem_type == 5) {
-            for (int j = 0;j < 3;++j) {
-                res[j] =        vertexes[0][j] * shape_func(elem_type,0,ref) +
-                        vertexes[1][j] * shape_func(elem_type,1,ref) +
-                        vertexes[2][j] * shape_func(elem_type,2,ref) +
-                        vertexes[3][j] * shape_func(elem_type,3,ref) +
-                        vertexes[4][j] * shape_func(elem_type,4,ref) +
-                        vertexes[5][j] * shape_func(elem_type,5,ref) +
-                        vertexes[6][j] * shape_func(elem_type,6,ref) +
-                        vertexes[7][j] * shape_func(elem_type,7,ref);
+        }
+        else if ( elem_type == 5 )
+        {
+            for ( int j = 0; j < 3; ++j )
+            {
+                res[j] = vertexes[0][j] * shape_func( elem_type, 0, ref ) +
+                         vertexes[1][j] * shape_func( elem_type, 1, ref ) +
+                         vertexes[2][j] * shape_func( elem_type, 2, ref ) +
+                         vertexes[3][j] * shape_func( elem_type, 3, ref ) +
+                         vertexes[4][j] * shape_func( elem_type, 4, ref ) +
+                         vertexes[5][j] * shape_func( elem_type, 5, ref ) +
+                         vertexes[6][j] * shape_func( elem_type, 6, ref ) +
+                         vertexes[7][j] * shape_func( elem_type, 7, ref );
             }
-        } else if (elem_type == 6) {
-            for (int j = 0;j < 3;++j) {
-                res[j] =        vertexes[0][j] * shape_func(elem_type,0,ref) +
-                        vertexes[1][j] * shape_func(elem_type,1,ref) +
-                        vertexes[2][j] * shape_func(elem_type,2,ref) +
-                        vertexes[3][j] * shape_func(elem_type,3,ref) +
-                        vertexes[4][j] * shape_func(elem_type,4,ref) +
-                        vertexes[5][j] * shape_func(elem_type,5,ref);
+        }
+        else if ( elem_type == 6 )
+        {
+            for ( int j = 0; j < 3; ++j )
+            {
+                res[j] = vertexes[0][j] * shape_func( elem_type, 0, ref ) +
+                         vertexes[1][j] * shape_func( elem_type, 1, ref ) +
+                         vertexes[2][j] * shape_func( elem_type, 2, ref ) +
+                         vertexes[3][j] * shape_func( elem_type, 3, ref ) +
+                         vertexes[4][j] * shape_func( elem_type, 4, ref ) +
+                         vertexes[5][j] * shape_func( elem_type, 5, ref );
             }
-        } else {
+        }
+        else
+        {
             //TODO
         }
     }
@@ -408,35 +476,35 @@ struct gmsh_mesh_elem_reference
         //from gmsh source files, i.e. Geo/MTetrahedron.h, Geo/MHexahedron.h, etc (getNode method)
 
         //triangle vertexes
-        prim_verts[2][0] = verts[2][0] = vec(0., 0., 0.);
-        prim_verts[2][1] = verts[2][1] = vec(1., 0., 0.);
-        prim_verts[2][2] = verts[2][2] = vec(0., 1., 0.);
+        prim_verts[2][0] = verts[2][0] = vec( 0., 0., 0. );
+        prim_verts[2][1] = verts[2][1] = vec( 1., 0., 0. );
+        prim_verts[2][2] = verts[2][2] = vec( 0., 1., 0. );
         //quadrangle vertexes
-        prim_verts[3][0] = verts[3][0] = vec(-1., -1., 0.);
-        prim_verts[3][1] = verts[3][1] = vec( 1., -1., 0.);
-        prim_verts[3][2] = verts[3][2] = vec( 1.,  1., 0.);
-        prim_verts[3][3] = verts[3][3] = vec(-1.,  1., 0.);
+        prim_verts[3][0] = verts[3][0] = vec( -1., -1., 0. );
+        prim_verts[3][1] = verts[3][1] = vec( 1., -1., 0. );
+        prim_verts[3][2] = verts[3][2] = vec( 1., 1., 0. );
+        prim_verts[3][3] = verts[3][3] = vec( -1., 1., 0. );
         //tetrahedron vertexes
-        prim_verts[4][0] = verts[4][0] = vec(0., 0., 0.);
-        prim_verts[4][1] = verts[4][1] = vec(1., 0., 0.);
-        prim_verts[4][2] = verts[4][2] = vec(0., 1., 0.);
-        prim_verts[4][3] = verts[4][3] = vec(0., 0., 1.);
+        prim_verts[4][0] = verts[4][0] = vec( 0., 0., 0. );
+        prim_verts[4][1] = verts[4][1] = vec( 1., 0., 0. );
+        prim_verts[4][2] = verts[4][2] = vec( 0., 1., 0. );
+        prim_verts[4][3] = verts[4][3] = vec( 0., 0., 1. );
         //hexahedron vertexes
-        prim_verts[5][0] = verts[5][0] = vec(-1., -1., -1.);
-        prim_verts[5][1] = verts[5][1] = vec( 1., -1., -1.);
-        prim_verts[5][2] = verts[5][2] = vec( 1.,  1., -1.);
-        prim_verts[5][3] = verts[5][3] = vec(-1.,  1., -1.);
-        prim_verts[5][4] = verts[5][4] = vec(-1., -1.,  1.);
-        prim_verts[5][5] = verts[5][5] = vec( 1., -1.,  1.);
-        prim_verts[5][6] = verts[5][6] = vec( 1.,  1.,  1.);
-        prim_verts[5][7] = verts[5][7] = vec(-1.,  1.,  1.);
+        prim_verts[5][0] = verts[5][0] = vec( -1., -1., -1. );
+        prim_verts[5][1] = verts[5][1] = vec( 1., -1., -1. );
+        prim_verts[5][2] = verts[5][2] = vec( 1., 1., -1. );
+        prim_verts[5][3] = verts[5][3] = vec( -1., 1., -1. );
+        prim_verts[5][4] = verts[5][4] = vec( -1., -1., 1. );
+        prim_verts[5][5] = verts[5][5] = vec( 1., -1., 1. );
+        prim_verts[5][6] = verts[5][6] = vec( 1., 1., 1. );
+        prim_verts[5][7] = verts[5][7] = vec( -1., 1., 1. );
         //prism vertexes
-        prim_verts[6][0] = verts[6][0] = vec( 0.,  0., -1.);
-        prim_verts[6][1] = verts[6][1] = vec( 1.,  0., -1.);
-        prim_verts[6][2] = verts[6][2] = vec( 0.,  1., -1.);
-        prim_verts[6][3] = verts[6][3] = vec( 0.,  0.,  1.);
-        prim_verts[6][4] = verts[6][4] = vec( 1.,  0.,  1.);
-        prim_verts[6][5] = verts[6][5] = vec( 0.,  1.,  1.);
+        prim_verts[6][0] = verts[6][0] = vec( 0., 0., -1. );
+        prim_verts[6][1] = verts[6][1] = vec( 1., 0., -1. );
+        prim_verts[6][2] = verts[6][2] = vec( 0., 1., -1. );
+        prim_verts[6][3] = verts[6][3] = vec( 0., 0., 1. );
+        prim_verts[6][4] = verts[6][4] = vec( 1., 0., 1. );
+        prim_verts[6][5] = verts[6][5] = vec( 0., 1., 1. );
         //TODO other types
 
         //faces types
@@ -565,26 +633,26 @@ struct gmsh_mesh_elem_reference
         face_prim_verts[6][4][3] = face_verts[6][4][3] = 4;
         //pyramid faces verts
         face_prim_verts[7][0][0] = face_verts[7][0][0] = 0;
-        face_prim_verts[7][0][1] = face_verts[7][0][1] = 1; 
+        face_prim_verts[7][0][1] = face_verts[7][0][1] = 1;
         face_prim_verts[7][0][2] = face_verts[7][0][2] = 4;
-        face_prim_verts[7][1][0] = face_verts[7][1][0] = 3; 
-        face_prim_verts[7][1][1] = face_verts[7][1][1] = 0; 
+        face_prim_verts[7][1][0] = face_verts[7][1][0] = 3;
+        face_prim_verts[7][1][1] = face_verts[7][1][1] = 0;
         face_prim_verts[7][1][2] = face_verts[7][1][2] = 4;
-        face_prim_verts[7][2][0] = face_verts[7][2][0] = 1; 
-        face_prim_verts[7][2][1] = face_verts[7][2][1] = 2; 
+        face_prim_verts[7][2][0] = face_verts[7][2][0] = 1;
+        face_prim_verts[7][2][1] = face_verts[7][2][1] = 2;
         face_prim_verts[7][2][2] = face_verts[7][2][2] = 4;
-        face_prim_verts[7][3][0] = face_verts[7][3][0] = 2; 
-        face_prim_verts[7][3][1] = face_verts[7][3][1] = 3; 
+        face_prim_verts[7][3][0] = face_verts[7][3][0] = 2;
+        face_prim_verts[7][3][1] = face_verts[7][3][1] = 3;
         face_prim_verts[7][3][2] = face_verts[7][3][2] = 4;
-        face_prim_verts[7][4][0] = face_verts[7][4][0] = 0; 
-        face_prim_verts[7][4][1] = face_verts[7][4][1] = 3; 
-        face_prim_verts[7][4][2] = face_verts[7][4][2] = 2; 
+        face_prim_verts[7][4][0] = face_verts[7][4][0] = 0;
+        face_prim_verts[7][4][1] = face_verts[7][4][1] = 3;
+        face_prim_verts[7][4][2] = face_verts[7][4][2] = 2;
         face_prim_verts[7][4][3] = face_verts[7][4][3] = 1;
         //TODO other types
     }
 };
 
-}  /// namespace mesh
-}  /// namespace scfd
+} /// namespace mesh
+} /// namespace scfd
 
 #endif
