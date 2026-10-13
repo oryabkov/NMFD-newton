@@ -63,7 +63,7 @@ struct static_vector_space
     {
         for (size_t i = 0;i < Dim;++i)
         {
-            if (std::isinf(x[i]))
+            if (!std::isfinite(x[i]))
             {
                 return false;
             }

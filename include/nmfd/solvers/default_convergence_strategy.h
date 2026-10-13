@@ -21,13 +21,17 @@ convergence rules for Newton iterator for continuation process
 */
 #include <cmath>
 #include <vector>
-#include <scfd/utils/logged_obj_base.h>
 #include <algorithm> // std::min_element
 #include <iterator>  // std::begin, std::end
+#include <type_traits>
+#include <utility>
+#include <stdexcept>
+#include <scfd/utils/logged_obj_base.h>
 #include <nmfd/operations/ident_operator.h>
 #include <nmfd/operations/zero_functional.h>
 #include <nmfd/detail/algo_hierarchy_macro.h>
 #include <nmfd/detail/algo_hierarchy_creator.h>
+#include <nmfd/detail/vector_wrap.h>
 
 /// TODO check it!
 /// NOTE originally taken from deflated_continuation timesteppers branch source/continuation/convergence_strategy.h 22.07.2025
@@ -37,6 +41,19 @@ namespace nmfd
 namespace solvers
 {
 
+
+// machinery to check for linear solver fail flagoperations.
+template <class Strategy, class = void>
+struct has_lin_solver_status : std::false_type
+{
+};
+
+template <class Strategy>
+struct has_lin_solver_status<
+    Strategy, std::void_t<decltype( std::declval<Strategy &>().lin_solver_status( std::declval<bool>() ) )>>
+    : std::true_type
+{
+};
 
 template
 <
@@ -49,8 +66,9 @@ template
 class default_convergence_strategy : public scfd::utils::logged_obj_base<Log>
 {
 private:
-    using T = typename VectorSpace::scalar_type;
-    using T_vec = typename VectorSpace::vector_type;
+    using T             = typename VectorSpace::scalar_type;
+    using T_vec         = typename VectorSpace::vector_type;
+    using vec_wrap_type = nmfd::detail::vector_wrap<VectorSpace, false, false>;
 
 public:
     using vector_space_type = VectorSpace;
@@ -59,6 +77,7 @@ public:
     struct params : public logged_obj_type::params
     {
         unsigned int stagnation_max = 10;
+        unsigned int max_backtracking_trials = 64;
         //unsigned int maximum_iterations = 100;
         int max_iters_num = 100;
         //T tolerance = T(1.0e-6);
@@ -70,7 +89,9 @@ public:
         T newton_weight_initial = T(1);
         T newton_weight_mul = T(0.5);
         T relax_tolerance_factor = T(1);
+        bool check_linear_solver_fail = false;
         bool verbose = true, store_norms_history = false;
+
 
         params(
             const std::string &log_pefix = "", const std::string &log_name = "default_convergence_strategy::"
@@ -81,6 +102,7 @@ public:
         void from_json(const nlohmann::json& j)
         {
             max_iters_num = j.value("max_iters_num", max_iters_num);
+            max_backtracking_trials = j.value( "max_backtracking_trials", max_backtracking_trials );
             //min_iters_num = j.value("min_iters_num", min_iters_num);
             stagnation_max = j.value("stagnation_max", stagnation_max);
             rel_tol = j.value("rel_tol", rel_tol);
@@ -95,6 +117,7 @@ public:
             //out_min_resid_norm = j.value("out_min_resid_norm", out_min_resid_norm);
             verbose = j.value("verbose", verbose);
             store_norms_history = j.value("store_norms_history", store_norms_history);
+            check_linear_solver_fail = j.value("check_linear_solver_fail", check_linear_solver_fail);
             //divide_out_norms_by_rel_base = j.value("divide_out_norms_by_rel_base", divide_out_norms_by_rel_base);
         }
         nlohmann::json to_json() const
@@ -103,6 +126,7 @@ public:
                 nlohmann::json
                 {
                     {"max_iters_num", max_iters_num},
+                    { "max_backtracking_trials", max_backtracking_trials },
                     //{"min_iters_num", min_iters_num},
                     {"stagnation_max", stagnation_max},
                     {"rel_tol", rel_tol},
@@ -116,6 +140,7 @@ public:
                     {"verbose", verbose},
                     {"store_norms_history", store_norms_history},
                     //{"divide_out_norms_by_rel_base", divide_out_norms_by_rel_base}
+                    {"check_linear_solver_fail", check_linear_solver_fail}
                 };
         }
         #endif
@@ -138,15 +163,24 @@ public:
     };
     NMFD_ALGO_HIERARCHY_TYPES_DEFINE(default_convergence_strategy)
 
-    default_convergence_strategy(std::shared_ptr<VectorSpace> vec_space, Log* log, params prm = params()) :
-      logged_obj_type(log, prm),
-      prm_(prm),
-      vec_space_(std::move(vec_space)),
-      iterations(0)
+    default_convergence_strategy( std::shared_ptr<VectorSpace> vec_space, Log *log, params prm = params() )
+        : logged_obj_type( log, prm ), prm_( prm ), vec_space_( std::move( vec_space ) ), iterations( 0 ),
+          x1( *vec_space_ ), x1_storage( *vec_space_ ), Fx( *vec_space_ )
     {
-        vec_space_->init_vector(x1); vec_space_->start_use_vector(x1);
-        vec_space_->init_vector(x1_storage); vec_space_->start_use_vector(x1_storage);
-        vec_space_->init_vector(Fx); vec_space_->start_use_vector(Fx);
+        if ( !std::isfinite( prm_.newton_weight_mul ) || prm_.newton_weight_mul <= T( 0 ) ||
+             prm_.newton_weight_mul >= T( 1 ) ) // \in (0, 1)
+        {
+            throw std::invalid_argument( "Backtracking requires 0 < newton_weight_mul < 1" );
+        }
+        validate_backtracking_limits(
+            prm_.newton_weight_initial, prm_.newton_weight_threshold, prm_.max_backtracking_trials
+        );
+        x1.init();
+        x1.start_use();
+        x1_storage.init();
+        x1_storage.start_use();
+        Fx.init();
+        Fx.start_use();
         if(prm_.store_norms_history)
         {
             norms_evolution.reserve(prm_.max_iters_num);
@@ -161,23 +195,25 @@ public:
         )
     {
     }
-    ~default_convergence_strategy()
-    {
-        vec_space_->stop_use_vector(x1); vec_space_->free_vector(x1);
-        vec_space_->stop_use_vector(x1_storage); vec_space_->free_vector(x1_storage);
-        vec_space_->stop_use_vector(Fx); vec_space_->free_vector(Fx);
-    }
+    ~default_convergence_strategy() = default;
 
     T rel_tol()const { return prm_.rel_tol; }
     T abs_tol()const { return prm_.abs_tol; }
+    bool check_linear_solver_fail()const { return prm_.check_linear_solver_fail; }
     T rel_tol_base()const { return Fx_initial_norm_; }
     T tol()const
     {
         return abs_tol() + rel_tol()*rel_tol_base();
     }
+    void set_check_linear_solver_fail(bool status)
+    {
+        prm_.check_linear_solver_fail = status;
+    }
 
     void set_convergence_constants(T tolerance_, unsigned int maximum_iterations_, T relax_tolerance_factor_, int relax_tolerance_steps_, T newton_weight_ = T(1), bool store_norms_history_ = false, bool verbose_ = true, unsigned int stagnation_max_ = 10, T maximum_norm_increase_p = 0.0, T newton_weight_threshold_p = 1.0e-12, bool use_abs_tol = true)
     {
+        validate_backtracking_limits(
+            newton_weight_, newton_weight_threshold_p, prm_.max_backtracking_trials );
         if (use_abs_tol)
         {
             prm_.abs_tol = tolerance_;
@@ -218,7 +254,10 @@ public:
         prm_.abs_tol = abs_tol;
         prm_.rel_tol = rel_tol;
     }
-
+    void lin_solver_status(bool linsolver_converged)
+    {
+        linsolver_converged_ = linsolver_converged;
+    }
 
 
     bool check_convergence(NonlinearOperator *nonlin_op, ProjectOperator *project_op, QualityFunctor *quality_func, T_vec& x, T_vec& delta_x)
@@ -226,24 +265,30 @@ public:
         bool finish = false; //states that the newton process should stop.
         // result_status defines on how this process is stoped.
         newton_weight = prm_.newton_weight_initial;
-        nonlin_op->apply(x, Fx);
-        T normFx = vec_space_->norm_l2(Fx);
+        nonlin_op->apply( x, *Fx );
+        T normFx = vec_space_->norm_l2( *Fx );
         if(!std::isfinite(normFx)) //set result_status = 2 if the provided vector is inconsistent
         {
             result_status = 2;
             //finish = true;
             return true;
         }
-        if(normFx < tol()) //do nothing is my kind of problem =)
+        if(normFx <= tol()) //do nothing is my kind of problem =)
         {
             result_status = 0;
             logged_obj_type::info_f("iteration %i, residuals n: %le < tol(): %le => finished.",iterations, (double)normFx, (double)tol() );
             return true;
         }
+        if (!linsolver_converged_ && prm_.check_linear_solver_fail)
+        {
+            result_status = 6;
+            return true;
+        }
+        unsigned int backtracking_trials = 0;
         if(iterations == 0)
         {
             /// stores initial solution and norm
-            vec_space_->assign(x, x1_storage);
+            vec_space_->assign( x, *x1_storage );
             Fx1_storage_norm_ = normFx;
             Fx_initial_norm_ = normFx;
             /// postulate continue (other cases checked earlier) and continue
@@ -251,31 +296,42 @@ public:
             iterations++;
             return false;
         }
+        if ( !vec_space_->check_is_valid_number( delta_x ) )
+        {
+            result_status = 7;
+            return true;
+        }
         T normFx1;
         result_status = 3;
         do
         {
+            // increment trail counter
+            ++backtracking_trials;
             //update solution
-            normFx1 = update_solution(nonlin_op, project_op, x, delta_x, x1);
+            normFx1 = update_solution( nonlin_op, project_op, x, delta_x, *x1 );
             logged_obj_type::info_f("increase threshold: %.01f, weight update from %le to %le with weight: %le and weight threshold: %le ", prm_.maximum_norm_increase, normFx, normFx1, newton_weight,  prm_.newton_weight_threshold);
             if(std::isfinite(normFx1))
             {
                 result_status = 1;
                 //finish = true;
-                if(normFx1 < tol()) //converged
+                if(normFx1 <= tol()) //converged
                 {
                     //norms_storage.push_back(normFx1);
-                    vec_space_->assign(x1, x);
+                    vec_space_->assign( *x1, x );
                     result_status = 0;
                     finish = true;
                     break;
                 }
                 if ((normFx1 - normFx) <= prm_.maximum_norm_increase*normFx)
                 {
-                    vec_space_->assign(x1, x);
+                    vec_space_->assign( *x1, x );
                     if( std::abs(normFx1 - normFx) < 1.0e-6*normFx )
                     {
                         stagnation++;
+                    }
+                    else
+                    {
+                        stagnation = 0;
                     }
                     if(stagnation > prm_.stagnation_max)
                     {
@@ -284,6 +340,13 @@ public:
                     }
                     break;
                 }
+            }
+            if ( backtracking_trials >= prm_.max_backtracking_trials )
+            {
+                if ( result_status != 3 )
+                    result_status = 8;
+                finish = true;
+                break;
             }
             newton_weight *= prm_.newton_weight_mul;
             if(newton_weight < prm_.newton_weight_threshold)
@@ -302,8 +365,9 @@ public:
         //auto min_value = *std::min_element(norms_storage.begin(),norms_storage.end());
         //norms_storage.push_back(normFx1);
         iterations++;
-        if(iterations > prm_.max_iters_num)
+        if( (iterations > prm_.max_iters_num)&&(!finish) )
         {
+            result_status = 9; //maximum iterations reached.
             finish = true;
         }
         auto result_status_string = parse_result_status(result_status);
@@ -313,7 +377,7 @@ public:
         // store this solution point if the norm is the smalles of all
         if( ( (!std::isfinite(Fx1_storage_norm_))||(Fx1_storage_norm_ >= normFx1) )&&( (result_status == 1)||(result_status == 4) ) )
         {
-            vec_space_->assign(x1, x1_storage);
+            vec_space_->assign( *x1, *x1_storage );
             Fx1_storage_norm_ = normFx1;
         }
 
@@ -324,8 +388,8 @@ public:
             if( ( (std::isfinite(Fx1_storage_norm_))&&(Fx1_storage_norm_ < normFx1) ) )
             {
                 /// NOTE x1 is actually not needed anymore just for convinience (mb delete it?)
-                vec_space_->assign(x1_storage, x1);
-                vec_space_->assign(x1_storage, x);
+                vec_space_->assign( *x1_storage, *x1 );
+                vec_space_->assign( *x1_storage, x );
                 normFx1 = Fx1_storage_norm_;
                 //signal that relaxed tolerance converged and put it into vector of signals
                 if( normFx1 <= tol()*prm_.relax_tolerance_factor  )
@@ -376,6 +440,8 @@ public:
         //reset_weight();
         norms_evolution.clear();
         stagnation = 0;
+        linsolver_converged_ = true;
+        Fx_initial_norm_ = 0;
     }
     /*void reset_weight()
     {
@@ -387,17 +453,30 @@ public:
     }
 
 private:
+    static void validate_backtracking_limits( T initial_weight, T threshold, unsigned int max_trials )
+    {
+        if ( max_trials == 0 )
+        {
+            throw std::invalid_argument( "max_backtracking_trials must be positive" );
+        }
+        if ( !std::isfinite( initial_weight ) || !std::isfinite( threshold ) ||
+             threshold <= T( 0 ) || initial_weight < threshold )
+        {
+            throw std::invalid_argument(
+                "Backtracking requires finite weights with 0 < threshold <= initial_weight" );
+        }
+    }
+
     params prm_;
 
     std::shared_ptr<VectorSpace> vec_space_;
 
     unsigned int iterations;
     unsigned int stagnation = 0;
-
     int result_status;
-
-    T_vec x1, x1_storage, Fx;
-    T Fx_initial_norm_;
+    bool linsolver_converged_ = true;
+    vec_wrap_type  x1, x1_storage, Fx;
+    T Fx_initial_norm_ = 0;
     T Fx1_storage_norm_;
     T newton_weight;
     std::vector<T> norms_evolution;
@@ -414,8 +493,8 @@ private:
         {
             project_op->apply(x1); // project to invariant solution subspace. Should be blank if nothing is needed to be projected.
         }
-        nonlin_op->apply(x1, Fx);
-        T normFx1 = vec_space_->norm_l2(Fx);
+        nonlin_op->apply( x1, *Fx );
+        T normFx1 = vec_space_->norm_l2( *Fx );
         return normFx1;
     }
 
@@ -442,6 +521,17 @@ private:
             case 5:
                 return{"stagnation"};
                 break;
+            case 6:
+                return{"linear solver failed to coverge"};
+                break;
+            case 7:
+                return{"not finite du update"};
+                break;
+            case 8:
+                return { "maximum backtracking attempts reached" };
+                break;
+            case 9:
+                return{ "maximum iterations reached" };
             default:
                 return{"unknown state!"};
                 break;
