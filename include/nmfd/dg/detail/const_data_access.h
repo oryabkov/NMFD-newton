@@ -30,38 +30,38 @@ namespace dg
 namespace detail
 {
 
-template<class T>
+template <class T>
 __DEVICE_TAG__ const mesh::gmsh_mesh_elem_reference<T> &get_elem_ref()
 {
     //TODO some kind of error
 }
 
-template<class T>
-__DEVICE_TAG__ const mesh::cubature_reference<SCFD_DG_MAX_POLY_ORDER*2+1,T> &get_cub_ref()
+template <class T>
+__DEVICE_TAG__ const mesh::cubature_reference<SCFD_DG_MAX_POLY_ORDER * 2 + 1, T> &get_cub_ref()
 {
     //TODO some kind of error
 }
 
-template<class T, int Dim, int MaxPolyDeg>
-__DEVICE_TAG__ const device_dg_basis_reference<T,Dim,SCFD_DG_MAX_POLY_ORDER> &get_basis_ref()
+template <class T, int Dim, int MaxPolyDeg>
+__DEVICE_TAG__ const device_dg_basis_reference<T, Dim, SCFD_DG_MAX_POLY_ORDER> &get_basis_ref()
 {
     //TODO some kind of error
 }
 
-template<class T,class Memory,int Dim,class Ord>
-__DEVICE_TAG__ const mesh::device_mesh<T,Memory,Dim,Ord> &get_mesh()
+template <class T, class Memory, int Dim, class Ord>
+__DEVICE_TAG__ const mesh::device_mesh<T, Memory, Dim, Ord> &get_mesh()
 {
     //TODO some kind of error
 }
 
-template<class T,class Memory,int Dim>
-__DEVICE_TAG__ const device_dg_qubature_ref<T,Memory,Dim> &get_dg_qubature_ref()
+template <class T, class Memory, int Dim>
+__DEVICE_TAG__ const device_dg_qubature_ref<T, Memory, Dim> &get_dg_qubature_ref()
 {
     //TODO some kind of error
 }
 
-}  /// namespace detail
-}  /// namespace mesh
-}  /// namespace scfd
+} /// namespace detail
+} /// namespace mesh
+} /// namespace scfd
 
 #endif

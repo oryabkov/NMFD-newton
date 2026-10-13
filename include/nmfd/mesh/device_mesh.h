@@ -27,21 +27,21 @@ namespace scfd
 namespace mesh
 {
 
-template<class Ord>
+template <class Ord>
 struct index_range_descr
 {
     Ord i0, n;
 
-    __DEVICE_TAG__ Ord i1()const
+    __DEVICE_TAG__ Ord i1() const
     {
-        return i0+n;
+        return i0 + n;
     }
 };
 
 namespace detail
 {
 /// Forward declaration; it is needed only for type specialization inside device_mesh class scope
-template<class T,class Memory,int Dim,class Ord>
+template <class T, class Memory, int Dim, class Ord>
 struct device_mesh_funcs;
 }
 
@@ -55,131 +55,131 @@ struct device_mesh_funcs;
 //TODO is it really safe?
 using namespace arrays;
 
-template<class T,class Memory,int Dim = 3,class Ord = SCFD_ARRAYS_ORDINAL_TYPE>
+template <class T, class Memory, int Dim = 3, class Ord = SCFD_ARRAYS_ORDINAL_TYPE>
 struct device_mesh
 {
-    using scalar_type = T;
-    using memory_type = Memory;
-    using ordinal_type = Ord;
+    using scalar_type            = T;
+    using memory_type            = Memory;
+    using ordinal_type           = Ord;
     using elem_type_ordinal_type = int;
     using index_range_descr_type = index_range_descr<Ord>;
 
-    static const int          dim = Dim;
+    static const int          dim        = Dim;
     static const ordinal_type special_id = std::numeric_limits<ordinal_type>::max();
 
-    using device_mesh_funcs_t = detail::device_mesh_funcs<T,Memory,Dim,Ord>;
+    using device_mesh_funcs_t = detail::device_mesh_funcs<T, Memory, Dim, Ord>;
 
 
-    device_mesh_params  params;
+    device_mesh_params params;
 
     //using namespace detail;
 
     //ISSUE neither n_cv
     //but i0, n_cv_all somehow does
 
-    ordinal_type        max_faces_n, max_prim_nodes_n, max_nodes_n;
-    ordinal_type        faces_max_prim_nodes_n, faces_max_nodes_n;
+    ordinal_type max_faces_n, max_prim_nodes_n, max_nodes_n;
+    ordinal_type faces_max_prim_nodes_n, faces_max_nodes_n;
 
     /// Elements data part
 
-    index_range_descr_type                          elems_range,
-                                                    own_elems_range;
+    index_range_descr_type elems_range, own_elems_range;
 
     //vars buffers CONTAINS space for elements in [i0, i0+n_cv_all)
     //Ord                                             i0, n_cv_all;
     //gpu OWN elements in [0,n_cv)
     //Ord                                             n_cv;
     //if is_homogeneous == true then all elements in mesh have the same elem_type
-    bool                                            is_homogeneous;
-    elem_type_ordinal_type                          homogeneous_elem_type;  //valid only if is_homogeneous == true
-    array<elem_type_ordinal_type,Memory>            elems_types;            //valid only if is_homogeneous == false
-    tensor1_array<T,Memory,Dim>                     elems_centers;
-    tensor2_array<T,Memory,dyn_dim,Dim>             elems_neighbours0_centers;
-    tensor2_array<T,Memory,dyn_dim,Dim>             elems_virt_neighbours0_centers;
-    tensor2_array<T,Memory,dyn_dim,Dim>             elems_faces_centers;
+    bool                                   is_homogeneous;
+    elem_type_ordinal_type                 homogeneous_elem_type; //valid only if is_homogeneous == true
+    array<elem_type_ordinal_type, Memory>  elems_types;           //valid only if is_homogeneous == false
+    tensor1_array<T, Memory, Dim>          elems_centers;
+    tensor2_array<T, Memory, dyn_dim, Dim> elems_neighbours0_centers;
+    tensor2_array<T, Memory, dyn_dim, Dim> elems_virt_neighbours0_centers;
+    tensor2_array<T, Memory, dyn_dim, Dim> elems_faces_centers;
     //TODO replace with var array
-    tensor2_array<T,Memory,dyn_dim,Dim>             elems_vertexes;
-    tensor1_array<Ord,Memory,dyn_dim>               elems_neighbours0;
-    tensor1_array<Ord,Memory,dyn_dim>               elems_neighbours0_loc_face_i;
-    tensor1_array<Ord,Memory,dyn_dim>               elems_virt_neighbours0;
-    tensor1_array<Ord,Memory,dyn_dim>               elems_virt_neighbours0_loc_face_i;
-    tensor1_array<Ord,Memory,dyn_dim>               elems_faces_group_ids;
-    array<Ord,Memory>                               elems_group_ids;
-    tensor2_array<T,Memory,dyn_dim,Dim>             elems_faces_norms;
-    tensor1_array<T,Memory,dyn_dim>                 elems_faces_areas;
-    tensor1_array<T,Memory,1>                       elems_vols;
+    tensor2_array<T, Memory, dyn_dim, Dim> elems_vertexes;
+    tensor1_array<Ord, Memory, dyn_dim>    elems_neighbours0;
+    tensor1_array<Ord, Memory, dyn_dim>    elems_neighbours0_loc_face_i;
+    tensor1_array<Ord, Memory, dyn_dim>    elems_virt_neighbours0;
+    tensor1_array<Ord, Memory, dyn_dim>    elems_virt_neighbours0_loc_face_i;
+    tensor1_array<Ord, Memory, dyn_dim>    elems_faces_group_ids;
+    array<Ord, Memory>                     elems_group_ids;
+    tensor2_array<T, Memory, dyn_dim, Dim> elems_faces_norms;
+    tensor1_array<T, Memory, dyn_dim>      elems_faces_areas;
+    tensor1_array<T, Memory, 1>            elems_vols;
     /// Elements to nodes graphs
-    tensor1_array<Ord,Memory,dyn_dim>               elems_prim_nodes_ids;
+    tensor1_array<Ord, Memory, dyn_dim> elems_prim_nodes_ids;
     //TODO replace with var array
-    tensor1_array<Ord,Memory,dyn_dim>               elems_nodes_ids;
+    tensor1_array<Ord, Memory, dyn_dim> elems_nodes_ids;
     /// Elements to faces graphs
-    tensor1_array<Ord,Memory,dyn_dim>               elems_faces_ids;
-    tensor1_array<Ord,Memory,dyn_dim>               elems_faces_inface_elem_inds;
-    tensor1_array<Ord,Memory,dyn_dim>               elems_virt_faces_ids;
-    tensor1_array<Ord,Memory,dyn_dim>               elems_virt_faces_inface_elem_inds;
+    tensor1_array<Ord, Memory, dyn_dim> elems_faces_ids;
+    tensor1_array<Ord, Memory, dyn_dim> elems_faces_inface_elem_inds;
+    tensor1_array<Ord, Memory, dyn_dim> elems_virt_faces_ids;
+    tensor1_array<Ord, Memory, dyn_dim> elems_virt_faces_inface_elem_inds;
     /// Only faces with actual virt pairs have values here - other ones have special_id here
     /// ISSUE this interface is excessive - we may use corresponding array for faces only
-    tensor1_array<Ord,Memory,dyn_dim>               elems_virt_faces_virt_pairs_ids;
+    tensor1_array<Ord, Memory, dyn_dim> elems_virt_faces_virt_pairs_ids;
 
     /// Nodes data part
 
-    index_range_descr_type                          nodes_range,
-                                                    own_nodes_range;
+    index_range_descr_type nodes_range, own_nodes_range;
     //Ord                                             i0_nodes, n_nodes_all;
     //Ord                                             n_nodes;
-    tensor1_array<T,Memory,Dim>                     nodes_coords;
-    tensor0_array<Ord,Memory>                       nodes_group_ids;
+    tensor1_array<T, Memory, Dim> nodes_coords;
+    tensor0_array<Ord, Memory>    nodes_group_ids;
     //tensor0_array<Ord,Memory>                       node_bnd_id;
 
     //nodes to elements graph part
-    Ord                                             node_2_elem_graph_sz;
-    tensor1_array<Ord,Memory,2>                     node_2_elem_graph_refs;
-    tensor0_array<Ord,Memory>                       node_2_elem_graph_elem_ids;
-    tensor0_array<Ord,Memory>                       node_2_elem_graph_node_ids;
+    Ord                           node_2_elem_graph_sz;
+    tensor1_array<Ord, Memory, 2> node_2_elem_graph_refs;
+    tensor0_array<Ord, Memory>    node_2_elem_graph_elem_ids;
+    tensor0_array<Ord, Memory>    node_2_elem_graph_node_ids;
 
     /// Faces data part
 
-    index_range_descr_type                          faces_range,
-                                                    own_faces_range;
+    index_range_descr_type faces_range, own_faces_range;
 
     /// Elements types corresponding for faces
     ///TODO there are issues with this - we cannot just use is_homogeneous flag - we need separate flag for faces
     ///TODO for now homogeneous_face_type is not valid
-    elem_type_ordinal_type                          homogeneous_face_type;  //valid only if is_homogeneous == true
-    array<elem_type_ordinal_type,Memory>            faces_types;            //valid only if is_homogeneous == false
-    array<Ord,Memory>                               faces_group_ids;
-    tensor1_array<T,Memory,Dim>                     faces_centers;
+    elem_type_ordinal_type                homogeneous_face_type; //valid only if is_homogeneous == true
+    array<elem_type_ordinal_type, Memory> faces_types;           //valid only if is_homogeneous == false
+    array<Ord, Memory>                    faces_group_ids;
+    tensor1_array<T, Memory, Dim>         faces_centers;
     //TODO replace with var array
-    tensor2_array<T,Memory,dyn_dim,Dim>             faces_vertexes;
+    tensor2_array<T, Memory, dyn_dim, Dim> faces_vertexes;
     /// Faces to nodes graphs
-    tensor1_array<Ord,Memory,dyn_dim>               faces_prim_nodes_ids;
+    tensor1_array<Ord, Memory, dyn_dim> faces_prim_nodes_ids;
     //TODO replace with var array
-    tensor1_array<Ord,Memory,dyn_dim>               faces_nodes_ids;
+    tensor1_array<Ord, Memory, dyn_dim> faces_nodes_ids;
 
-    array<Ord,Memory>                               faces_elems_nums;
-    tensor1_array<Ord,Memory,2>                     faces_elems_ids;
-    tensor1_array<Ord,Memory,2>                     faces_elems_inelem_face_inds;
+    array<Ord, Memory>            faces_elems_nums;
+    tensor1_array<Ord, Memory, 2> faces_elems_ids;
+    tensor1_array<Ord, Memory, 2> faces_elems_inelem_face_inds;
 
-    array<Ord,Memory>                               virt_faces_elems_nums;
-    tensor1_array<Ord,Memory,2>                     virt_faces_elems_ids;
-    tensor1_array<Ord,Memory,2>                     virt_faces_elems_inelem_face_inds;
+    array<Ord, Memory>            virt_faces_elems_nums;
+    tensor1_array<Ord, Memory, 2> virt_faces_elems_ids;
+    tensor1_array<Ord, Memory, 2> virt_faces_elems_inelem_face_inds;
 
-    array<Ord,Memory>                               faces_virt_master_ids;
+    array<Ord, Memory> faces_virt_master_ids;
 
     /// Virtual pairs data part
-    tensor2_array<T,Memory,Dim,Dim>                 virt_pairs_mats;
-    tensor2_array<T,Memory,Dim,Dim>                 virt_pairs_inv_mats;
-    tensor1_array<T,Memory,Dim>                     virt_pairs_vecs;
+    tensor2_array<T, Memory, Dim, Dim> virt_pairs_mats;
+    tensor2_array<T, Memory, Dim, Dim> virt_pairs_inv_mats;
+    tensor1_array<T, Memory, Dim>      virt_pairs_vecs;
 
-    __DEVICE_TAG__ elem_type_ordinal_type  get_elem_type(Ord i)const
+    __DEVICE_TAG__ elem_type_ordinal_type get_elem_type( Ord i ) const
     {
-        if (is_homogeneous) return homogeneous_elem_type; else return elems_types(i);
+        if ( is_homogeneous )
+            return homogeneous_elem_type;
+        else
+            return elems_types( i );
     }
-    __DEVICE_TAG__ elem_type_ordinal_type  get_face_type(Ord i)const
+    __DEVICE_TAG__ elem_type_ordinal_type get_face_type( Ord i ) const
     {
         //if (is_homogeneous) return homogeneous_face_type; else return faces_types(i);
         ///TODO there are issues with this - we cannot just use is_homogeneous flag - we need separate flag for faces
-        return faces_types(i);
+        return faces_types( i );
     }
 
     //TODO change bane
@@ -267,30 +267,24 @@ struct device_mesh
     {
     }
 
-    template<class BasicMesh,class MapElems,class MapFaces,class MapNodes,class ForEach>
-    void    init_elems_data
-    (
-        const host_mesh<BasicMesh> &cpu_mesh,
-        const MapElems &map_e, const MapFaces &map_f, const MapNodes &map_n,
+    template <class BasicMesh, class MapElems, class MapFaces, class MapNodes, class ForEach>
+    void init_elems_data(
+        const host_mesh<BasicMesh> &cpu_mesh, const MapElems &map_e, const MapFaces &map_f, const MapNodes &map_n,
         const ForEach &for_each = ForEach()
     );
-    template<class BasicMesh,class MapElems,class MapFaces,class MapNodes,class ForEach>
-    void    init_nodes_data
-    (
-        const host_mesh<BasicMesh> &cpu_mesh,
-        const MapElems &map_e, const MapFaces &map_f, const MapNodes &map_n,
+    template <class BasicMesh, class MapElems, class MapFaces, class MapNodes, class ForEach>
+    void init_nodes_data(
+        const host_mesh<BasicMesh> &cpu_mesh, const MapElems &map_e, const MapFaces &map_f, const MapNodes &map_n,
         const ForEach &for_each = ForEach()
     );
-    template<class BasicMesh,class MapElems,class MapFaces,class MapNodes,class ForEach>
-    void    init_faces_data
-    (
-        const host_mesh<BasicMesh> &cpu_mesh,
-        const MapElems &map_e, const MapFaces &map_f, const MapNodes &map_n,
+    template <class BasicMesh, class MapElems, class MapFaces, class MapNodes, class ForEach>
+    void init_faces_data(
+        const host_mesh<BasicMesh> &cpu_mesh, const MapElems &map_e, const MapFaces &map_f, const MapNodes &map_n,
         const ForEach &for_each = ForEach()
     );
 };
 
-}  /// namespace mesh
-}  /// namespace scfd
+} /// namespace mesh
+} /// namespace scfd
 
 #endif
