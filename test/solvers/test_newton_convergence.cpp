@@ -49,9 +49,8 @@ void test( test_report &report )
     for ( int expected : { 0, 4, 5, 8, 9 } )
     {
         typename fixture::params_type p;
-        p.max_iters_num            = 1;
-        p.max_backtracking_trials  = 3;
-        p.check_linear_solver_fail = true;
+        p.max_iters_num           = 1;
+        p.max_backtracking_trials = 3;
         if ( expected == 4 )
             p.newton_weight_threshold = T( .75 );
         if ( expected == 5 )
@@ -101,9 +100,7 @@ void test( test_report &report )
     }
     for ( bool out_of_place : { false, true } )
     {
-        typename fixture::params_type p;
-        p.check_linear_solver_fail = true;
-        fixture f( p );
+        fixture f;
         f.linear->mode       = correction::half;
         f.linear->fail_after = 1;
         vector_type initial{ T( 2 ) }, x{ T( 2 ) };

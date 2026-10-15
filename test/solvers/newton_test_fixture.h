@@ -73,7 +73,8 @@ struct newton_fixture
     struct space_type : operations::static_vector_space<T, 1, vector_type>
     {
         mutable unsigned int lifecycle_calls = 0, allocations = 0, frees = 0, starts = 0, stops = 0;
-        unsigned int         fail_at = 0;
+        mutable unsigned int validity_checks = 0;
+        unsigned int         fail_at         = 0;
 
         void init_vector( vector_type &x ) const
         {
@@ -106,6 +107,11 @@ struct newton_fixture
         {
             return allocations == frees && starts == stops;
         }
+        bool check_is_valid_number( const vector_type &x ) const
+        {
+            ++validity_checks;
+            return operations::static_vector_space<T, 1, vector_type>::check_is_valid_number( x );
+        }
     };
 
     struct jacobi_type
@@ -124,12 +130,13 @@ struct newton_fixture
         failure_point                fail             = failure_point::none;
         bool                         invalid_residual = false, invalid_trials = false;
         T                            reference_state = T( 1 );
-        unsigned int                 residual_calls = 0, trial_calls = 0;
+        unsigned int                 residual_calls = 0, trial_calls = 0, invalid_state_calls = 0;
         std::shared_ptr<jacobi_type> jacobi = std::make_shared<jacobi_type>();
 
         void apply( const vector_type &x, vector_type &out )
         {
             ++residual_calls;
+            invalid_state_calls += !std::isfinite( x[0] );
             if ( fail == failure_point::residual )
                 throw std::runtime_error( "injected residual failure" );
             const bool trial = x[0] != reference_state;

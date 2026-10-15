@@ -133,12 +133,19 @@ void test( test_report &report )
         );
     }
 #ifdef NMFD_ENABLE_NLOHMANN
+    for ( bool full_check : { false, true } )
     {
         typename fixture::params_type p;
-        p.from_json( nlohmann::json{ { "max_backtracking_trials", 5 }, { "check_linear_solver_fail", true } } );
+        p.from_json( nlohmann::json{ { "max_backtracking_trials", 5 }, { "perform_full_check", full_check } } );
         report.check<T>(
-            p.to_json().at( "max_backtracking_trials" ) == 5 && p.to_json().at( "check_linear_solver_fail" ) == true,
-            "JSON round trip preserves failure policy"
+            p.to_json().at( "max_backtracking_trials" ) == 5 && p.to_json().at( "perform_full_check" ) == full_check,
+            "JSON round trip preserves trial limit and vector validation policy"
+        );
+        fixture     f( p );
+        vector_type x{ T( 2 ) };
+        report.check<T>(
+            f.solver.solve( &f.problem, nullptr, nullptr, x ) && ( f.space->validity_checks != 0 ) == full_check,
+            "JSON vector validation policy is used by the solver"
         );
         p.from_json( nlohmann::json{ { "max_backtracking_trials", 0 } } );
         auto space    = std::make_shared<typename fixture::space_type>();
@@ -156,11 +163,90 @@ void test( test_report &report )
 #endif
 }
 
+template <class T>
+void test_overflow( test_report &report )
+{
+    using fixture     = newton_fixture<T>;
+    using vector_type = typename fixture::vector_type;
+    struct problem_type
+    {
+        unsigned int invalid_state_calls = 0;
+        void         apply( const vector_type &x, vector_type &out )
+        {
+            invalid_state_calls += !std::isfinite( x[0] );
+            out[0] = T( 1 ) - x[0] / std::numeric_limits<T>::max();
+        }
+    };
+    struct projection_type
+    {
+        unsigned int calls = 0;
+        void         apply( vector_type & )
+        {
+            ++calls;
+        }
+    };
+    using strategy_type = nmfd::solvers::default_convergence_strategy<
+        typename fixture::space_type, scfd::utils::log_std, problem_type, projection_type>;
+
+    for ( bool full_check : { false, true } )
+    {
+        auto                           space = std::make_shared<typename fixture::space_type>();
+        typename strategy_type::params p;
+        p.perform_full_check      = full_check;
+        p.max_backtracking_trials = 3;
+        strategy_type   strategy( space, nullptr, p );
+        problem_type    problem;
+        projection_type projection;
+        vector_type     x{ T( .75 ) * std::numeric_limits<T>::max() }, dx{ x[0] };
+        strategy.check_convergence( &problem, &projection, nullptr, x, dx );
+        report.check<T>(
+            !strategy.check_convergence( &problem, &projection, nullptr, x, dx ) && strategy.get_result_status() == 1 &&
+                x[0] / std::numeric_limits<T>::max() == T( .9375 ),
+            "overflowing trials recover at weight 0.25 on the final allowed trial"
+        );
+        report.check<T>(
+            projection.calls == ( full_check ? 1u : 3u ) && problem.invalid_state_calls == ( full_check ? 0u : 2u ),
+            "pre-projection validation bypasses both projection and residual for invalid trials"
+        );
+    }
+}
+
+void test_logging( test_report &report )
+{
+    struct recording_log : scfd::utils::log_std_basic
+    {
+        std::string messages;
+        void        msg( const std::string &text, log_msg_type, int )
+        {
+            messages += text + '\n';
+        }
+    };
+    using fixture  = newton_fixture<double>;
+    using log_type = scfd::utils::log_cformatted<recording_log>;
+    using strategy_type =
+        nmfd::solvers::default_convergence_strategy<fixture::space_type, log_type, fixture::problem_type>;
+    auto                  space = std::make_shared<fixture::space_type>();
+    log_type              log;
+    strategy_type         strategy( space, &log );
+    fixture::problem_type problem;
+    fixture::vector_type  x{ 2.0 }, dx{ -1.0 };
+    strategy.check_convergence( &problem, nullptr, nullptr, x, dx );
+    report.check<double>(
+        strategy.check_convergence( &problem, nullptr, nullptr, x, dx ) && strategy.get_result_status() == 0 &&
+            log.messages.find( "returned_ok: true" ) != std::string::npos,
+        "formatted logging receives a valid Boolean string"
+    );
+}
+
 int main()
 {
     test_report report;
     test<float>( report );
     test<double>( report );
     test<long double>( report );
+    test_overflow<float>( report );
+    test_overflow<double>( report );
+    test_overflow<long double>( report );
+    test_logging( report );
     return report.finish();
 }

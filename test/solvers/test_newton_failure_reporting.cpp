@@ -2,70 +2,31 @@
 
 using namespace nmfd::tests;
 
-// Forward all convergence operations except the optional linear-failure hook.
-template <class Base>
-struct strategy_without_linear_status
-{
-    using params      = typename Base::params;
-    using vector_type = typename Base::vector_space_type::vector_type;
-    Base base;
-    strategy_without_linear_status(
-        std::shared_ptr<typename Base::vector_space_type> space, scfd::utils::log_std *log, params p = params()
-    )
-        : base( space, log, p )
-    {
-    }
-    template <class Problem, class Projection, class Quality>
-    bool
-    check_convergence( Problem *problem, Projection *projection, Quality *quality, vector_type &x, vector_type &dx )
-    {
-        return base.check_convergence( problem, projection, quality, x, dx );
-    }
-    void reset_iterations()
-    {
-        base.reset_iterations();
-    }
-    int get_result_status()
-    {
-        return base.get_result_status();
-    }
-};
-
 template <class T>
 void test( test_report &report )
 {
     using fixture     = newton_fixture<T>;
     using vector_type = typename fixture::vector_type;
-    for ( bool strict : { false, true } )
+    for ( bool full_check : { false, true } )
     {
         typename fixture::params_type p;
-        p.check_linear_solver_fail = strict;
+        p.perform_full_check = full_check;
         fixture f( p );
         f.linear->converged = false;
         vector_type x{ T( 2 ) };
         const bool  success = f.solver.solve( &f.problem, nullptr, nullptr, x );
         report.check<T>(
-            success == !strict && f.strategy->get_result_status() == ( strict ? 6 : 0 ) &&
-                x[0] == ( strict ? T( 2 ) : T( 1 ) ),
-            "optional strict linear failure reporting"
+            !success && f.strategy->get_result_status() == 6 && x[0] == T( 2 ) && f.linear->calls == 1,
+            "failed increment is rejected independently of vector validation policy"
         );
-    }
-    {
-        using strategy = strategy_without_linear_status<typename fixture::strategy_type>;
-        using solver   = nmfd::solvers::nonlinear_solver<
-              typename fixture::space_type, scfd::utils::log_std, typename fixture::problem_type,
-              typename fixture::iteration_type, nmfd::operations::ident_operator<typename fixture::space_type>,
-              nmfd::operations::zero_functional<typename fixture::space_type>, strategy>;
-        static_assert( !nmfd::solvers::has_lin_solver_status<strategy>::value );
-        static_assert( nmfd::solvers::has_lin_solver_status<typename fixture::strategy_type>::value );
-        fixture f;
-        auto    convergence = std::make_shared<strategy>( f.space, nullptr );
-        solver  nonlinear( f.space, nullptr, f.iteration, convergence );
-        f.linear->converged = false;
-        vector_type x{ T( 2 ) };
+        f.linear->converged = true;
         report.check<T>(
-            nonlinear.solve( &f.problem, nullptr, nullptr, x ) && x[0] == T( 1 ),
-            "strategy without linear status compiles and solves"
+            f.solver.solve( &f.problem, nullptr, nullptr, x ) && x[0] == T( 1 ),
+            "new solve clears the failed increment flag"
+        );
+        report.check<T>(
+            ( f.space->validity_checks != 0 ) == full_check,
+            "perform_full_check controls vector scans without disabling residual checks"
         );
     }
     for ( int expected : { 2, 3, 7 } )
@@ -88,13 +49,40 @@ void test( test_report &report )
             "invalid correction bypasses trial evaluation; invalid residual retries are bounded"
         );
     }
+    for ( bool full_check : { false, true } )
     {
-        fixture     f;
-        vector_type x{ std::numeric_limits<T>::infinity() };
+        for ( T value :
+              { std::numeric_limits<T>::quiet_NaN(), std::numeric_limits<T>::infinity(),
+                -std::numeric_limits<T>::infinity() } )
+        {
+            typename fixture::params_type p;
+            p.perform_full_check = full_check;
+            fixture     f( p );
+            vector_type x{ value };
+            report.check<T>(
+                !f.solver.solve( &f.problem, nullptr, nullptr, x ) &&
+                    f.strategy->get_result_status() == ( full_check ? 11 : 2 ) && f.linear->calls == 0,
+                "nonfinite input terminates before requesting a correction"
+            );
+            report.check<T>(
+                f.problem.residual_calls == ( full_check ? 0u : 1u ) &&
+                    ( std::isnan( value ) ? std::isnan( x[0] ) : x[0] == value ),
+                "full validation bypasses residual evaluation and preserves invalid input"
+            );
+        }
+    }
+    {
+        typename fixture::params_type p;
+        p.perform_full_check      = false;
+        p.max_backtracking_trials = 3;
+        fixture f( p );
+        f.problem.reference_state = T( 2 );
+        f.linear->mode            = correction::nonfinite;
+        vector_type x{ T( 2 ) };
         report.check<T>(
-            !f.solver.solve( &f.problem, nullptr, nullptr, x ) && f.strategy->get_result_status() == 2 &&
-                f.linear->calls == 0,
-            "nonfinite initial residual bypasses Newton correction"
+            !f.solver.solve( &f.problem, nullptr, nullptr, x ) && f.strategy->get_result_status() == 3 &&
+                f.problem.trial_calls == 3 && x[0] == T( 2 ),
+            "nonfinite trial residuals remain bounded when vector checks are disabled"
         );
     }
     for ( failure_point phase :
@@ -122,11 +110,75 @@ void test( test_report &report )
     }
 }
 
+template <class T>
+void test_projection( test_report &report )
+{
+    using fixture     = newton_fixture<T>;
+    using vector_type = typename fixture::vector_type;
+    struct projection_type
+    {
+        unsigned int calls = 0, invalid_trials = 0;
+        void         apply( vector_type &x )
+        {
+            if ( ++calls <= invalid_trials )
+                x[0] = std::numeric_limits<T>::infinity();
+        }
+    };
+    using strategy_type = nmfd::solvers::default_convergence_strategy<
+        typename fixture::space_type, scfd::utils::log_std, typename fixture::problem_type, projection_type>;
+
+    for ( bool weight_cutoff : { false, true } )
+    {
+        auto                           space = std::make_shared<typename fixture::space_type>();
+        typename strategy_type::params p;
+        p.max_backtracking_trials = 2;
+        p.newton_weight_threshold = weight_cutoff ? T( .75 ) : T( 1e-12 );
+        strategy_type                  strategy( space, nullptr, p );
+        typename fixture::problem_type problem;
+        problem.reference_state = T( 2 );
+        projection_type projection{ 0, 2 };
+        vector_type     x{ T( 2 ) }, dx{ T( -1 ) };
+        strategy.check_convergence( &problem, &projection, nullptr, x, dx );
+        report.check<T>(
+            strategy.check_convergence( &problem, &projection, nullptr, x, dx ) && strategy.get_result_status() == 10 &&
+                x[0] == T( 2 ) && projection.calls == ( weight_cutoff ? 1u : 2u ),
+            "projection failure is preserved at both weight and trial cutoffs"
+        );
+        report.check<T>(
+            problem.residual_calls == 2 && problem.invalid_state_calls == 0,
+            "invalid projected states never reach residual evaluation"
+        );
+    }
+    for ( bool invalid_residual : { false, true } )
+    {
+        auto                           space = std::make_shared<typename fixture::space_type>();
+        typename strategy_type::params p;
+        p.max_backtracking_trials = 2;
+        strategy_type                  strategy( space, nullptr, p );
+        typename fixture::problem_type problem;
+        problem.reference_state = T( 2 );
+        problem.invalid_trials  = invalid_residual;
+        projection_type projection{ 0, 1 };
+        vector_type     x{ T( 2 ) }, dx{ T( -1 ) };
+        strategy.check_convergence( &problem, &projection, nullptr, x, dx );
+        const bool finish = strategy.check_convergence( &problem, &projection, nullptr, x, dx );
+        report.check<T>(
+            finish == invalid_residual && strategy.get_result_status() == ( invalid_residual ? 3 : 1 ) &&
+                x[0] == ( invalid_residual ? T( 2 ) : T( 1.5 ) ) && projection.calls == 2 &&
+                problem.invalid_state_calls == 0,
+            "a new trial replaces projection status with recovery or residual failure"
+        );
+    }
+}
+
 int main()
 {
     test_report report;
     test<float>( report );
     test<double>( report );
     test<long double>( report );
+    test_projection<float>( report );
+    test_projection<double>( report );
+    test_projection<long double>( report );
     return report.finish();
 }

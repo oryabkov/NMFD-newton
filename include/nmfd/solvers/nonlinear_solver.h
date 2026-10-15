@@ -90,21 +90,19 @@ public:
     NMFD_ALGO_HIERARCHY_TYPES_DEFINE(nonlinear_solver,IterationOperator,iteration_operator,ConvergenceStrategy,convergence_strategy)
 
     nonlinear_solver(
-        std::shared_ptr<VectorSpace> vec_ops, Log *log,
-        std::shared_ptr<IterationOperator> iter_op,
+        std::shared_ptr<VectorSpace> vec_ops, Log *log, std::shared_ptr<IterationOperator> iter_op,
         std::shared_ptr<ConvergenceStrategy> conv_strat = nullptr
-    ) :
-      vec_ops_(std::move(vec_ops)),
-      iter_op_(std::move(iter_op)),
-      conv_strat_(std::move(conv_strat)),
-      delta_x_(*vec_ops_)
+    )
+        : vec_ops_( std::move( vec_ops ) ), iter_op_( std::move( iter_op ) ), conv_strat_( std::move( conv_strat ) ),
+          delta_x_( *vec_ops_ )
     {
-        if (!conv_strat_)
+        if ( !conv_strat_ )
         {
             /// TODO this only should work for default convergence strategy - make creator!
-            conv_strat_ = std::make_shared<ConvergenceStrategy>(vec_ops_,log);
+            conv_strat_ = std::make_shared<ConvergenceStrategy>( vec_ops_, log );
         }
-        //vec_ops_->init_vector(delta_x_); vec_ops_->start_use_vector(delta_x_);
+        delta_x_.init();
+        delta_x_.start_use();
     }
     nonlinear_solver(
         const utils_hierarchy& utils,
@@ -166,7 +164,7 @@ public:
     }
 
 private:
-    using vec_wrap_t = ::nmfd::detail::vector_wrap<VectorSpace, true, true>;
+    using vec_wrap_t = ::nmfd::detail::vector_wrap<VectorSpace, false, false>;
 
     std::shared_ptr<VectorSpace> vec_ops_;
     std::shared_ptr<IterationOperator> iter_op_;

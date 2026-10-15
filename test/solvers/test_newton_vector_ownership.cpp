@@ -37,6 +37,35 @@ void test( test_report &report )
         }
         report.check<T>( threw && space->balanced(), "partial strategy construction releases scratch" );
     }
+    for ( bool supplied_strategy : { false, true } )
+    {
+        const unsigned int events = supplied_strategy ? 2 : 8;
+        for ( unsigned int event = 1; event <= events; ++event )
+        {
+            auto space = std::make_shared<typename fixture::space_type>();
+            bool threw = false;
+            {
+                auto iteration = std::make_shared<typename fixture::iteration_type>( space, linear );
+                auto strategy =
+                    supplied_strategy ? std::make_shared<typename fixture::strategy_type>( space, nullptr ) : nullptr;
+                const auto active = space->allocations;
+                space->fail_at    = space->lifecycle_calls + event;
+                try
+                {
+                    typename fixture::solver_type solver( space, nullptr, iteration, strategy );
+                }
+                catch ( const std::runtime_error & )
+                {
+                    threw = true;
+                }
+                report.check<T>(
+                    threw && space->allocations - space->frees == active && space->starts - space->stops == active,
+                    "failed solver construction releases scratch without disturbing shared dependencies"
+                );
+            }
+            report.check<T>( space->balanced(), "partial solver construction balances all vector lifetimes" );
+        }
+    }
     {
         auto                          space = std::make_shared<typename fixture::space_type>();
         typename fixture::params_type p;
