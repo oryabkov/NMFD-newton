@@ -120,21 +120,52 @@ public:
         //vec_ops_->stop_use_vector(delta_x_); vec_ops_->free_vector(delta_x_);
     }
 
+    // Bound objects are non-owning and must outlive calls to solve().
+    void set_nonlinear_operator( NonlinearOperator *nonlin_op )
+    {
+        nonlin_op_ = nonlin_op;
+    }
+
+    void set_project_operator( ProjectOperator *project_op )
+    {
+        project_op_ = project_op;
+    }
+
+    void set_quality_functor( QualityFunctor *quality_func )
+    {
+        quality_func_ = quality_func;
+    }
+
+    bool solve( vector_type &x )
+    {
+        if ( !nonlin_op_ )
+        {
+            throw std::logic_error( "nonlinear_solver: no nonlinear operator is set" );
+        }
+        return solve( nonlin_op_, project_op_, quality_func_, x );
+    }
+
+    bool solve( const vector_type &x0, vector_type &x )
+    {
+        if ( !nonlin_op_ )
+        {
+            throw std::logic_error( "nonlinear_solver: no nonlinear operator is set" );
+        }
+        return solve( nonlin_op_, project_op_, quality_func_, x0, x );
+    }
+
     //inplace
     bool solve(NonlinearOperator *nonlin_op, ProjectOperator *project_op, QualityFunctor *quality_func, vector_type& x)
     {
         vec_ops_->assign_scalar(T(0.0), *delta_x_);
-        bool converged = false;
         conv_strat_->reset_iterations(); //reset iteration count, newton wight and iteration history
         while(!conv_strat_->check_convergence(nonlin_op, project_op, quality_func, x, *delta_x_))
         {
             //reset iterational vectors??!
             vec_ops_->assign_scalar(T(0.0), *delta_x_);
-
             bool linsolver_converged = iter_op_->solve(*nonlin_op, x, *delta_x_);
             // React to non-converged linsolver by signalling that the rhs is ok: if linear solver converged then the increment is ok. Reserved the ConvergenceStrategy::result_status = 6 for this case
             conv_strat_->increment_ok( linsolver_converged );
-
         }
         return ( conv_strat_->get_result_status() == 0 );
     }
@@ -170,8 +201,9 @@ private:
     std::shared_ptr<IterationOperator> iter_op_;
     std::shared_ptr<ConvergenceStrategy> conv_strat_;
     vec_wrap_t delta_x_;
-
-
+    NonlinearOperator                   *nonlin_op_    = nullptr;
+    ProjectOperator                     *project_op_   = nullptr;
+    QualityFunctor                      *quality_func_ = nullptr;
 };
 
 
