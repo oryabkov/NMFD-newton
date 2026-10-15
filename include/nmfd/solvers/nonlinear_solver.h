@@ -134,26 +134,10 @@ public:
             vec_ops_->assign_scalar(T(0.0), *delta_x_);
 
             bool linsolver_converged = iter_op_->solve(*nonlin_op, x, *delta_x_);
-            // Optionaly react to non-converged linsolver. Reserved the ConvergenceStrategy::result_status = 6 for this case
-            if constexpr ( has_lin_solver_status<ConvergenceStrategy>::value )
-            {
-                conv_strat_->lin_solver_status( linsolver_converged );
-            }
+            // React to non-converged linsolver by signalling that the rhs is ok: if linear solver converged then the increment is ok. Reserved the ConvergenceStrategy::result_status = 6 for this case
+            conv_strat_->increment_ok( linsolver_converged );
+
         }
-        // ISSUE: This is badly compatible with timesteppers: we need to recover from a error (even nan) with a new timestep selection without destroying vectors. So we just simply return a false flag and the status can be inquired by calling `convergence_strategy::get_result_status()`
-        // if(conv_strat_->get_result_status()==0)
-        // {
-        //     converged = true;
-        // }
-        // if( (conv_strat_->get_result_status() == 2)||(conv_strat_->get_result_status() == 3) ) //inf or nan
-        // {
-        //     throw std::runtime_error(std::string("nonlinear_solver: " __FILE__ " " __STR(__LINE__) " invalid number returned from update.") );
-        // }
-        // if( (conv_strat_->get_result_status() == 6) ) //linear solver failed to converge, returned if this check is set in the ConvergenceStrategy
-        // {
-        //     // do something with the linear solver convergence fail
-        //     converged = false;
-        // }
         return ( conv_strat_->get_result_status() == 0 );
     }
 
