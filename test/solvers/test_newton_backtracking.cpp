@@ -147,18 +147,17 @@ void test( test_report &report )
             f.solver.solve( &f.problem, nullptr, nullptr, x ) && ( f.space->validity_checks != 0 ) == full_check,
             "JSON vector validation policy is used by the solver"
         );
-        p.from_json( nlohmann::json{ { "max_backtracking_trials", 0 } } );
-        auto space    = std::make_shared<typename fixture::space_type>();
-        bool rejected = false;
+        const auto previous = p.to_json();
+        bool       rejected = false;
         try
         {
-            strategy convergence( space, nullptr, p );
+            p.from_json( nlohmann::json{ { "max_backtracking_trials", 0 } } );
         }
         catch ( const std::invalid_argument & )
         {
             rejected = true;
         }
-        report.check<T>( rejected && space->allocations == 0, "invalid JSON rejected before allocation" );
+        report.check<T>( rejected && p.to_json() == previous, "invalid JSON leaves parameters unchanged" );
     }
 #endif
 }
@@ -211,6 +210,7 @@ void test_overflow( test_report &report )
     }
 }
 
+template <class T>
 void test_logging( test_report &report )
 {
     struct recording_log : scfd::utils::log_std_basic
@@ -221,20 +221,43 @@ void test_logging( test_report &report )
             messages += text + '\n';
         }
     };
-    using fixture  = newton_fixture<double>;
+    using fixture  = newton_fixture<T>;
     using log_type = scfd::utils::log_cformatted<recording_log>;
-    using strategy_type =
-        nmfd::solvers::default_convergence_strategy<fixture::space_type, log_type, fixture::problem_type>;
-    auto                  space = std::make_shared<fixture::space_type>();
-    log_type              log;
-    strategy_type         strategy( space, &log );
-    fixture::problem_type problem;
-    fixture::vector_type  x{ 2.0 }, dx{ -1.0 };
+    struct quality_type
+    {
+        T calc( const typename fixture::vector_type & ) const
+        {
+            return T( 3 );
+        }
+    };
+    using strategy_type = nmfd::solvers::default_convergence_strategy<
+        typename fixture::space_type, log_type, typename fixture::problem_type,
+        nmfd::operations::ident_operator<typename fixture::space_type>, quality_type>;
+    auto                           space = std::make_shared<typename fixture::space_type>();
+    log_type                       log;
+    strategy_type                  strategy( space, &log );
+    typename fixture::problem_type problem;
+    typename fixture::vector_type  x{ T( 2 ) }, dx{ T( -1 ) };
+    quality_type                   quality;
     strategy.check_convergence( &problem, nullptr, nullptr, x, dx );
-    report.check<double>(
+    report.check<T>(
         strategy.check_convergence( &problem, nullptr, nullptr, x, dx ) && strategy.get_result_status() == 0 &&
-            log.messages.find( "returned_ok: true" ) != std::string::npos,
-        "formatted logging receives a valid Boolean string"
+            log.messages.find( "returned_ok: true" ) != std::string::npos &&
+            log.messages.find( "newton_weight = 1.000000e+00, stagnation = 0" ) != std::string::npos,
+        "formatted trial and iteration logs preserve floating and unsigned arguments"
+    );
+    log.messages.clear();
+    typename strategy_type::params p;
+    p.stagnation_max = 0;
+    strategy_type failing( space, &log, p );
+    x[0]  = T( 2 );
+    dx[0] = T( 0 );
+    failing.check_convergence( &problem, nullptr, &quality, x, dx );
+    report.check<T>(
+        failing.check_convergence( &problem, nullptr, &quality, x, dx ) && failing.get_result_status() == 5 &&
+            log.messages.find( "||x| = 2.000000e+00, relaxed_tol = 1.000000e-06" ) != std::string::npos &&
+            log.messages.find( "solution quality = 3.000000e+00" ) != std::string::npos,
+        "failure and quality logs preserve floating arguments"
     );
 }
 
@@ -247,6 +270,8 @@ int main()
     test_overflow<float>( report );
     test_overflow<double>( report );
     test_overflow<long double>( report );
-    test_logging( report );
+    test_logging<float>( report );
+    test_logging<double>( report );
+    test_logging<long double>( report );
     return report.finish();
 }

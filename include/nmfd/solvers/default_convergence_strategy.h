@@ -65,7 +65,7 @@ public:
         unsigned int stagnation_max = 10;
         unsigned int max_backtracking_trials = 64;
         //unsigned int maximum_iterations = 100;
-        int max_iters_num = 100;
+        unsigned int max_iters_num = 100;
         //T tolerance = T(1.0e-6);
         //T tolerance_0;
         T rel_tol = T(0);
@@ -87,24 +87,23 @@ public:
         #ifdef NMFD_ENABLE_NLOHMANN
         void from_json(const nlohmann::json& j)
         {
-            max_iters_num = j.value("max_iters_num", max_iters_num);
-            max_backtracking_trials = j.value( "max_backtracking_trials", max_backtracking_trials );
-            //min_iters_num = j.value("min_iters_num", min_iters_num);
-            stagnation_max = j.value("stagnation_max", stagnation_max);
-            rel_tol = j.value("rel_tol", rel_tol);
-            abs_tol = j.value("abs_tol", abs_tol);
-
-            maximum_norm_increase = j.value("maximum_norm_increase", maximum_norm_increase);
-            newton_weight_threshold = j.value("newton_weight_threshold", newton_weight_threshold);
-            newton_weight_initial = j.value("newton_weight_initial", newton_weight_initial);
-            newton_weight_mul = j.value("newton_weight_mul", newton_weight_mul);
-            relax_tolerance_factor = j.value("relax_tolerance_factor", relax_tolerance_factor);
-
-            //out_min_resid_norm = j.value("out_min_resid_norm", out_min_resid_norm);
-            verbose = j.value("verbose", verbose);
-            perform_full_check = j.value("perform_full_check", perform_full_check);
-            store_norms_history = j.value("store_norms_history", store_norms_history);
-            //divide_out_norms_by_rel_base = j.value("divide_out_norms_by_rel_base", divide_out_norms_by_rel_base);
+            params updated        = *this;
+            updated.max_iters_num = read_unsigned_parameter( j, "max_iters_num", max_iters_num );
+            updated.max_backtracking_trials =
+                read_unsigned_parameter( j, "max_backtracking_trials", max_backtracking_trials );
+            updated.stagnation_max          = read_unsigned_parameter( j, "stagnation_max", stagnation_max );
+            updated.rel_tol                 = j.value( "rel_tol", rel_tol );
+            updated.abs_tol                 = j.value( "abs_tol", abs_tol );
+            updated.maximum_norm_increase   = j.value( "maximum_norm_increase", maximum_norm_increase );
+            updated.newton_weight_threshold = j.value( "newton_weight_threshold", newton_weight_threshold );
+            updated.newton_weight_initial   = j.value( "newton_weight_initial", newton_weight_initial );
+            updated.newton_weight_mul       = j.value( "newton_weight_mul", newton_weight_mul );
+            updated.relax_tolerance_factor  = j.value( "relax_tolerance_factor", relax_tolerance_factor );
+            updated.verbose                 = j.value( "verbose", verbose );
+            updated.perform_full_check      = j.value( "perform_full_check", perform_full_check );
+            updated.store_norms_history     = j.value( "store_norms_history", store_norms_history );
+            validate_parameters( updated );
+            *this = std::move( updated );
         }
         nlohmann::json to_json() const
         {
@@ -153,14 +152,7 @@ public:
         : logged_obj_type( log, prm ), prm_( prm ), vec_space_( std::move( vec_space ) ), iterations( 0 ),
           x1( *vec_space_ ), x1_storage( *vec_space_ ), Fx( *vec_space_ )
     {
-        if ( !std::isfinite( prm_.newton_weight_mul ) || prm_.newton_weight_mul <= T( 0 ) ||
-             prm_.newton_weight_mul >= T( 1 ) ) // \in (0, 1)
-        {
-            throw std::invalid_argument( "Backtracking requires 0 < newton_weight_mul < 1" );
-        }
-        validate_backtracking_limits(
-            prm_.newton_weight_initial, prm_.newton_weight_threshold, prm_.max_backtracking_trials
-        );
+        validate_parameters( prm_ );
         x1.init();
         x1.start_use();
         x1_storage.init();
@@ -192,48 +184,42 @@ public:
     }
 
 
-    void set_convergence_constants(T tolerance_, unsigned int maximum_iterations_, T relax_tolerance_factor_, int relax_tolerance_steps_, T newton_weight_ = T(1), bool store_norms_history_ = false, bool verbose_ = true, unsigned int stagnation_max_ = 10, T maximum_norm_increase_p = 0.0, T newton_weight_threshold_p = 1.0e-12, bool use_abs_tol = true, bool perform_full_check = true)
+    void set_convergence_constants(
+        T tolerance_, int maximum_iterations_, T relax_tolerance_factor_, int relax_tolerance_steps_,
+        T newton_weight_ = T( 1 ), bool store_norms_history_ = false, bool verbose_ = true,
+        unsigned int stagnation_max_ = 10, T maximum_norm_increase_p = 0.0, T newton_weight_threshold_p = 1.0e-12,
+        bool use_abs_tol = true, bool perform_full_check = true
+    )
     {
-        validate_backtracking_limits(
-            newton_weight_, newton_weight_threshold_p, prm_.max_backtracking_trials );
-        if (use_abs_tol)
+        if ( maximum_iterations_ < 1 )
         {
-            prm_.abs_tol = tolerance_;
-            prm_.rel_tol = T(0);
+            throw std::invalid_argument( "maximum_iterations must be positive" );
         }
-        else
+        params updated                  = prm_;
+        updated.abs_tol                 = use_abs_tol ? tolerance_ : T( 0 );
+        updated.rel_tol                 = use_abs_tol ? T( 0 ) : tolerance_;
+        updated.max_iters_num           = static_cast<unsigned int>( maximum_iterations_ );
+        updated.newton_weight_initial   = newton_weight_;
+        updated.store_norms_history     = store_norms_history_;
+        updated.verbose                 = verbose_;
+        updated.stagnation_max          = stagnation_max_;
+        updated.relax_tolerance_factor  = relax_tolerance_factor_;
+        updated.perform_full_check      = perform_full_check;
+        updated.maximum_norm_increase   = maximum_norm_increase_p;
+        updated.newton_weight_threshold = newton_weight_threshold_p;
+        validate_parameters( updated );
+        if ( updated.store_norms_history )
         {
-            prm_.abs_tol = T(0);
-            prm_.rel_tol = tolerance_;
+            norms_evolution.reserve( updated.max_iters_num );
         }
-        //prm_.tolerance_0 = tolerance_;
-        prm_.max_iters_num = maximum_iterations_;
-        newton_weight = newton_weight_;
-        prm_.newton_weight_initial = newton_weight_;
-        prm_.store_norms_history = store_norms_history_;
-        prm_.verbose = verbose_;
-        prm_.stagnation_max = stagnation_max_;
-        prm_.relax_tolerance_factor = relax_tolerance_factor_;
-        prm_.perform_full_check = perform_full_check;
-        // relax_tolerance_steps = relax_tolerance_steps_;
-        //current_relax_step = 0;
-        if(prm_.store_norms_history)
-        {
-            norms_evolution.reserve(prm_.max_iters_num);
-        }
-        // T d_step = relax_tolerance_factor/T(relax_tolerance_steps);
-
-        // d_step = std::log10(relax_tolerance_factor)/T(relax_tolerance_steps);
-
-        // log->info_f("continuation::convergence: check: relax_tolerance_steps = %i, relax_tolerance_factor = %le, d_step = %le, d_step_exp = %le", relax_tolerance_steps, (double)relax_tolerance_factor, (double)d_step, (double)std::pow<T>(T(10), d_step));
-        prm_.maximum_norm_increase = maximum_norm_increase_p;
-        prm_.newton_weight_threshold = newton_weight_threshold_p;
-
+        prm_          = std::move( updated );
+        newton_weight = prm_.newton_weight_initial;
         logged_obj_type::info_f("check: relax_tolerance_factor = %le, maximum_norm_increase = %le, newton_weight_threshold = %le", (double)prm_.relax_tolerance_factor, (double)prm_.maximum_norm_increase, double(prm_.newton_weight_threshold) );
 
     }
     void set_tolerance(T abs_tol,T rel_tol = T(0))
     {
+        validate_tolerances( abs_tol, rel_tol );
         prm_.abs_tol = abs_tol;
         prm_.rel_tol = rel_tol;
     }
@@ -267,7 +253,9 @@ public:
         if(normFx <= tol()) //do nothing is my kind of problem =)
         {
             result_status = 0;
-            logged_obj_type::info_f("iteration %i, residuals n: %le < tol(): %le => finished.",iterations, (double)normFx, (double)tol() );
+            logged_obj_type::info_f(
+                "iteration %u, residuals n: %le < tol(): %le => finished.", iterations, (double)normFx, (double)tol()
+            );
             return true;
         }
         if (!increment_ok_)
@@ -309,7 +297,13 @@ public:
             //     finish = true;
             //     break;
             // }
-            logged_obj_type::info_f("increase threshold: %.01f, weight update from %le to %le with weight: %le, weight threshold: %le, returned_ok: %s", prm_.maximum_norm_increase, normFx, normFx1, newton_weight,  prm_.newton_weight_threshold, parse_bool(update_ret.second).c_str() );
+            logged_obj_type::info_f(
+                "increase threshold: %.01f, weight update from %le to %le with weight: %le, weight threshold: %le, "
+                "returned_ok: %s",
+                static_cast<double>( prm_.maximum_norm_increase ), static_cast<double>( normFx ),
+                static_cast<double>( normFx1 ), static_cast<double>( newton_weight ),
+                static_cast<double>( prm_.newton_weight_threshold ), parse_bool( update_ret.second ).c_str()
+            );
             if ( update_ret.second && std::isfinite( normFx1 ) )
             {
                 result_status = 1;
@@ -374,7 +368,13 @@ public:
         }
         auto result_status_string = parse_result_status(result_status);
         auto finish_string = parse_bool(finish);
-        logged_obj_type::info_f("iteration: %i, max_iterations: %i, residuals n: %le, n+1: %le, min_value: %le, result_status: %i => %s, is_finished = %s, newton_weight = %le, stagnation = %u ",iterations, prm_.max_iters_num, (double)normFx, (double)normFx1, double(Fx1_storage_norm_), result_status,  result_status_string.c_str(), finish_string.c_str(), newton_weight, stagnation );
+        logged_obj_type::info_f(
+            "iteration: %u, max_iterations: %u, residuals n: %le, n+1: %le, min_value: %le, result_status: %i => %s, "
+            "is_finished = %s, newton_weight = %le, stagnation = %u ",
+            iterations, prm_.max_iters_num, static_cast<double>( normFx ), static_cast<double>( normFx1 ),
+            static_cast<double>( Fx1_storage_norm_ ), result_status, result_status_string.c_str(),
+            finish_string.c_str(), static_cast<double>( newton_weight ), stagnation
+        );
 
         // store this solution point if the norm is the smalles of all
         if( ( (!std::isfinite(Fx1_storage_norm_))||(Fx1_storage_norm_ >= normFx1) )&&( (result_status == 1)||(result_status == 4) ) )
@@ -414,14 +414,20 @@ public:
             //this signals that we couldn't set up the solution with the relaxed tolerance
             if (result_status>0)
             {
-                logged_obj_type::warning_f("newton step failed to finish: result_status = %i, ||x| = %le, relaxed_tol = %le", result_status, vec_space_->norm_l2(x), tol()*prm_.relax_tolerance_factor );
+                logged_obj_type::warning_f(
+                    "newton step failed to finish: result_status = %i, ||x| = %le, relaxed_tol = %le", result_status,
+                    static_cast<double>( vec_space_->norm_l2( x ) ),
+                    static_cast<double>( tol() * prm_.relax_tolerance_factor )
+                );
             }
 
             if (quality_func)
             {
                 //checks whaterver is needed for nans, errors or whaterver is considered a quality solution in the nonlinear operator.
                 T solution_quality = quality_func->calc(x);
-                logged_obj_type::info_f("Newton obtained solution quality = %le.", solution_quality);
+                logged_obj_type::info_f(
+                    "Newton obtained solution quality = %le.", static_cast<double>( solution_quality )
+                );
             }
         }
 
@@ -455,6 +461,57 @@ public:
     }
 
 private:
+    static void validate_tolerances( T abs_tol, T rel_tol )
+    {
+        if ( !std::isfinite( abs_tol ) || !std::isfinite( rel_tol ) || abs_tol < T( 0 ) || rel_tol < T( 0 ) )
+        {
+            throw std::invalid_argument( "Newton tolerances must be finite and nonnegative" );
+        }
+    }
+
+    static void validate_parameters( const params &prm )
+    {
+        validate_tolerances( prm.abs_tol, prm.rel_tol );
+        // Match the signed setter and leave room for the terminal iteration count.
+        if ( prm.max_iters_num == 0 ||
+             prm.max_iters_num > static_cast<unsigned int>( std::numeric_limits<int>::max() ) )
+        {
+            throw std::invalid_argument( "max_iters_num must be in [1, INT_MAX]" );
+        }
+        if ( !std::isfinite( prm.relax_tolerance_factor ) || prm.relax_tolerance_factor <= T( 0 ) )
+        {
+            throw std::invalid_argument( "relax_tolerance_factor must be finite and positive" );
+        }
+        if ( !std::isfinite( prm.maximum_norm_increase ) )
+        {
+            throw std::invalid_argument( "maximum_norm_increase must be finite" );
+        }
+        if ( !std::isfinite( prm.newton_weight_mul ) || prm.newton_weight_mul <= T( 0 ) ||
+             prm.newton_weight_mul >= T( 1 ) )
+        {
+            throw std::invalid_argument( "Backtracking requires 0 < newton_weight_mul < 1" );
+        }
+        validate_backtracking_limits(
+            prm.newton_weight_initial, prm.newton_weight_threshold, prm.max_backtracking_trials
+        );
+    }
+
+#ifdef NMFD_ENABLE_NLOHMANN
+    static unsigned int read_unsigned_parameter( const nlohmann::json &j, const char *key, unsigned int current )
+    {
+        const auto value = j.find( key );
+        if ( value == j.end() )
+        {
+            return current;
+        }
+        if ( !value->is_number_integer() || *value < 0 || *value > std::numeric_limits<unsigned int>::max() )
+        {
+            throw std::invalid_argument( std::string( key ) + " must be an unsigned integer in range" );
+        }
+        return value->template get<unsigned int>();
+    }
+#endif
+
     static void validate_backtracking_limits( T initial_weight, T threshold, unsigned int max_trials )
     {
         if ( max_trials == 0 )

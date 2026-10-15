@@ -70,18 +70,18 @@ void test( test_report &report )
         auto                          space = std::make_shared<typename fixture::space_type>();
         typename fixture::params_type p;
         p.store_norms_history = true;
-        p.max_iters_num       = -1;
+        p.max_iters_num       = std::numeric_limits<unsigned int>::max();
         bool threw            = false;
         try
         {
             typename fixture::strategy_type strategy( space, nullptr, p );
         }
-        catch ( const std::length_error & )
+        catch ( const std::invalid_argument & )
         {
             threw = true;
         }
         report.check<T>(
-            threw && space->allocations == 3 && space->balanced(), "late constructor failure releases all vectors"
+            threw && space->allocations == 0 && space->balanced(), "invalid history limit is rejected before allocation"
         );
     }
     auto space = std::make_shared<typename fixture::space_type>();

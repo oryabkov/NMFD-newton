@@ -1,6 +1,6 @@
 -include ../common.mk
 
-NEWTON_REGRESSION_TESTS = test_newton_failure_reporting.bin test_newton_backtracking.bin test_newton_convergence.bin test_newton_vector_ownership.bin test_newton_backtracking_json.bin
+NEWTON_REGRESSION_TESTS = test_newton_failure_reporting.bin test_newton_backtracking.bin test_newton_convergence.bin test_newton_vector_ownership.bin test_newton_backtracking_json.bin test_newton_configuration.bin test_newton_configuration_json.bin
 NEWTON_REGRESSION_HEADERS = newton_test_fixture.h $(wildcard ../../include/nmfd/solvers/*.h ../../include/nmfd/detail/*.h) ../../include/nmfd/operations/static_vector_space.h
 
 all: test_gmres.bin test_gmres_mg.bin test_nonlinear_solver.bin test_dense1_extended_solver.bin $(NEWTON_REGRESSION_TESTS)
@@ -18,10 +18,10 @@ newton-regressions: $(NEWTON_REGRESSION_TESTS)
 test-newton-regressions: newton-regressions
 	@set -e; for binary in $(NEWTON_REGRESSION_TESTS); do ./$$binary; done
 
-$(filter-out test_newton_backtracking_json.bin,$(NEWTON_REGRESSION_TESTS)): %.bin: %.cpp $(NEWTON_REGRESSION_HEADERS)
+$(filter-out %_json.bin,$(NEWTON_REGRESSION_TESTS)): %.bin: %.cpp $(NEWTON_REGRESSION_HEADERS)
 	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $< -o $@
 
-test_newton_backtracking_json.bin: test_newton_backtracking.cpp $(NEWTON_REGRESSION_HEADERS) ../../contrib/json/nlohmann/json.hpp
+test_newton_%_json.bin: test_newton_%.cpp $(NEWTON_REGRESSION_HEADERS) ../../contrib/json/nlohmann/json.hpp
 	$(HOSTCOMPILER) $(HOSTFLAGS) -DNMFD_ENABLE_NLOHMANN $(INCLUDE_CONTRIB) -I../../contrib/json $< -o $@
 
 test_gmres.bin: test_gmres.cpp
