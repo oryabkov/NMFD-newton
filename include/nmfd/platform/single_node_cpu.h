@@ -14,14 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with NMFD.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef __NMFD_BACKEND_SINGLE_NODE_CPU_H__
-#define __NMFD_BACKEND_SINGLE_NODE_CPU_H__
+#ifndef __NMFD_PLATFORM_SINGLE_NODE_CPU_H__
+#define __NMFD_PLATFORM_SINGLE_NODE_CPU_H__
 
 #include <scfd/utils/log_std.h>
 
 namespace nmfd
 {
-namespace backend
+namespace platform
 {
 
 template<class Log = scfd::utils::log_std>
@@ -39,7 +39,7 @@ protected:
     log_type log_;
 };
 
-} /// namespace backend
+} /// namespace platform
 } /// namespace nmfd
 
 #endif

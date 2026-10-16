@@ -92,7 +92,7 @@ scalar eq_residual( const VecSpace &vec_sp, const typename VecSpace::vector_type
 int main( int argc, char const *args[] )
 {
     using T            = scalar;
-    using backend_type = nmfd::backend::current<T>;
+    using backend_type = nmfd::platform::current<T>;
     using log_t        = typename backend_type::log_type;
 
     using dense_ops_base_t  = typename backend_type::dense_operations_type;

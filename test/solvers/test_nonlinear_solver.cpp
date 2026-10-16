@@ -42,7 +42,7 @@ T eq_residual(const scfd::static_vec::vec<T,2> &x)
 
 int main(int argc, char const *args[])
 {
-    using backend_t = nmfd::backend::single_node_cpu<>;
+    using backend_t = nmfd::platform::single_node_cpu<>;
     using log_t = backend_t::log_type;
     using T = double;
     static const int dim = 2;

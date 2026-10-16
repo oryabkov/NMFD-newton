@@ -51,7 +51,7 @@ int main( int argc, char const *args[] )
 {
     using log_t        = scfd::utils::log_std;
     using T            = scalar;
-    using backend_type = nmfd::backend::current<T, log_t>;
+    using backend_type = nmfd::platform::current<T, log_t>;
 
     using dense_ops_t       = backend_type::dense_operations_type;
     using vec_ops_t         = backend_type::vector_space_type;
