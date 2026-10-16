@@ -120,20 +120,53 @@ public:
         //vec_ops_->stop_use_vector(delta_x_); vec_ops_->free_vector(delta_x_);
     }
 
-    // Bound objects are non-owning and must outlive calls to solve().
+    // Raw bindings borrow; shared bindings retain ownership. Rebinding .get() keeps its current owner.
     void set_nonlinear_operator( NonlinearOperator *nonlin_op )
     {
+        if ( nonlin_op && nonlin_op == nonlin_op_owner_.get() )
+        {
+            return;
+        }
         nonlin_op_ = nonlin_op;
+        nonlin_op_owner_.reset();
+    }
+
+    void set_nonlinear_operator( std::shared_ptr<NonlinearOperator> nonlin_op )
+    {
+        nonlin_op_owner_ = std::move( nonlin_op );
+        nonlin_op_       = nonlin_op_owner_.get();
     }
 
     void set_project_operator( ProjectOperator *project_op )
     {
+        if ( project_op && project_op == project_op_owner_.get() )
+        {
+            return;
+        }
         project_op_ = project_op;
+        project_op_owner_.reset();
+    }
+
+    void set_project_operator( std::shared_ptr<ProjectOperator> project_op )
+    {
+        project_op_owner_ = std::move( project_op );
+        project_op_       = project_op_owner_.get();
     }
 
     void set_quality_functor( QualityFunctor *quality_func )
     {
+        if ( quality_func && quality_func == quality_func_owner_.get() )
+        {
+            return;
+        }
         quality_func_ = quality_func;
+        quality_func_owner_.reset();
+    }
+
+    void set_quality_functor( std::shared_ptr<QualityFunctor> quality_func )
+    {
+        quality_func_owner_ = std::move( quality_func );
+        quality_func_       = quality_func_owner_.get();
     }
 
     bool solve( vector_type &x )
@@ -198,6 +231,9 @@ private:
     using vec_wrap_t = ::nmfd::detail::vector_wrap<VectorSpace, false, false>;
 
     std::shared_ptr<VectorSpace> vec_ops_;
+    std::shared_ptr<NonlinearOperator>   nonlin_op_owner_;
+    std::shared_ptr<ProjectOperator>     project_op_owner_;
+    std::shared_ptr<QualityFunctor>      quality_func_owner_;
     std::shared_ptr<IterationOperator> iter_op_;
     std::shared_ptr<ConvergenceStrategy> conv_strat_;
     vec_wrap_t delta_x_;
