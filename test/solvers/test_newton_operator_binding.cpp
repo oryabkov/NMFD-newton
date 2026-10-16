@@ -127,6 +127,101 @@ void test_binding( test_report &report )
 }
 
 template <class T>
+void test_shared_binding( test_report &report )
+{
+    using fixture      = newton_fixture<T>;
+    using problem_type = typename fixture::problem_type;
+    fixture                       f;
+    typename fixture::vector_type initial{ T( 2 ) }, x{ T( 9 ) };
+    const auto                    lifecycle_calls = f.space->lifecycle_calls;
+    auto                          problem         = std::make_shared<problem_type>();
+    std::weak_ptr<problem_type>   retained        = problem;
+    f.solver.set_nonlinear_operator( problem );
+    report.check<T>(
+        problem.use_count() == 2 && problem->residual_calls == 0 && f.linear->calls == 0,
+        "shared binding retains the original object without evaluating it"
+    );
+    report.check<T>(
+        f.solver.solve( initial, x ) && x[0] == T( 1 ) && problem.use_count() == 2,
+        "shared binding forwards to the existing solve"
+    );
+    auto *address = problem.get();
+    problem.reset();
+    report.check<T>(
+        !retained.expired() && f.solver.solve( initial, x ),
+        "solver retains the problem after the caller releases ownership"
+    );
+    f.solver.set_nonlinear_operator( address );
+    report.check<T>(
+        !retained.expired() && f.solver.solve( initial, x ), "rebinding the retained raw address preserves its owner"
+    );
+    report.check<T>(
+        f.solver.solve( &f.problem, nullptr, nullptr, initial, x ) && !retained.expired() &&
+            f.solver.solve( initial, x ),
+        "one-shot solves do not release a shared binding"
+    );
+
+    auto                        replacement = std::make_shared<problem_type>();
+    std::weak_ptr<problem_type> rebound     = replacement;
+    f.solver.set_nonlinear_operator( std::move( replacement ) );
+    report.check<T>(
+        !replacement && retained.expired() && !rebound.expired() && f.solver.solve( initial, x ),
+        "shared rebinding releases the old owner and accepts transferred ownership"
+    );
+    f.solver.set_nonlinear_operator( &f.problem );
+    report.check<T>(
+        rebound.expired() && f.solver.solve( initial, x ), "binding another raw object releases shared ownership"
+    );
+
+    for ( bool clear_with_shared : { false, true } )
+    {
+        problem  = std::make_shared<problem_type>();
+        retained = problem;
+        f.solver.set_nonlinear_operator( problem );
+        problem.reset();
+        if ( clear_with_shared )
+            f.solver.set_nonlinear_operator( std::shared_ptr<problem_type>{} );
+        else
+            f.solver.set_nonlinear_operator( nullptr );
+        x[0]       = T( 9 );
+        bool threw = false;
+        try
+        {
+            f.solver.solve( initial, x );
+        }
+        catch ( const std::logic_error & )
+        {
+            threw = true;
+        }
+        report.check<T>(
+            retained.expired() && threw && x[0] == T( 9 ),
+            "clearing either ownership mode releases the problem and restores the unbound guard"
+        );
+    }
+    report.check<T>(
+        f.space->lifecycle_calls == lifecycle_calls, "shared bindings require no additional vector storage"
+    );
+
+    problem  = std::make_shared<problem_type>();
+    retained = problem;
+    std::shared_ptr<problem_type> null_alias( problem, nullptr );
+    f.solver.set_nonlinear_operator( std::move( null_alias ) );
+    problem.reset();
+    report.check<T>( !retained.expired(), "null alias retains its supplied ownership" );
+    f.solver.set_nonlinear_operator( nullptr );
+    report.check<T>( retained.expired(), "nullptr clearing also releases a null alias owner" );
+
+    {
+        typename fixture::solver_type solver( f.space, nullptr, f.iteration, f.strategy );
+        problem  = std::make_shared<problem_type>();
+        retained = problem;
+        solver.set_nonlinear_operator( std::move( problem ) );
+        report.check<T>( !retained.expired(), "shared problem remains alive until solver destruction" );
+    }
+    report.check<T>( retained.expired(), "solver destruction releases the retained problem" );
+}
+
+template <class T>
 struct optional_hook
 {
     using vector_type             = typename newton_fixture<T>::vector_type;
@@ -200,6 +295,82 @@ void test_hooks( test_report &report )
         solver.solve( initial, x ) && second.projection_calls == 3 && second.quality_calls == 2,
         "both optional hooks can be disabled"
     );
+
+    auto                     projection          = std::make_shared<hook_type>();
+    auto                     quality             = std::make_shared<hook_type>();
+    std::weak_ptr<hook_type> retained_projection = projection, retained_quality = quality;
+    solver.set_project_operator( projection );
+    solver.set_quality_functor( quality );
+    report.check<T>(
+        projection.use_count() == 2 && quality.use_count() == 2, "shared hooks retain the supplied ownership"
+    );
+    auto *projection_address = projection.get();
+    auto *quality_address    = quality.get();
+    projection.reset();
+    quality.reset();
+    report.check<T>(
+        !retained_projection.expired() && !retained_quality.expired() && solver.solve( initial, x ),
+        "shared hooks survive release by their caller"
+    );
+    solver.set_project_operator( projection_address );
+    solver.set_quality_functor( quality_address );
+    report.check<T>(
+        !retained_projection.expired() && !retained_quality.expired() && solver.solve( initial, x ),
+        "rebinding hook raw addresses preserves their owners"
+    );
+    report.check<T>(
+        projection_address->projection_calls == 2 && quality_address->quality_calls == 2,
+        "retained hooks are invoked on the original objects"
+    );
+    report.check<T>(
+        solver.solve( &f.problem, nullptr, nullptr, initial, x ) && !retained_projection.expired() &&
+            !retained_quality.expired() && projection_address->projection_calls == 2 &&
+            quality_address->quality_calls == 2,
+        "one-shot solves leave shared hooks retained but unused"
+    );
+
+    projection = std::make_shared<hook_type>();
+    quality    = std::make_shared<hook_type>();
+    solver.set_project_operator( projection );
+    solver.set_quality_functor( quality );
+    report.check<T>(
+        retained_projection.expired() && retained_quality.expired() && solver.solve( initial, x ) &&
+            projection->projection_calls == 1 && quality->quality_calls == 1,
+        "shared hook replacement releases old owners and invokes replacements"
+    );
+    retained_projection = projection;
+    retained_quality    = quality;
+    projection.reset();
+    quality.reset();
+    solver.set_project_operator( &first );
+    solver.set_quality_functor( &first );
+    report.check<T>(
+        retained_projection.expired() && retained_quality.expired() && solver.solve( initial, x ),
+        "borrowed hook replacement releases shared owners"
+    );
+    for ( bool clear_with_shared : { false, true } )
+    {
+        projection          = std::make_shared<hook_type>();
+        quality             = std::make_shared<hook_type>();
+        retained_projection = projection;
+        retained_quality    = quality;
+        solver.set_project_operator( std::move( projection ) );
+        solver.set_quality_functor( std::move( quality ) );
+        if ( clear_with_shared )
+        {
+            solver.set_project_operator( std::shared_ptr<hook_type>{} );
+            solver.set_quality_functor( std::shared_ptr<hook_type>{} );
+        }
+        else
+        {
+            solver.set_project_operator( nullptr );
+            solver.set_quality_functor( nullptr );
+        }
+        report.check<T>(
+            retained_projection.expired() && retained_quality.expired() && solver.solve( initial, x ),
+            "clearing either hook ownership mode releases both owners"
+        );
+    }
 }
 
 int main()
@@ -208,6 +379,9 @@ int main()
     test_binding<float>( report );
     test_binding<double>( report );
     test_binding<long double>( report );
+    test_shared_binding<float>( report );
+    test_shared_binding<double>( report );
+    test_shared_binding<long double>( report );
     test_hooks<float>( report );
     test_hooks<double>( report );
     test_hooks<long double>( report );

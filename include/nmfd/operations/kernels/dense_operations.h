@@ -11,6 +11,32 @@ namespace kernels
 {
 
 template <class MatrixType>
+struct matrix_assign_2d
+{
+    const MatrixType src;
+    MatrixType       dst;
+
+    template <class IdxND>
+    __DEVICE_TAG__ void operator()( const IdxND &idx )
+    {
+        dst( idx ) = src( idx );
+    }
+};
+
+template <class T, class MatrixType>
+struct matrix_assign_scalar_2d
+{
+    const T    value;
+    MatrixType dst;
+
+    template <class IdxND>
+    __DEVICE_TAG__ void operator()( const IdxND &idx )
+    {
+        dst( idx ) = value;
+    }
+};
+
+template <class MatrixType>
 struct matrix_transpose_2d
 {
     const MatrixType src;

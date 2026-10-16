@@ -14,10 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with NMFD.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef __NMFD_BACKEND_CUDA_H__
-#define __NMFD_BACKEND_CUDA_H__
+#ifndef __NMFD_BACKEND_HIP_H__
+#define __NMFD_BACKEND_HIP_H__
 
 #include <scfd/external_libraries/hipblas_wrap.h>
+#include <scfd/external_libraries/hipsolver_wrap.h>
 #include <scfd/utils/log_std.h>
 #include <scfd/backend/hip.h>
 
@@ -29,16 +30,17 @@ namespace nmfd
 namespace backend
 {
 
-template <class Type, class Log = scfd::utils::log_std>
-class hip : public scfd::backend::hip
+template <class Type, class Log = scfd::utils::log_std, class Ordinal = PLATFORM_ORDINAL>
+class hip : public scfd::backend::hip<Ordinal>
 {
-    using traits_type = operations::detail::scfd_array_traits<Type, memory_type>;
+    using parent_type = scfd::backend::hip<Ordinal>;
+    using traits_type = operations::detail::scfd_array_traits<Type, typename parent_type::memory_type>;
 
 public:
     using log_type              = Log;
-    using scfd_backend_type     = scfd::backend::hip;
-    using vector_space_type     = operations::dense_vector_space<traits_type, scfd_backend_type>;
-    using dense_operations_type = operations::dense_operations_cuda_hip<Type, scfd_backend_type>;
+    using scfd_backend_type     = parent_type;
+    using vector_space_type     = operations::dense_vector_space<traits_type, scfd_backend_type, Ordinal>;
+    using dense_operations_type = operations::dense_operations_cuda_hip<Type, scfd_backend_type, Ordinal>;
     using cublas_t              = scfd::hipblas_wrap;
     using cusolver_t            = scfd::hipsolver_wrap;
 

@@ -16,7 +16,7 @@ namespace operations
 {
 
 template <
-    class Type, class Backend, class Ordinal = std::ptrdiff_t,
+    class Type, class Backend, class Ordinal = typename Backend::ordinal_type,
     /************* Internal usage only ********************************************/
     class VectorTraits = detail::scfd_array_traits<Type, typename Backend::memory_type>>
 class dense_operations : public dense_vector_operations<VectorTraits, Backend, Ordinal>
@@ -48,7 +48,7 @@ public:
     using scalar_type      = Type;
     using vector_type      = typename traits_type::vector_type;
     using memory_type      = typename Backend::memory_type;
-    using for_each_nd_type = typename Backend::template for_each_nd_type<Dim, arr_ord>;
+    using for_each_nd_type = typename Backend::template for_each_nd_type<Dim>;
     using reduce_type      = typename Backend::reduce_type;
     using matrix_type = scfd::arrays::array_nd<scalar_type, Dim, memory_type, scfd::arrays::first_index_fast_arranger>;
     using multivector_type  = typename std::vector<vector_type>;
@@ -359,7 +359,6 @@ protected:
 protected:
     mutable for_each_nd_type for_each_nd_inst_;
 };
-
 }
 
 }

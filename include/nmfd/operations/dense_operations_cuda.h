@@ -11,11 +11,11 @@ namespace nmfd
 namespace operations
 {
 
-template <class Type, class Ordinal = std::ptrdiff_t>
-class dense_operations_cuda : public dense_operations<Type, scfd::backend::cuda, Ordinal>
+template <class Type, class Ordinal = PLATFORM_ORDINAL>
+class dense_operations_cuda : public dense_operations<Type, scfd::backend::cuda<Ordinal>, Ordinal>
 {
 public:
-    using parent_t = dense_operations<Type, scfd::backend::cuda, Ordinal>;
+    using parent_t = dense_operations<Type, scfd::backend::cuda<Ordinal>, Ordinal>;
 
     using matrix_type = typename parent_t::matrix_type;
     using vector_type = typename parent_t::vector_type;

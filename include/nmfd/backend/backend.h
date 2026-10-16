@@ -19,7 +19,9 @@
 
 #include <scfd/utils/log_std.h>
 
-#define PLATFORM_HIP
+#if ( defined( PLATFORM_SERIAL_CPU ) + defined( PLATFORM_CUDA ) + defined( PLATFORM_HIP ) ) != 1
+#    error "Select exactly one NMFD platform: PLATFORM_SERIAL_CPU, PLATFORM_CUDA, or PLATFORM_HIP"
+#endif
 
 #if defined( PLATFORM_SERIAL_CPU )
 #    include "serial_cpu.h"
@@ -29,8 +31,8 @@ namespace nmfd
 namespace backend
 {
 
-template <class Type, class Log = scfd::utils::log_std>
-using current = serial_cpu<Type, Log>;
+template <class Type, class Log = scfd::utils::log_std, class Ordinal = PLATFORM_ORDINAL>
+using current = serial_cpu<Type, Log, Ordinal>;
 
 } // namespace backend
 } // namespace nmfd
@@ -43,8 +45,8 @@ namespace nmfd
 namespace backend
 {
 
-template <class Type, class Log = scfd::utils::log_std>
-using current = cuda<Type, Log>;
+template <class Type, class Log = scfd::utils::log_std, class Ordinal = PLATFORM_ORDINAL>
+using current = cuda<Type, Log, Ordinal>;
 
 } // namespace backend
 } // namespace nmfd
@@ -57,14 +59,12 @@ namespace nmfd
 namespace backend
 {
 
-template <class Type, class Log = scfd::utils::log_std>
-using current = hip<Type, Log>;
+template <class Type, class Log = scfd::utils::log_std, class Ordinal = PLATFORM_ORDINAL>
+using current = hip<Type, Log, Ordinal>;
 
 } // namespace backend
 } // namespace nmfd
 
-#else
-#    error "No platform has been chosen for backend (define PLATFORM_SERIAL_CPU or PLATFORM_CUDA)."
 #endif
 
 namespace nmfd
@@ -72,11 +72,11 @@ namespace nmfd
 namespace backend
 {
 
-template <class Type, class Log = scfd::utils::log_std>
-using vector_space_type = typename current<Type, Log>::vector_space_type;
+template <class Type, class Log = scfd::utils::log_std, class Ordinal = PLATFORM_ORDINAL>
+using vector_space_type = typename current<Type, Log, Ordinal>::vector_space_type;
 
-template <class Type, class Log = scfd::utils::log_std>
-using dense_operations_type = typename current<Type, Log>::dense_operations_type;
+template <class Type, class Log = scfd::utils::log_std, class Ordinal = PLATFORM_ORDINAL>
+using dense_operations_type = typename current<Type, Log, Ordinal>::dense_operations_type;
 
 } // namespace backend
 } // namespace nmfd

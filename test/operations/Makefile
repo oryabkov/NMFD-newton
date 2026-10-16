@@ -2,6 +2,12 @@
 
 all: test_static_vector_space test_pair_vector_space test_dense1_extended_operator
 
+test_scfd_backend_cpu: test_scfd_backend.cpp
+	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) -DPLATFORM_SERIAL_CPU $< -o test_scfd_backend_cpu.bin
+
+test_scfd_backend_cuda: test_scfd_backend.cpp ../solvers/dense_solvers_cuda_inst.cu
+	$(CUDACOMPILER) $(CUDAFLAGS) $(INCLUDE_CONTRIB) -DPLATFORM_CUDA -x cu $^ -o test_scfd_backend_cuda.bin $(CUDA_SOLVER_LIBS)
+
 test_static_vector_space: test_static_vector_space.cpp
 	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) test_static_vector_space.cpp -o test_static_vector_space.bin
 
