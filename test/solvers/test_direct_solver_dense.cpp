@@ -2,7 +2,7 @@
 #include <cmath>
 #include <random>
 
-#include <nmfd/backend/backend.h>
+#include <nmfd/platform/platform.h>
 
 #ifndef USE_DOUBLE_PRECISION
 using scalar                      = float;

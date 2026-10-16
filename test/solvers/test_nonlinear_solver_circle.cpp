@@ -2,7 +2,7 @@
 #include <cmath>
 #include <scfd/utils/log.h>
 #include <scfd/static_vec/vec.h>
-#include <nmfd/backend/single_node_cpu.h>
+#include <nmfd/platform/single_node_cpu.h>
 #include <nmfd/operations/static_vector_space.h>
 #include <nmfd/operations/pair_vector_space.h>
 #include <nmfd/solvers/nonlinear_solver.h>
