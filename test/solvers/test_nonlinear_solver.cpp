@@ -84,15 +84,16 @@ int main(int argc, char const *args[])
 
     const T eps = 1e-10;
 
-    int error = 0;
-    backend_t backend;
-    log_t &log = backend.log();
+    int                       error = 0;
+    backend_t                 backend;
+    log_t                    &log    = backend.log();
     std::shared_ptr<vec_sp_t> vec_sp = std::make_shared<vec_sp_t>();
     {
         log.info("test newton with manual construction");
         std::shared_ptr<linsolver_t> lin_solver = std::make_shared<linsolver_t>();
         std::shared_ptr<newton_iteration_t> newton_iteration = std::make_shared<newton_iteration_t>(vec_sp, lin_solver);
-        std::shared_ptr<newton_solver_t> newton_solver = std::make_shared<newton_solver_t>(vec_sp, &log, newton_iteration);
+        std::shared_ptr<newton_solver_t>    newton_solver =
+            std::make_shared<newton_solver_t>( vec_sp, &log, newton_iteration );
         newton_solver->convergence_strategy()->set_tolerance(eps);
         system_op_t system_op;
         vec_t x(10.,2.);
@@ -108,16 +109,15 @@ int main(int argc, char const *args[])
     }
 
     {
-        log.info("test newton with hierarchic construction");
+        log.info( "test newton with hierarchic construction" );
         std::shared_ptr<newton_solver_t> newton_solver =
-            std::make_shared<newton_solver_t>(
-                newton_solver_t::utils_hierarchy{
-                    {{},vec_sp},    /// iteration_operator
-                    {vec_sp,&log},  /// convergence_strategy
-                    vec_sp,&log     /// newton utils itself
-                }
-            );
-        newton_solver->convergence_strategy()->set_tolerance(eps);
+            std::make_shared<newton_solver_t>( newton_solver_t::utils_hierarchy{
+                { {}, vec_sp },   /// iteration_operator
+                { vec_sp, &log }, /// convergence_strategy
+                vec_sp,
+                &log /// newton utils itself
+            } );
+        newton_solver->convergence_strategy()->set_tolerance( eps );
         system_op_t system_op;
         vec_t x(10.,2.);
         newton_solver->solve(&system_op, nullptr, nullptr, x);
@@ -134,9 +134,7 @@ int main(int argc, char const *args[])
     {
         log.info("test newton with backend construction");
         std::shared_ptr<newton_solver_t> newton_solver =
-            std::make_shared<newton_solver_t>(
-                newton_solver_t::utils_hierarchy(backend,vec_sp)
-            );
+            std::make_shared<newton_solver_t>( newton_solver_t::utils_hierarchy( backend, vec_sp ) );
         newton_solver->convergence_strategy()->set_tolerance(eps);
         system_op_t system_op;
         vec_t x(10.,2.);

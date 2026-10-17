@@ -30,7 +30,7 @@ void test_binding( test_report &report )
     }
 
     const auto lifecycle_calls = f.space->lifecycle_calls;
-    f.solver.set_nonlinear_operator( &f.problem );
+    f.solver.set_nonlinear_operator( f.problem_owner );
     f.solver.set_project_operator( nullptr );
     f.solver.set_quality_functor( nullptr );
     report.check<T>(
@@ -47,8 +47,9 @@ void test_binding( test_report &report )
         "bound and explicit solves perform the same corrections"
     );
 
-    typename fixture::problem_type other;
-    f.solver.set_nonlinear_operator( &other );
+    auto  other_owner = std::make_shared<typename fixture::problem_type>();
+    auto &other       = *other_owner;
+    f.solver.set_nonlinear_operator( other_owner );
     auto original_calls = f.problem.residual_calls;
     x[0]                = T( 2 );
     report.check<T>(
@@ -113,7 +114,7 @@ void test_binding( test_report &report )
     for ( bool out_of_place : { false, true } )
     {
         fixture failing;
-        failing.solver.set_nonlinear_operator( &failing.problem );
+        failing.solver.set_nonlinear_operator( failing.problem_owner );
         failing.linear->mode       = correction::half;
         failing.linear->fail_after = 1;
         x[0]                       = T( 2 );
@@ -145,15 +146,14 @@ void test_shared_binding( test_report &report )
         f.solver.solve( initial, x ) && x[0] == T( 1 ) && problem.use_count() == 2,
         "shared binding forwards to the existing solve"
     );
-    auto *address = problem.get();
     problem.reset();
     report.check<T>(
         !retained.expired() && f.solver.solve( initial, x ),
         "solver retains the problem after the caller releases ownership"
     );
-    f.solver.set_nonlinear_operator( address );
+    f.solver.set_nonlinear_operator( retained.lock() );
     report.check<T>(
-        !retained.expired() && f.solver.solve( initial, x ), "rebinding the retained raw address preserves its owner"
+        !retained.expired() && f.solver.solve( initial, x ), "rebinding the same shared object preserves its owner"
     );
     report.check<T>(
         f.solver.solve( &f.problem, nullptr, nullptr, initial, x ) && !retained.expired() &&
@@ -168,9 +168,9 @@ void test_shared_binding( test_report &report )
         !replacement && retained.expired() && !rebound.expired() && f.solver.solve( initial, x ),
         "shared rebinding releases the old owner and accepts transferred ownership"
     );
-    f.solver.set_nonlinear_operator( &f.problem );
+    f.solver.set_nonlinear_operator( f.problem_owner );
     report.check<T>(
-        rebound.expired() && f.solver.solve( initial, x ), "binding another raw object releases shared ownership"
+        rebound.expired() && f.solver.solve( initial, x ), "binding another shared object releases shared ownership"
     );
 
     for ( bool clear_with_shared : { false, true } )
@@ -195,7 +195,7 @@ void test_shared_binding( test_report &report )
         }
         report.check<T>(
             retained.expired() && threw && x[0] == T( 9 ),
-            "clearing either ownership mode releases the problem and restores the unbound guard"
+            "clearing either clearing form releases the problem and restores the unbound guard"
         );
     }
     report.check<T>(
@@ -248,14 +248,16 @@ void test_hooks( test_report &report )
     using solver_type = nmfd::solvers::nonlinear_solver<
         typename fixture::space_type, scfd::utils::log_std, typename fixture::problem_type,
         typename fixture::iteration_type, hook_type, hook_type>;
-    fixture                       f;
-    auto                          strategy = std::make_shared<strategy_type>( f.space, nullptr );
-    solver_type                   solver( f.space, nullptr, f.iteration, strategy );
-    hook_type                     first, second;
+    fixture     f;
+    auto        strategy = std::make_shared<strategy_type>( f.space, nullptr );
+    solver_type solver( f.space, nullptr, f.iteration, strategy );
+    auto        first_owner = std::make_shared<hook_type>(), second_owner = std::make_shared<hook_type>();
+    auto       &first  = *first_owner;
+    auto       &second = *second_owner;
     typename fixture::vector_type initial{ T( 2 ) }, x{ T( 9 ) };
-    solver.set_nonlinear_operator( &f.problem );
-    solver.set_project_operator( &first );
-    solver.set_quality_functor( &first );
+    solver.set_nonlinear_operator( f.problem_owner );
+    solver.set_project_operator( first_owner );
+    solver.set_quality_functor( first_owner );
     report.check<T>(
         solver.solve( initial, x ) && first.projection_calls == 1 && first.quality_calls == 1,
         "distinct setters support projection and quality hooks of the same type"
@@ -277,14 +279,14 @@ void test_hooks( test_report &report )
         solver.solve( initial, x ) && first.projection_calls == 2 && first.quality_calls == 3,
         "projection can be cleared independently"
     );
-    solver.set_project_operator( &second );
+    solver.set_project_operator( second_owner );
     solver.set_quality_functor( nullptr );
     report.check<T>(
         solver.solve( initial, x ) && second.projection_calls == 2 && first.quality_calls == 3 &&
             second.quality_calls == 1,
         "quality can be cleared independently while projection is rebound"
     );
-    solver.set_quality_functor( &second );
+    solver.set_quality_functor( second_owner );
     report.check<T>(
         solver.solve( initial, x ) && second.projection_calls == 3 && second.quality_calls == 2,
         "quality hook can be rebound"
@@ -312,11 +314,11 @@ void test_hooks( test_report &report )
         !retained_projection.expired() && !retained_quality.expired() && solver.solve( initial, x ),
         "shared hooks survive release by their caller"
     );
-    solver.set_project_operator( projection_address );
-    solver.set_quality_functor( quality_address );
+    solver.set_project_operator( retained_projection.lock() );
+    solver.set_quality_functor( retained_quality.lock() );
     report.check<T>(
         !retained_projection.expired() && !retained_quality.expired() && solver.solve( initial, x ),
-        "rebinding hook raw addresses preserves their owners"
+        "rebinding shared hooks preserves their owners"
     );
     report.check<T>(
         projection_address->projection_calls == 2 && quality_address->quality_calls == 2,
@@ -342,11 +344,11 @@ void test_hooks( test_report &report )
     retained_quality    = quality;
     projection.reset();
     quality.reset();
-    solver.set_project_operator( &first );
-    solver.set_quality_functor( &first );
+    solver.set_project_operator( first_owner );
+    solver.set_quality_functor( first_owner );
     report.check<T>(
         retained_projection.expired() && retained_quality.expired() && solver.solve( initial, x ),
-        "borrowed hook replacement releases shared owners"
+        "shared hook replacement releases shared owners"
     );
     for ( bool clear_with_shared : { false, true } )
     {
@@ -368,7 +370,7 @@ void test_hooks( test_report &report )
         }
         report.check<T>(
             retained_projection.expired() && retained_quality.expired() && solver.solve( initial, x ),
-            "clearing either hook ownership mode releases both owners"
+            "clearing either hook clearing form releases both owners"
         );
     }
 }

@@ -27,6 +27,7 @@ convergence rules for Newton iterator for continuation process
 #include <utility>
 #include <stdexcept>
 #include <limits>
+#include <memory>
 #include <scfd/utils/logged_obj_base.h>
 #include <nmfd/operations/ident_operator.h>
 #include <nmfd/operations/zero_functional.h>
@@ -133,24 +134,35 @@ public:
     struct utils
     {
         std::shared_ptr<VectorSpace> vec_space;
-        Log *log;
-        utils() = default;
-        utils(
-            std::shared_ptr<VectorSpace> vec_space_, Log *log_ = nullptr
-        ) :
-            vec_space(vec_space_), log(log_)
+        Log                         *log = nullptr;
+        utils()                          = default;
+        utils( std::shared_ptr<VectorSpace> vec_space_, Log *log_ = nullptr )
+            : vec_space( std::move( vec_space_ ) ), log( log_ )
         {
         }
-        template<class Backend>
-        utils(Backend &backend, std::shared_ptr<VectorSpace> vec_space) : utils(vec_space, &backend.log())
+        template <class Backend>
+        utils( Backend &backend, std::shared_ptr<VectorSpace> vec_space )
+            : utils( std::move( vec_space ), &backend.log() )
         {
+        }
+        template <class Backend>
+        utils( std::shared_ptr<Backend> backend, std::shared_ptr<VectorSpace> vec_space )
+            : utils( std::move( vec_space ) )
+        {
+            if ( !backend )
+                throw std::invalid_argument( "Missing backend" );
+            log = &backend->log();
         }
     };
-    NMFD_ALGO_HIERARCHY_TYPES_DEFINE(default_convergence_strategy)
+    NMFD_ALGO_HIERARCHY_TYPES_DEFINE( default_convergence_strategy )
 
     default_convergence_strategy( std::shared_ptr<VectorSpace> vec_space, Log *log, params prm = params() )
-        : logged_obj_type( log, prm ), prm_( prm ), vec_space_( std::move( vec_space ) ), iterations( 0 ),
-          x1( *vec_space_ ), x1_storage( *vec_space_ ), Fx( *vec_space_ )
+        : logged_obj_type( log, prm ), prm_( prm ),
+          vec_space_(
+              vec_space ? std::move( vec_space )
+                        : throw std::invalid_argument( "Newton convergence requires a vector space" )
+          ),
+          iterations( 0 ), x1( *vec_space_ ), x1_storage( *vec_space_ ), Fx( *vec_space_ )
     {
         validate_parameters( prm_ );
         x1.init();
@@ -159,18 +171,13 @@ public:
         x1_storage.start_use();
         Fx.init();
         Fx.start_use();
-        if(prm_.store_norms_history)
+        if ( prm_.store_norms_history )
         {
-            norms_evolution.reserve(prm_.max_iters_num);
+            norms_evolution.reserve( prm_.max_iters_num );
         }
     }
-    default_convergence_strategy(
-        const utils_hierarchy& utils,
-        const params_hierarchy& prm = params_hierarchy()
-    ) :
-        default_convergence_strategy(
-            utils.vec_space, utils.log, prm
-        )
+    default_convergence_strategy( const utils_hierarchy &utils, const params_hierarchy &prm = params_hierarchy() )
+        : default_convergence_strategy( utils.vec_space, utils.log, prm )
     {
     }
     ~default_convergence_strategy() = default;

@@ -423,11 +423,11 @@ int main(int argc, char const *args[])
     const T step = 0.1;
     const int max_num_steps = 100;  // Number of continuation steps
 
-    size_t passed_counter = 0;
-    size_t failed_counter = 0;
-    backend_t backend;
-    log_t &log = backend.log();
-    std::shared_ptr<orig_vector_space_type> orig_vector_space = std::make_shared<orig_vector_space_type>();
+    size_t                                    passed_counter = 0;
+    size_t                                    failed_counter = 0;
+    backend_t                                 backend;
+    log_t                                    &log                 = backend.log();
+    std::shared_ptr<orig_vector_space_type>   orig_vector_space   = std::make_shared<orig_vector_space_type>();
     std::shared_ptr<scalar_vector_space_type> scalar_vector_space = std::make_shared<scalar_vector_space_type>();
     std::shared_ptr<vector_space_type> vector_space = std::make_shared<vector_space_type>(orig_vector_space, scalar_vector_space);
     std::shared_ptr<linsolver_type> lin_solver = std::make_shared<linsolver_type>(orig_vector_space);
@@ -445,7 +445,8 @@ int main(int argc, char const *args[])
         using newton_solver_t = nmfd::solvers::nonlinear_solver<vector_space_type, log_t, system_op_type, newton_iteration_t>;
 
         std::shared_ptr<newton_iteration_t> newton_iteration = std::make_shared<newton_iteration_t>(vector_space, extended_solver);
-        std::shared_ptr<newton_solver_t> newton_solver = std::make_shared<newton_solver_t>(vector_space, &log, newton_iteration);
+        std::shared_ptr<newton_solver_t> newton_solver =
+            std::make_shared<newton_solver_t>( vector_space, &log, newton_iteration );
         newton_solver->convergence_strategy()->set_tolerance(tol);
 
         system_op_type system_op(vector_space, orig_vector_space, scalar_vector_space);
@@ -527,7 +528,8 @@ int main(int argc, char const *args[])
         using newton_solver_t = nmfd::solvers::nonlinear_solver<vector_space_type, log_t, system_op_type, newton_iteration_t>;
 
         std::shared_ptr<newton_iteration_t> newton_iteration = std::make_shared<newton_iteration_t>(vector_space, extended_solver);
-        std::shared_ptr<newton_solver_t> newton_solver = std::make_shared<newton_solver_t>(vector_space, &log, newton_iteration);
+        std::shared_ptr<newton_solver_t> newton_solver =
+            std::make_shared<newton_solver_t>( vector_space, &log, newton_iteration );
         newton_solver->convergence_strategy()->set_tolerance(tol);
 
         system_op_type system_op(vector_space, orig_vector_space, scalar_vector_space);
@@ -608,7 +610,8 @@ int main(int argc, char const *args[])
         using newton_solver_t = nmfd::solvers::nonlinear_solver<vector_space_type, log_t, system_op_type, newton_iteration_t>;
 
         std::shared_ptr<newton_iteration_t> newton_iteration = std::make_shared<newton_iteration_t>(vector_space, extended_solver);
-        std::shared_ptr<newton_solver_t> newton_solver = std::make_shared<newton_solver_t>(vector_space, &log, newton_iteration);
+        std::shared_ptr<newton_solver_t> newton_solver =
+            std::make_shared<newton_solver_t>( vector_space, &log, newton_iteration );
         newton_solver->convergence_strategy()->set_tolerance(tol);
 
         system_op_type system_op(vector_space, orig_vector_space, scalar_vector_space);

@@ -17,6 +17,9 @@
 #ifndef __NMFD_NEWTON_ITERATION_H__
 #define __NMFD_NEWTON_ITERATION_H__
 
+#include <memory>
+#include <stdexcept>
+#include <utility>
 #include <nmfd/detail/algo_hierarchy_macro.h>
 #include <nmfd/detail/algo_hierarchy_creator.h>
 #include <nmfd/detail/vector_wrap.h>
@@ -28,47 +31,51 @@ namespace nmfd
 namespace solvers
 {
 
-template<class VectorSpace, class NonlinearOperator, class LinearSolver>
+template <class VectorSpace, class NonlinearOperator, class LinearSolver>
 class newton_iteration
 {
     using T             = typename VectorSpace::scalar_type;
     using vec_wrap_type = nmfd::detail::vector_wrap<VectorSpace, false, false>;
 
 public:
-    using scalar_type = typename VectorSpace::scalar_type;
-    using vector_type = typename VectorSpace::vector_type;
+    using scalar_type       = typename VectorSpace::scalar_type;
+    using vector_type       = typename VectorSpace::vector_type;
     using vector_space_type = VectorSpace;
-    using linear_operator = typename NonlinearOperator::jacobi_operator_type;
+    using linear_operator   = typename NonlinearOperator::jacobi_operator_type;
 
-    NMFD_ALGO_EMPTY_PARAMS_TYPE_DEFINE(newton_iteration)
+    NMFD_ALGO_EMPTY_PARAMS_TYPE_DEFINE( newton_iteration )
     struct utils
     {
         std::shared_ptr<VectorSpace> vec_space;
         utils() = default;
-        utils(std::shared_ptr<VectorSpace> vec_space_) : vec_space(std::move(vec_space_))
+        utils( std::shared_ptr<VectorSpace> vec_space_ ) : vec_space( std::move( vec_space_ ) )
         {
         }
-        template<class Backend>
-        utils(Backend &backend, std::shared_ptr<VectorSpace> vec_space_) : utils(vec_space_)
+        template <class Backend>
+        utils( Backend &backend, std::shared_ptr<VectorSpace> vec_space_ ) : utils( vec_space_ )
         {
         }
     };
-    NMFD_ALGO_HIERARCHY_TYPES_DEFINE(newton_iteration,LinearSolver,lin_solver)
+    NMFD_ALGO_HIERARCHY_TYPES_DEFINE( newton_iteration, LinearSolver, lin_solver )
 
     newton_iteration( std::shared_ptr<VectorSpace> vec_ops, std::shared_ptr<LinearSolver> lin_solver )
-        : vec_ops_( std::move( vec_ops ) ), lin_solver_( std::move( lin_solver ) ), f_( *vec_ops_ )
+        : vec_ops_(
+              vec_ops ? std::move( vec_ops ) : throw std::invalid_argument( "Newton iteration requires a vector space" )
+          ),
+          lin_solver_(
+              lin_solver ? std::move( lin_solver )
+                         : throw std::invalid_argument( "Newton iteration requires a linear solver" )
+          ),
+          f_( *vec_ops_ )
     {
         f_.init();
         f_.start_use();
     }
-    newton_iteration(
-        const utils_hierarchy& utils,
-        const params_hierarchy& prm = params_hierarchy()
-    ) :
-        newton_iteration(
-            utils.vec_space,
-            nmfd::detail::algo_hierarchy_creator<LinearSolver>::get(utils.lin_solver,prm.lin_solver)
-        )
+    newton_iteration( const utils_hierarchy &utils, const params_hierarchy &prm = params_hierarchy() )
+        : newton_iteration(
+              utils.vec_space,
+              nmfd::detail::algo_hierarchy_creator<LinearSolver>::get( utils.lin_solver, prm.lin_solver )
+          )
     {
     }
     ~newton_iteration() = default;
@@ -83,7 +90,7 @@ public:
     }
 
 private:
-    std::shared_ptr<VectorSpace> vec_ops_;
+    std::shared_ptr<VectorSpace>  vec_ops_;
     std::shared_ptr<LinearSolver> lin_solver_;
     vec_wrap_type                 f_;
 };

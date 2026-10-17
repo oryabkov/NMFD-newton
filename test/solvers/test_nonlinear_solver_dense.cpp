@@ -149,8 +149,8 @@ int main( int argc, char const *args[] )
         log.info( "test newton with backend construction" );
         newton_solver_t::params_hierarchy prm;
         prm.iteration_operator.lin_solver.monitor.rel_tol = newton_lin_rel_tol;
-        std::shared_ptr<newton_solver_t> newton_solver    = std::make_shared<newton_solver_t>(
-            newton_solver_t::utils_hierarchy( backend, vec_sp ), prm );
+        std::shared_ptr<newton_solver_t> newton_solver =
+            std::make_shared<newton_solver_t>( newton_solver_t::utils_hierarchy( backend, vec_sp ), prm );
         newton_solver->convergence_strategy()->set_tolerance( eps );
         system_op_t system_op( ops );
 

@@ -208,7 +208,8 @@ struct newton_fixture
     std::shared_ptr<iteration_type>     iteration = std::make_shared<iteration_type>( space, linear );
     std::shared_ptr<strategy_type>      strategy;
     solver_type                         solver;
-    problem_type                        problem;
+    std::shared_ptr<problem_type>       problem_owner = std::make_shared<problem_type>();
+    problem_type                       &problem       = *problem_owner;
 
     explicit newton_fixture( const params_type &params = params_type() )
         : strategy( std::make_shared<strategy_type>( space, nullptr, params ) ),
