@@ -48,16 +48,11 @@ void test()
         space->size() == 3 && space->scalar_prod( *result, *result ) == T( 3 ),
         "backend vector mapping or reduction failed"
     );
-    require(
-        space->is_valid_number( *result ) && space->check_is_valid_number( *result ), "finite validation names disagree"
-    );
+    require( space->is_valid_number( *result ), "backend rejected finite entries" );
     for ( T invalid : { std::numeric_limits<T>::infinity(), std::numeric_limits<T>::quiet_NaN() } )
     {
         space->set_value_at_point( invalid, 1, *result );
-        require(
-            !space->is_valid_number( *result ) && !space->check_is_valid_number( *result ),
-            "backend failed to detect a nonfinite entry"
-        );
+        require( !space->is_valid_number( *result ), "backend failed to detect a nonfinite entry" );
     }
 
     typename space_type::multivector_type basis;

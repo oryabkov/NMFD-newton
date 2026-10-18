@@ -1,7 +1,7 @@
 
 # Dependencies and Tests
 
-See [the operations dependency and standalone test instructions](docs/dependencies.md).
+See [the solver dependencies and standalone test instructions](docs/dependencies.md).
 
 # Basic interfaces
 

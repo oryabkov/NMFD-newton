@@ -47,12 +47,13 @@ endif
 
 PROJECT_ROOT_PATH = ../..
 NMFD_OPERATIONS_ROOT ?= $(PROJECT_ROOT_PATH)/contrib/nmfd-operations
+NMFD_LINSOLVERS_ROOT ?= $(PROJECT_ROOT_PATH)/contrib/nmfd-linsolvers
 SCFD_ROOT ?= $(NMFD_OPERATIONS_ROOT)/contrib/scfd
 SCFD_INCLUDE = $(SCFD_ROOT)/include
 NMFD_INCLUDE = $(PROJECT_ROOT_PATH)/include
 #INCLUDE_ROOT = -I$(PROJECT_ROOT_PATH)/sourse
 #INCLUDE_LOCAL = -I$(PROJECT_ROOT_PATH)/sourse/solver
-INCLUDE_CONTRIB = -I$(NMFD_INCLUDE) -I$(NMFD_OPERATIONS_ROOT)/include -I$(SCFD_INCLUDE) -I$(PROJECT_ROOT_PATH)/contrib/json
+INCLUDE_CONTRIB = -I$(NMFD_INCLUDE) -I$(NMFD_LINSOLVERS_ROOT)/include -I$(NMFD_OPERATIONS_ROOT)/include -I$(SCFD_INCLUDE) -I$(PROJECT_ROOT_PATH)/contrib/json
 
 ifeq ($(USE_APPLE_OMP),True)
 	OMP_FLAGS = -Xpreprocessor -fopenmp -lomp -I/opt/homebrew/opt/libomp/include -L/opt/homebrew/opt/libomp/lib

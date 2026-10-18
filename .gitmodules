@@ -4,3 +4,6 @@
 [submodule "contrib/nmfd-operations"]
 	path = contrib/nmfd-operations
 	url = https://github.com/evstigneevnm/NMFD-operations.git
+[submodule "contrib/nmfd-linsolvers"]
+	path = contrib/nmfd-linsolvers
+	url = https://github.com/evstigneevnm/NMFD-linsolvers.git

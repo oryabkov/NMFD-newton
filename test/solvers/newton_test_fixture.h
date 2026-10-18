@@ -107,10 +107,10 @@ struct newton_fixture
         {
             return allocations == frees && starts == stops;
         }
-        bool check_is_valid_number( const vector_type &x ) const
+        bool is_valid_number( const vector_type &x ) const
         {
             ++validity_checks;
-            return operations::static_vector_space<T, 1, vector_type>::check_is_valid_number( x );
+            return operations::static_vector_space<T, 1, vector_type>::is_valid_number( x );
         }
     };
 

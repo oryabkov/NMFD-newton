@@ -39,6 +39,9 @@ jobs:
           - configuration
           - operator_binding
           - dependency_ownership
+          - linsolvers
+          - ch_serial
+          - ch_omp
           - operations_cpu
           - solvers_cpu
           - dense_cpu
