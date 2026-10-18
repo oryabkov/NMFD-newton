@@ -46,11 +46,13 @@ USE_APPLE_OMP = False
 endif
 
 PROJECT_ROOT_PATH = ../..
-SCFD_INCLUDE = $(PROJECT_ROOT_PATH)/contrib/SCFD/include
+NMFD_OPERATIONS_ROOT ?= $(PROJECT_ROOT_PATH)/contrib/nmfd-operations
+SCFD_ROOT ?= $(NMFD_OPERATIONS_ROOT)/contrib/scfd
+SCFD_INCLUDE = $(SCFD_ROOT)/include
 NMFD_INCLUDE = $(PROJECT_ROOT_PATH)/include
 #INCLUDE_ROOT = -I$(PROJECT_ROOT_PATH)/sourse
 #INCLUDE_LOCAL = -I$(PROJECT_ROOT_PATH)/sourse/solver
-INCLUDE_CONTRIB = -I$(SCFD_INCLUDE) -I$(NMFD_INCLUDE)
+INCLUDE_CONTRIB = -I$(NMFD_INCLUDE) -I$(NMFD_OPERATIONS_ROOT)/include -I$(SCFD_INCLUDE) -I$(PROJECT_ROOT_PATH)/contrib/json
 
 ifeq ($(USE_APPLE_OMP),True)
 	OMP_FLAGS = -Xpreprocessor -fopenmp -lomp -I/opt/homebrew/opt/libomp/include -L/opt/homebrew/opt/libomp/lib
@@ -59,12 +61,12 @@ else
 endif
 
 HOSTFLAGS = $(TARGET_GCC) -std=c++17
-HOSTCOMPILER = g++
+HOSTCOMPILER ?= g++
 
 ifneq ($(strip $(CUDA_ARCH)),)
 CUDA_ARCH_FLAG = -arch=$(CUDA_ARCH)
 endif
-CUDAFLAGS = $(TARGET_NVCC) -std=c++17 $(CUDA_ARCH_FLAG)
+CUDAFLAGS = $(TARGET_NVCC) -std=c++17 --extended-lambda $(CUDA_ARCH_FLAG)
 ifneq ($(strip $(CUDA_ROOT_PATH)),)
 CUDACOMPILER = $(CUDA_ROOT_PATH)/bin/nvcc
 else
@@ -79,3 +81,17 @@ endif
 #CUDALIBRARIES = -lcudart -lcurand -lcusparse -lcublas
 IPROJECT = ${INCLUDE_CONTRIB}
 LPROJECT = -ldl
+
+CUDA_SOLVER_LIBS ?= -lcublas -lcusolver
+CUDA_OPERATIONS_OBJECTS = $(PROJECT_ROOT_PATH)/build/legacy_tests/operations_cuda_reductions.o
+CUDA_SOLVER_OBJECTS = $(PROJECT_ROOT_PATH)/build/legacy_tests/dense_solvers_cuda_inst.o
+
+# Included before the leaf Makefile's all target.
+.DEFAULT_GOAL := all
+$(CUDA_OPERATIONS_OBJECTS): $(NMFD_OPERATIONS_ROOT)/include/nmfd/operations/blas1/high_precision/cuda/gpu_reduction_ogita_kernels.cu
+	mkdir -p $(@D)
+	$(CUDACOMPILER) $(CUDAFLAGS) $(INCLUDE_CONTRIB) -c $< -o $@
+
+$(CUDA_SOLVER_OBJECTS): $(PROJECT_ROOT_PATH)/test/solvers/dense_solvers_cuda_inst.cu
+	mkdir -p $(@D)
+	$(CUDACOMPILER) $(CUDAFLAGS) $(INCLUDE_CONTRIB) -c $< -o $@

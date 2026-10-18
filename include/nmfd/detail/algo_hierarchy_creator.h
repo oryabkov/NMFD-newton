@@ -18,12 +18,14 @@
 #define __NMFD_ALGO_HIERARCHY_CREATOR_H__
 
 #include <memory>
+#include <stdexcept>
+
 #include "utils_hierarchy_dummy.h"
 #include "params_hierarchy_dummy.h"
 
 namespace nmfd
 {
-namespace detail 
+namespace detail
 {
 
 template<class Algo, class = int>

@@ -18,10 +18,13 @@
 #define __NMFD_PARAMS_HIERARCHY_DUMMY_H__
 
 #include <string>
+#ifdef NMFD_ENABLE_NLOHMANN
+#    include <nlohmann/json.hpp>
+#endif
 
 namespace nmfd
 {
-namespace detail 
+namespace detail
 {
 
 struct params_hierarchy_dummy

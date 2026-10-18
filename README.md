@@ -1,4 +1,8 @@
 
+# Dependencies and Tests
+
+See [the operations dependency and standalone test instructions](docs/dependencies.md).
+
 # Basic interfaces
 
 The following is the list of Named Conventions (like Iterator in STL) often used in NMFD. Perhaps sometime in the future we could add Concepts for these (however c++20 is needed which is not ok for now). Note that not every single aspect is specified thoroughly so futher specification of some details is needed.

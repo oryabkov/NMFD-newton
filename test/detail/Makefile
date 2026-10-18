@@ -2,7 +2,7 @@
 
 all: test_algo_hierarchy_macro.bin
 
-test: 
+test: all
 	./test_algo_hierarchy_macro.bin
 
 test_algo_hierarchy_macro.bin: test_algo_hierarchy_macro.cpp

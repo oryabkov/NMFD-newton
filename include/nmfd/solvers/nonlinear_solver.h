@@ -34,7 +34,7 @@
 #include <nmfd/detail/algo_hierarchy_macro.h>
 #include <nmfd/detail/algo_hierarchy_creator.h>
 #include "../detail/str_source_helper.h"
-#include "../detail/vector_wrap.h"
+#include <nmfd/detail/vector_wrap.h>
 #include "default_convergence_strategy.h"
 
 

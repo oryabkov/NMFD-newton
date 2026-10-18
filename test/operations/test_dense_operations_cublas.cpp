@@ -1,9 +1,10 @@
 #include <cmath>
 #include <memory>
-#include <nmfd/operations/dense_operations_cuda.h>
+#include <nmfd/backend/cuda.h>
 #include <scfd/arrays/array.h>
 #include <scfd/arrays/array_nd.h>
 #include <scfd/external_libraries/cublas_wrap_singleton_impl.h>
+#include <scfd/external_libraries/cusolver_wrap_singleton_impl.h>
 #include <scfd/utils/log.h>
 
 const double eps = 1e-10;
@@ -16,19 +17,20 @@ using scalar = double;
 
 int main( int argc, char const *args[] )
 {
-    using log_t       = scfd::utils::log_std;
-    using T           = double;
-    using dense_ops_t = nmfd::operations::dense_operations_cuda<T>;
-    using vector_type = typename dense_ops_t::vector_type;
-    using matrix_type = typename dense_ops_t::matrix_type;
+    using log_t        = scfd::utils::log_std;
+    using T            = double;
+    using backend_type = nmfd::backend::cuda<T>;
+    using dense_ops_t  = typename backend_type::dense_operations_type;
+    using vector_type  = typename dense_ops_t::vector_type;
+    using matrix_type  = typename dense_ops_t::matrix_type;
 
-    scfd::cublas_wrap cublas( true );
+    backend_type backend;
 
     log_t  log;
     size_t passed_counter = 0;
     size_t failed_counter = 0;
 
-    log.info( "Testing dense_operations_cuda (cuBLAS)" );
+    log.info( "Testing dense_operations_cuda_hip (cuBLAS)" );
 
     auto ops = std::make_shared<dense_ops_t>();
 

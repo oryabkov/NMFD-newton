@@ -1,5 +1,6 @@
 #include <cmath>
 #include <array>
+#include <memory>
 #include <scfd/utils/log.h>
 #include <nmfd/operations/static_vector_space.h>
 

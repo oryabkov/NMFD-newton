@@ -17,9 +17,11 @@
 #ifndef __NMFD_UTILS_HIERARCHY_DUMMY_H__
 #define __NMFD_UTILS_HIERARCHY_DUMMY_H__
 
+#include <memory>
+
 namespace nmfd
 {
-namespace detail 
+namespace detail
 {
 
 struct utils_hierarchy_dummy

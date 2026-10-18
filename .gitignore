@@ -1,4 +1,5 @@
 *.bin
+*.o
 *.swp
 *.dat
 .vscode
@@ -10,7 +11,7 @@
 **/data
 .venv
 .clangd
-.clang-format
+build/
 **/#*#
 .serena/
 .claude/

@@ -1,0 +1,90 @@
+name: Newton
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      run_cuda:
+        description: Run on a self-hosted CUDA runner
+        type: boolean
+        default: false
+      cuda_arch:
+        description: CUDA compute capability without a decimal point
+        type: string
+        default: '75'
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  cpu:
+    name: ${{ matrix.compiler }} / ${{ matrix.test }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [cpu, clang]
+        test:
+          - headers_cpu
+          - failure_reporting
+          - backtracking
+          - convergence
+          - vector_ownership
+          - configuration
+          - operator_binding
+          - dependency_ownership
+          - operations_cpu
+          - solvers_cpu
+          - dense_cpu
+          - hierarchy_cpu
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - name: Install compiler
+        run: |
+          sudo apt-get update
+          packages=(build-essential make)
+          if [[ '${{ matrix.compiler }}' == clang ]]; then
+            packages+=(clang libomp-dev)
+          fi
+          sudo apt-get install -y --no-install-recommends "${packages[@]}"
+      - name: Build and test
+        run: |
+          make -j2 'check_${{ matrix.test }}' \
+            CONFIG_FILE='build_configs/config_${{ matrix.compiler }}.inc' \
+            BUILD_DIR='build/${{ matrix.compiler }}/${{ matrix.test }}'
+
+  sanitizers:
+    name: GCC / ASan + UBSan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - name: Build and test
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: make -j2 test_cpu CONFIG_FILE=build_configs/config_sanitizers.inc BUILD_DIR=build/sanitizers
+
+  cuda:
+    name: CUDA / operations and Newton
+    if: github.event_name == 'workflow_dispatch' && inputs.run_cuda
+    runs-on: [self-hosted, linux, cuda]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - name: Build and test
+        env:
+          CUDA_ARCH: ${{ inputs.cuda_arch }}
+        run: make -j2 check_cuda check_headers_cuda BUILD_DIR=build/cuda CUDA_ARCH="$CUDA_ARCH"

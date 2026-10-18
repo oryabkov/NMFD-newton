@@ -17,11 +17,13 @@
 #ifndef __NMFD_DEFAULT_MONITOR_H__
 #define __NMFD_DEFAULT_MONITOR_H__
 
+#include <memory>
+
 #include <cmath>
 #include <vector>
 #include <utility>
 #ifdef NMFD_ENABLE_NLOHMANN
-#include <nlohmann/json.hpp>
+#    include <nlohmann/json.hpp>
 #endif
 #include <scfd/utils/logged_obj_base.h>
 #include <scfd/utils/log.h>

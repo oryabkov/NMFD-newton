@@ -1,7 +1,7 @@
 #ifndef __NMFD_SOLVERS_JACOBI_H__
 #define __NMFD_SOLVERS_JACOBI_H__
 
-#include "../detail/vector_wrap.h"
+#include <nmfd/detail/vector_wrap.h>
 #include "iter_solver_base.h"
 
 #include <memory>
