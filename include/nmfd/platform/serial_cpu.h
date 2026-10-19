@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with NMFD.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef __NMFD_BACKEND_SERIAL_CPU_H__
-#define __NMFD_BACKEND_SERIAL_CPU_H__
+#ifndef __NMFD_PLATFORM_SERIAL_CPU_H__
+#define __NMFD_PLATFORM_SERIAL_CPU_H__
 
 #include <scfd/utils/log_std.h>
 #include <scfd/backend/serial_cpu.h>
@@ -25,17 +25,21 @@
 
 namespace nmfd
 {
-namespace backend
+namespace platform
 {
 
 template <class Type, class Log = scfd::utils::log_std>
-class serial_cpu : public scfd::backend::serial_cpu
+class serial_cpu
 {
+public:
+    using log_type          = Log;
+    using scfd_backend_type = scfd::backend::serial_cpu;
+    using memory_type       = scfd_backend_type::memory_type;
+
+private:
     using traits_type = operations::detail::scfd_array_traits<Type, memory_type>;
 
 public:
-    using log_type              = Log;
-    using scfd_backend_type     = scfd::backend::serial_cpu;
     using vector_space_type     = operations::dense_vector_space<traits_type, scfd_backend_type>;
     using dense_operations_type = operations::dense_operations<Type, scfd_backend_type>;
 
@@ -49,7 +53,7 @@ protected:
     log_type log_;
 };
 
-} /// namespace backend
+} /// namespace platform
 } /// namespace nmfd
 
 #endif

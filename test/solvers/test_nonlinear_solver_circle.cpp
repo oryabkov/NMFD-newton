@@ -83,8 +83,8 @@ private:
 
 int main(int argc, char const *args[])
 {
-    using backend_t = nmfd::backend::single_node_cpu<>;
-    using log_t = backend_t::log_type;
+    using platform_t = nmfd::platform::single_node_cpu<>;
+    using log_t = platform_t::log_type;
     using T = double;
     static const int Dim = 1;
 
@@ -425,8 +425,8 @@ int main(int argc, char const *args[])
 
     size_t passed_counter = 0;
     size_t failed_counter = 0;
-    backend_t backend;
-    log_t &log = backend.log();
+    platform_t platform;
+    log_t &log = platform.log();
     std::shared_ptr<orig_vector_space_type> orig_vector_space = std::make_shared<orig_vector_space_type>();
     std::shared_ptr<scalar_vector_space_type> scalar_vector_space = std::make_shared<scalar_vector_space_type>();
     std::shared_ptr<vector_space_type> vector_space = std::make_shared<vector_space_type>(orig_vector_space, scalar_vector_space);

@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with NMFD.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef __NMFD_BACKEND_H__
-#define __NMFD_BACKEND_H__
+#ifndef __NMFD_PLATFORM_H__
+#define __NMFD_PLATFORM_H__
 
 #include <scfd/utils/log_std.h>
 
@@ -24,13 +24,13 @@
 
 namespace nmfd
 {
-namespace backend
+namespace platform
 {
 
 template <class Type, class Log = scfd::utils::log_std>
 using current = serial_cpu<Type, Log>;
 
-} // namespace backend
+} // namespace platform
 } // namespace nmfd
 
 #elif defined( PLATFORM_CUDA )
@@ -38,13 +38,13 @@ using current = serial_cpu<Type, Log>;
 
 namespace nmfd
 {
-namespace backend
+namespace platform
 {
 
 template <class Type, class Log = scfd::utils::log_std>
 using current = cuda<Type, Log>;
 
-} // namespace backend
+} // namespace platform
 } // namespace nmfd
 
 #elif defined( PLATFORM_HIP )
@@ -52,22 +52,22 @@ using current = cuda<Type, Log>;
 
 namespace nmfd
 {
-namespace backend
+namespace platform
 {
 
 template <class Type, class Log = scfd::utils::log_std>
 using current = hip<Type, Log>;
 
-} // namespace backend
+} // namespace platform
 } // namespace nmfd
 
 #else
-#    error "No platform has been chosen for backend (define PLATFORM_SERIAL_CPU or PLATFORM_CUDA)."
+#    error "No platform has been chosen (define PLATFORM_SERIAL_CPU or PLATFORM_CUDA)."
 #endif
 
 namespace nmfd
 {
-namespace backend
+namespace platform
 {
 
 template <class Type, class Log = scfd::utils::log_std>
@@ -76,7 +76,7 @@ using vector_space_type = typename current<Type, Log>::vector_space_type;
 template <class Type, class Log = scfd::utils::log_std>
 using dense_operations_type = typename current<Type, Log>::dense_operations_type;
 
-} // namespace backend
+} // namespace platform
 } // namespace nmfd
 
-#endif // __NMFD_BACKEND_H__
+#endif // __NMFD_PLATFORM_H__

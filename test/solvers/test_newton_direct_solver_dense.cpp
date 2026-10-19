@@ -92,12 +92,12 @@ scalar eq_residual( const VecSpace &vec_sp, const typename VecSpace::vector_type
 int main( int argc, char const *args[] )
 {
     using T            = scalar;
-    using backend_type = nmfd::backend::current<T>;
-    using log_t        = typename backend_type::log_type;
+    using platform_type = nmfd::platform::current<T>;
+    using log_t        = typename platform_type::log_type;
 
-    using dense_ops_base_t  = typename backend_type::dense_operations_type;
+    using dense_ops_base_t  = typename platform_type::dense_operations_type;
     using dense_ops_t       = newton_dense_ops<dense_ops_base_t>;
-    using vec_space_t       = typename backend_type::vector_space_type;
+    using vec_space_t       = typename platform_type::vector_space_type;
     using vector_type       = typename dense_ops_t::vector_type;
     using matrix_type       = typename dense_ops_t::matrix_type;
     using matrix_operator_t = nmfd::operations::matrix_operator<dense_ops_t>;
@@ -159,8 +159,8 @@ int main( int argc, char const *args[] )
     using newton_solver_t    = nmfd::solvers::nonlinear_solver<vec_space_t, log_t, system_op_t, newton_iteration_t>;
 
     int          error = 0;
-    backend_type backend;
-    log_t       &log = backend.log();
+    platform_type platform;
+    log_t       &log = platform.log();
 
     auto ops    = std::make_shared<dense_ops_t>( 2 );
     auto vec_sp = std::make_shared<vec_space_t>( 2 );

@@ -42,8 +42,8 @@ T eq_residual(const scfd::static_vec::vec<T,2> &x)
 
 int main(int argc, char const *args[])
 {
-    using backend_t = nmfd::backend::single_node_cpu<>;
-    using log_t = backend_t::log_type;
+    using platform_t = nmfd::platform::single_node_cpu<>;
+    using log_t = platform_t::log_type;
     using T = double;
     static const int dim = 2;
     using vec_t = scfd::static_vec::vec<T,dim>;
@@ -85,8 +85,8 @@ int main(int argc, char const *args[])
     const T eps = 1e-10;
 
     int error = 0;
-    backend_t backend;
-    log_t &log = backend.log();
+    platform_t platform;
+    log_t &log = platform.log();
     std::shared_ptr<vec_sp_t> vec_sp = std::make_shared<vec_sp_t>();
     {
         log.info("test newton with manual construction");
@@ -132,10 +132,10 @@ int main(int argc, char const *args[])
     }
 
     {
-        log.info("test newton with backend construction");
+        log.info("test newton with platform construction");
         std::shared_ptr<newton_solver_t> newton_solver =
             std::make_shared<newton_solver_t>(
-                newton_solver_t::utils_hierarchy(backend,vec_sp)
+                newton_solver_t::utils_hierarchy(platform,vec_sp)
             );
         newton_solver->convergence_strategy()->set_tolerance(eps);
         system_op_t system_op;

@@ -17,17 +17,17 @@ inline constexpr scalar rel_tol   = 1e-10;
 int main( int argc, char const *args[] )
 {
     using T            = scalar;
-    using backend_type = nmfd::backend::current<T>;
-    using log_t        = typename backend_type::log_type;
+    using platform_type = nmfd::platform::current<T>;
+    using log_t        = typename platform_type::log_type;
 
-    using dense_ops_t = typename backend_type::dense_operations_type;
-    using vec_space_t = typename backend_type::vector_space_type;
+    using dense_ops_t = typename platform_type::dense_operations_type;
+    using vec_space_t = typename platform_type::vector_space_type;
     using vector_type = typename dense_ops_t::vector_type;
     using matrix_type = typename dense_ops_t::matrix_type;
 
     int          error = 0;
-    backend_type backend;
-    log_t       &log = backend.log();
+    platform_type platform;
+    log_t       &log = platform.log();
 
     {
         log.info( "test direct solver: 5x5 known system" );
