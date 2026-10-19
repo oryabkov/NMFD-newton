@@ -9,6 +9,12 @@ CUDA_ROOT ?= /usr/local/cuda
 NVCC ?= $(CUDA_ROOT)/bin/nvcc
 CUDA_ARCH ?= 75
 NVCCFLAGS ?= -std=$(CPPSTD) -O2 --extended-lambda -gencode arch=compute_$(CUDA_ARCH),code=sm_$(CUDA_ARCH)
+MPICXX ?= mpicxx
+MPIEXEC ?= mpiexec
+MPIEXEC_FLAGS ?=
+MPI_NP ?= 2
+MPI_CXXFLAGS ?=
+MPI_LDFLAGS ?=
 
 INCLUDES := -Iinclude -I$(NMFD_LINSOLVERS_ROOT)/include -I$(NMFD_OPERATIONS_ROOT)/include -Icontrib/json -isystem $(SCFD_ROOT)/include
 CXXFLAGS := -std=$(CPPSTD) $(TARGET_CXX) $(WARNING_FLAGS) $(SANITIZER_FLAGS) $(INCLUDES)
@@ -31,6 +37,8 @@ SOLVER_BINS := $(addprefix $(BUILD_DIR)/test_,$(addsuffix .bin,$(SOLVER_TESTS)))
 CH_SOURCE := test/cahn_hilliard/test_solver_compatibility.cpp
 CH_HEADERS := $(wildcard test/cahn_hilliard/*.h test/cahn_hilliard/include/*.h test/cahn_hilliard/kernels/*.h)
 CH_CPU_BINS := $(BUILD_DIR)/test_ch_serial.bin $(BUILD_DIR)/test_ch_omp.bin
+CH_ORIGINAL_PROGRAMS := test_biharmonic test_cahn_hilliard test_time_cahn_hilliard test_cahn_hilliard_nonlinear test_random_init_cahn_hilliard
+CH_ORIGINAL_BINS := $(addprefix $(BUILD_DIR)/original/,$(addsuffix .bin,$(CH_ORIGINAL_PROGRAMS)))
 CPU_BINS := $(REGRESSION_BINS) $(JSON_BINS) $(OPERATIONS_BINS) $(SOLVER_BINS) $(DENSE_CPU_BINS) $(BUILD_DIR)/test_scfd_backend_cpu.bin $(BUILD_DIR)/test_algo_hierarchy_macro.bin $(BUILD_DIR)/test_newton_linsolvers_reverse.bin $(CH_CPU_BINS)
 
 .PHONY: all check_dependencies tests_cpu test_cpu check_headers_cpu check_headers_cuda check_regressions_cpu check_operations_cpu check_solvers_cpu check_dense_cpu check_hierarchy_cpu check_cuda check_backtracking_json check_configuration_json check_linsolvers_json check_ch_serial check_ch_omp check_ch_cuda $(addprefix check_, $(REGRESSIONS))
@@ -39,6 +47,8 @@ all: tests_cpu
 check_dependencies:
 	@test -f $(NMFD_LINSOLVERS_ROOT)/include/nmfd/solvers/gmres.h || \
 		{ echo 'Initialize recursive submodules or set NMFD_LINSOLVERS_ROOT'; exit 1; }
+	@test -f $(NMFD_LINSOLVERS_ROOT)/include/nmfd/solvers/jacobi.h || \
+		{ echo 'NMFD-linsolvers must include migrated Jacobi; update the dependency or set NMFD_LINSOLVERS_ROOT'; exit 1; }
 	@test -f $(NMFD_OPERATIONS_ROOT)/include/nmfd/detail/vector_wrap.h || \
 		{ echo 'Initialize recursive submodules or set NMFD_OPERATIONS_ROOT'; exit 1; }
 	@test -f $(SCFD_ROOT)/include/scfd/utils/log.h || \
@@ -158,6 +168,32 @@ check_ch_omp: $(BUILD_DIR)/test_ch_omp.bin
 
 check_ch_cuda: $(BUILD_DIR)/test_ch_cuda.bin
 	$<
+
+.PHONY: check_ch_original check_ch_mpi
+$(CH_ORIGINAL_BINS): $(BUILD_DIR)/original/%.bin: test/cahn_hilliard/%.cpp $(CH_HEADERS) $(TEST_HEADERS) | check_dependencies
+	mkdir -p $(@D)
+	$(HOST_CXX) $(CXXFLAGS) -DSCFD_ARRAYS_ENABLE_INDEX_SHIFT -DPLATFORM_SERIAL_CPU -DUSE_DOUBLE_PRECISION \
+		$< $(OPENMP_FLAGS) -o $@
+
+$(BUILD_DIR)/original/test_rect.bin: test/operations/test_rect_vector_space.cpp $(TEST_HEADERS) | check_dependencies
+	mkdir -p $(@D)
+	$(HOST_CXX) $(CXXFLAGS) $< $(OPENMP_FLAGS) -o $@
+
+$(BUILD_DIR)/original/test_rect_mpi.bin: test/operations/test_rect_vector_space_mpi.cpp $(TEST_HEADERS) | check_dependencies
+	mkdir -p $(@D)
+	$(MPICXX) $(CXXFLAGS) $(MPI_CXXFLAGS) $< $(OPENMP_FLAGS) $(MPI_LDFLAGS) -o $@
+
+$(BUILD_DIR)/original/test_biharmonic_mpi.bin: test/cahn_hilliard/test_biharmonic_mpi.cpp $(CH_HEADERS) $(TEST_HEADERS) | check_dependencies
+	mkdir -p $(@D)
+	$(MPICXX) $(CXXFLAGS) $(MPI_CXXFLAGS) -DSCFD_ARRAYS_ENABLE_INDEX_SHIFT -DPLATFORM_SERIAL_CPU -DUSE_DOUBLE_PRECISION \
+		$< $(OPENMP_FLAGS) $(MPI_LDFLAGS) -o $@
+
+check_ch_original: $(CH_ORIGINAL_BINS) $(BUILD_DIR)/original/test_rect.bin
+	OMP_NUM_THREADS=$(TEST_OMP_NUM_THREADS) python3 test/cahn_hilliard/check_original_programs.py --build-dir $(BUILD_DIR)/original
+
+check_ch_mpi: $(BUILD_DIR)/original/test_rect_mpi.bin $(BUILD_DIR)/original/test_biharmonic_mpi.bin
+	OMP_NUM_THREADS=$(TEST_OMP_NUM_THREADS) python3 test/cahn_hilliard/check_original_programs.py --build-dir $(BUILD_DIR)/original \
+		--mpi-exec "$(MPIEXEC) $(MPIEXEC_FLAGS)" --ranks $(MPI_NP)
 
 check_regressions_cpu: $(addprefix check_,$(REGRESSIONS))
 

@@ -36,6 +36,7 @@
 #include "restrictor.h"
 #include "solution_io.h"
 #include "timers.h"
+#include "local_communication.h"
 #include "scheduler.h"
 #include "kernels/mobility.h"
 
@@ -61,6 +62,8 @@ using vec_ops_t        = nmfd::rect_vector_space<scalar, /*dim=*/dim, /*tensor_d
 using vector_t         = typename vec_ops_t::vector_type;
 using tensor_t         = scfd::static_vec::vec<scalar, tensor_dim>;
 using vector_view_t    = typename vector_t::view_type;
+using communication_t  = tests::local_communication<vec_ops_t>;
+using dist_t           = communication_t::dist_type;
 // Monitors
 using krylov_monitor_t  = nmfd::solvers::monitor_krylov<vec_ops_t, log_t>;
 using default_monitor_t = nmfd::solvers::default_monitor<vec_ops_t, log_t>;
@@ -76,11 +79,11 @@ using rhs_t             = tests::zero_rhs<scalar, tensor_t>;
 using time_derivative_t = tests::time_derivative<vec_ops_t, tensor_t>;
 
 // MG
-using prolongator_t = tests::prolongator<vec_ops_t, log_t>;
-using restrictor_t  = tests::restrictor<vec_ops_t, log_t>;
-using jacobi_op_t   = tests::jacobi_op<vec_ops_t, log_t, phobic_energy_t, time_derivative_t, mobility_t>;
+using prolongator_t = tests::prolongator<vec_ops_t, log_t, dist_t>;
+using restrictor_t  = tests::restrictor<vec_ops_t, log_t, dist_t>;
+using jacobi_op_t   = tests::jacobi_op<vec_ops_t, log_t, phobic_energy_t, time_derivative_t, mobility_t, dist_t>;
 using ident_op_t    = nmfd::preconditioners::dummy<vec_ops_t, jacobi_op_t>;
-using smoother_t    = tests::jacobi_pre<vec_ops_t, log_t, phobic_energy_t, time_derivative_t, mobility_t>;
+using smoother_t    = tests::jacobi_pre<vec_ops_t, log_t, phobic_energy_t, time_derivative_t, mobility_t, dist_t>;
 using coarsening_t  = tests::coarsening<jacobi_op_t, log_t>;
 
 using precond_interface = nmfd::preconditioners::preconditioner_interface<vec_ops_t, jacobi_op_t>;
@@ -454,8 +457,9 @@ int main( int argc, char const *argv[] )
     std::cout << std::endl;
 
 
-    vector_t solution( range );
-    auto     vspace = std::make_shared<vec_ops_t>( range );
+    communication_t communication( range, left_bc, right_bc );
+    vector_t        solution = communication.vector();
+    auto            vspace   = communication.space;
 
     // Initialize solution with 3D Perlin noise
     {
@@ -501,14 +505,16 @@ int main( int argc, char const *argv[] )
         solution_view.release();
     }
 
-    auto time_derivative = std::make_shared<time_derivative_t>( range );
+    auto time_derivative = std::make_shared<time_derivative_t>( vspace );
     time_derivative->set_dt_inf( dt_inf );
     time_derivative->set_previous_state( solution );
 
     tests::scheduler<scalar> dt_scheduler( dt_inf, /*success_threshold=*/10 );
 
-    auto cahn_hilliard_jacobi_op = std::make_shared<jacobi_op_t>( range, step, cond, time_derivative );
-    auto cahn_hilliard_op        = std::make_shared<cahn_hilliard_op_t>( range, step, cond, cahn_hilliard_jacobi_op, time_derivative );
+    auto cahn_hilliard_jacobi_op =
+        std::make_shared<jacobi_op_t>( vspace, step, cond, communication.distributor, time_derivative );
+    auto cahn_hilliard_op =
+        std::make_shared<cahn_hilliard_op_t>( vspace, step, cond, cahn_hilliard_jacobi_op, time_derivative );
 
     // Set D and gamma parameters
     auto mobility = mobility_t(D);
@@ -516,15 +522,19 @@ int main( int argc, char const *argv[] )
     cahn_hilliard_op->set_gamma( gamma );
 
     // Stationary operators (used for checking time convergence to stationary solution)
-    auto cahn_hilliard_jacobi_op_stationary = std::make_shared<jacobi_op_t>( range, step, cond );
-    auto cahn_hilliard_op_stationary        = std::make_shared<cahn_hilliard_op_t>( range, step, cond, cahn_hilliard_jacobi_op_stationary );
+    auto cahn_hilliard_jacobi_op_stationary =
+        std::make_shared<jacobi_op_t>( vspace, step, cond, communication.distributor );
+    auto cahn_hilliard_op_stationary = std::make_shared<cahn_hilliard_op_t>(
+        vspace, step, cond, cahn_hilliard_jacobi_op_stationary,
+        cahn_hilliard_jacobi_op_stationary->get_time_derivative()
+    );
     cahn_hilliard_op_stationary->set_mobility( mobility );
     cahn_hilliard_op_stationary->set_gamma( gamma );
 
     std::shared_ptr<precond_interface> precond;
     if ( preconditioner_type == "diag" )
     {
-        precond = std::make_shared<smoother_t>( cahn_hilliard_jacobi_op );
+        precond = std::make_shared<smoother_t>( cahn_hilliard_jacobi_op, communication.distributor );
     }
     else if ( preconditioner_type == "mg" )
     {
@@ -532,6 +542,7 @@ int main( int argc, char const *argv[] )
         mg_params_t mg_params;
 
         mg_utils.log              = &log;
+        mg_utils.coarsening       = { communication.part, communication.periodic_flags, communication_t::stencil, dim };
         mg_params.direct_coarse   = false;
         mg_params.num_sweeps_pre  = mg_sweeps_pre;
         mg_params.num_sweeps_post = mg_sweeps_post;
@@ -540,7 +551,7 @@ int main( int argc, char const *argv[] )
     }
 
     // Verify that F_stationary(initial) norm
-    vector_t F_init( range );
+    vector_t F_init = communication.vector();
     cahn_hilliard_op_stationary->apply( solution, F_init );
     scalar F_init_norm = vspace->norm_l2( F_init );
     log.info_f( "||F_stationary(initial)||_2 = %le", static_cast<double>( F_init_norm ) );
@@ -690,7 +701,7 @@ int main( int argc, char const *argv[] )
         dt_history_file.flush();
 
         // Compute stationary residual (to check time convergence)
-        vector_t F_x( range );
+        vector_t F_x = communication.vector();
         cahn_hilliard_op_stationary->apply( solution, F_x );
         scalar F_x_norm = vspace->norm_l2( F_x );
         log.info_f( "||F_stationary(solution)||_2 = %le", static_cast<double>( F_x_norm ) );
@@ -705,7 +716,7 @@ int main( int argc, char const *argv[] )
 
         // Compute norm of difference between solution and previous state
         vector_t previous_state = time_derivative->get_previous_state();
-        vector_t diff_prev( range );
+        vector_t diff_prev      = communication.vector();
         vspace->assign_lin_comb( scalar( 1 ), solution, scalar( -1 ), previous_state, diff_prev );
         scalar diff_prev_norm = vspace->norm_l2( diff_prev );
         log.info_f( "||solution - previous_state||_2 = %le", static_cast<double>( diff_prev_norm ) );

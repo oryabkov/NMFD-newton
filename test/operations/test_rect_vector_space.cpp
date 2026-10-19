@@ -8,7 +8,7 @@ constexpr int dim        = 3;
 constexpr int tensor_dim = 2;
 using scalar             = double;
 
-using vector_space = nmfd::rect_vector_space<scalar,/*dim=*/3,/*tensor_dim=*/2, scfd::backend::serial_cpu>;
+using vector_space = nmfd::rect_vector_space<scalar, /*dim=*/3, /*tensor_dim=*/2, scfd::backend::serial_cpu<>>;
 
 using vector_t      = typename vector_space::vector_type;
 using multivector_t = typename vector_space::multivector_type;

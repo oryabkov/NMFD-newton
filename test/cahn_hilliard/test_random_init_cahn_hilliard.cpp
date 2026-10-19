@@ -32,6 +32,7 @@
 #include "restrictor.h"
 #include "solution_io.h"
 #include "perlin_noise.h"
+#include "local_communication.h"
 
 
 using backend = scfd::backend::current;
@@ -51,6 +52,8 @@ using vec_ops_t     = nmfd::rect_vector_space<scalar, /*dim=*/dim, /*tensor_dim=
 using vector_t      = typename vec_ops_t::vector_type;
 using tensor_t      = scfd::static_vec::vec<scalar, tensor_dim>;
 using vector_view_t = typename vector_t::view_type;
+using communication_t = tests::local_communication<vec_ops_t>;
+using dist_t          = communication_t::dist_type;
 
 // Monitors
 using krylov_monitor_t  = nmfd::solvers::monitor_krylov<vec_ops_t, log_t>;
@@ -62,13 +65,14 @@ using monitor_funcs_ptr = default_monitor_t::custom_funcs_ptr;
 using phobic_energy     = tests::double_well_potential<scalar>;
 using rhs_t             = tests::zero_rhs<scalar, tensor_t>;
 using time_derivative_t = tests::time_derivative<vec_ops_t, tensor_t>;
+using mobility_t        = tests::constant_mobility<scalar>;
 
 // MG
-using prolongator_t = tests::prolongator<vec_ops_t, log_t>;
-using restrictor_t  = tests::restrictor<vec_ops_t, log_t>;
-using jacobi_op_t   = tests::jacobi_op<vec_ops_t, log_t, phobic_energy, time_derivative_t>;
+using prolongator_t = tests::prolongator<vec_ops_t, log_t, dist_t>;
+using restrictor_t  = tests::restrictor<vec_ops_t, log_t, dist_t>;
+using jacobi_op_t   = tests::jacobi_op<vec_ops_t, log_t, phobic_energy, time_derivative_t, mobility_t, dist_t>;
 using ident_op_t    = nmfd::preconditioners::dummy<vec_ops_t, jacobi_op_t>;
-using smoother_t    = tests::jacobi_pre<vec_ops_t, log_t, phobic_energy, time_derivative_t>;
+using smoother_t    = tests::jacobi_pre<vec_ops_t, log_t, phobic_energy, time_derivative_t, mobility_t, dist_t>;
 using coarsening_t  = tests::coarsening<jacobi_op_t, log_t>;
 
 using precond_interface = nmfd::preconditioners::preconditioner_interface<vec_ops_t, jacobi_op_t>;
@@ -81,7 +85,8 @@ using mg_utils_t  = mg_t::utils_hierarchy;
 using gmres_solver = nmfd::solvers::gmres<vec_ops_t, krylov_monitor_t, log_t, jacobi_op_t, precond_interface>;
 
 // Newton
-using cahn_hilliard_op_t = tests::cahn_hilliard_op<vec_ops_t, jacobi_op_t, log_t, phobic_energy, rhs_t, time_derivative_t>;
+using cahn_hilliard_op_t =
+    tests::cahn_hilliard_op<vec_ops_t, jacobi_op_t, log_t, phobic_energy, rhs_t, time_derivative_t, mobility_t>;
 using newton_iteration_t = nmfd::solvers::newton_iteration<vec_ops_t, cahn_hilliard_op_t, gmres_solver>;
 using newton_solver_t =
     nmfd::solvers::nonlinear_solver<vec_ops_t, log_t, cahn_hilliard_op_t, newton_iteration_t>;
@@ -340,16 +345,15 @@ int main( int argc, char const *argv[] )
     int left_bc[3][2]  = { { -1, -1 }, { -1, -1 }, { -1, -1 } }; // left:  [x,y,z][psi=Neumann, phi=nonlinear]
     int right_bc[3][2] = { { -1, -1 }, { -1, -1 }, { -1, -1 } };  // right: [x,y,z][psi=Neumann, phi=nonlinear]
 
-    auto cond  = tests::boundary_cond<vec_ops_t>(
-        range, left_bc, right_bc
-    );
+    auto cond = tests::boundary_cond<vec_ops_t>( left_bc, right_bc );
     // Boundary condition values:
     //   -1 = dirichlet (value = 0 at boundary)
     //   +1 = neumann (derivative = 0 at boundary)
     //    0 = periodic (left boundary uses value from N-1, right boundary uses value from 0)
 
-    vector_t solution( range );
-    auto     vspace = std::make_shared<vec_ops_t>( range );
+    communication_t communication( range, left_bc, right_bc );
+    vector_t        solution = communication.vector();
+    auto            vspace   = communication.space;
 
     // Initialize solution with 3D Perlin noise
     {
@@ -395,15 +399,17 @@ int main( int argc, char const *argv[] )
         solution_view.release();
     }
 
-    auto time_derivative = std::make_shared<time_derivative_t>( range );
+    auto time_derivative = std::make_shared<time_derivative_t>( vspace );
     time_derivative->set_dt_inf( dt_inf );
     time_derivative->set_previous_state( solution );
 
-    auto cahn_hilliard_jacobi_op = std::make_shared<jacobi_op_t>( range, step, cond, time_derivative );
-    auto cahn_hilliard_op        = std::make_shared<cahn_hilliard_op_t>( range, step, cond, cahn_hilliard_jacobi_op, time_derivative );
+    auto cahn_hilliard_jacobi_op =
+        std::make_shared<jacobi_op_t>( vspace, step, cond, communication.distributor, time_derivative );
+    auto cahn_hilliard_op =
+        std::make_shared<cahn_hilliard_op_t>( vspace, step, cond, cahn_hilliard_jacobi_op, time_derivative );
 
     // Set D and gamma parameters
-    cahn_hilliard_op->set_D( D );
+    cahn_hilliard_op->set_mobility( mobility_t( D ) );
     cahn_hilliard_op->set_gamma( gamma );
 
     std::shared_ptr<precond_interface> precond;
@@ -412,6 +418,7 @@ int main( int argc, char const *argv[] )
     mg_params_t mg_params;
 
     mg_utils.log              = &log;
+    mg_utils.coarsening       = { communication.part, communication.periodic_flags, communication_t::stencil, dim };
     mg_params.direct_coarse   = false;
     mg_params.num_sweeps_pre  = mg_sweeps_pre;
     mg_params.num_sweeps_post = mg_sweeps_post;
@@ -460,7 +467,7 @@ int main( int argc, char const *argv[] )
 
         // Compute norm of difference between solution and previous state
         vector_t previous_state = time_derivative->get_previous_state();
-        vector_t diff_prev( range );
+        vector_t diff_prev      = communication.vector();
         vspace->assign_lin_comb( scalar( 1 ), solution, scalar( -1 ), previous_state, diff_prev );
         scalar diff_prev_norm = vspace->norm_l2( diff_prev );
         log.info_f( "||solution - previous_state||_2 = %le", static_cast<double>( diff_prev_norm ) );

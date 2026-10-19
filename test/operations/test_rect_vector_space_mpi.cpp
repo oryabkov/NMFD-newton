@@ -10,7 +10,7 @@ constexpr int tensor_dim = 2;
 using scalar             = double;
 
 using comm_info_t  = scfd::communication::mpi_comm_info;
-using vector_space = nmfd::rect_vector_space<scalar, dim, tensor_dim, scfd::backend::serial_cpu, comm_info_t>;
+using vector_space  = nmfd::rect_vector_space<scalar, dim, tensor_dim, scfd::backend::serial_cpu<>, comm_info_t>;
 using vector_t      = typename vector_space::vector_type;
 using vector_view_t = typename vector_t::view_type;
 

@@ -36,6 +36,7 @@
 #include "restrictor.h"
 #include "solution_io.h"
 #include "timers.h"
+#include "local_communication.h"
 
 
 using backend = scfd::backend::current;
@@ -59,6 +60,8 @@ using vec_ops_t     = nmfd::rect_vector_space<scalar, /*dim=*/dim, /*tensor_dim=
 using vector_t      = typename vec_ops_t::vector_type;
 using tensor_t      = scfd::static_vec::vec<scalar, tensor_dim>;
 using vector_view_t = typename vector_t::view_type;
+using communication_t = tests::local_communication<vec_ops_t>;
+using dist_t          = communication_t::dist_type;
 
 // Monitors
 using krylov_monitor_t  = nmfd::solvers::monitor_krylov<vec_ops_t, log_t>;
@@ -74,11 +77,11 @@ using rhs_t         = tests::trig_rhs<scalar, tensor_t, 3, 3, 1>;
 using time_derivative_t = tests::time_derivative<vec_ops_t, tensor_t>;
 
 // MG
-using prolongator_t = tests::prolongator<vec_ops_t, log_t>;
-using restrictor_t  = tests::restrictor<vec_ops_t, log_t>;
-using jacobi_op_t   = tests::jacobi_op<vec_ops_t, log_t, phobic_energy, time_derivative_t, mobility_t>;
+using prolongator_t = tests::prolongator<vec_ops_t, log_t, dist_t>;
+using restrictor_t  = tests::restrictor<vec_ops_t, log_t, dist_t>;
+using jacobi_op_t   = tests::jacobi_op<vec_ops_t, log_t, phobic_energy, time_derivative_t, mobility_t, dist_t>;
 using ident_op_t    = nmfd::preconditioners::dummy<vec_ops_t, jacobi_op_t>;
-using smoother_t    = tests::jacobi_pre<vec_ops_t, log_t, phobic_energy, time_derivative_t, mobility_t>;
+using smoother_t    = tests::jacobi_pre<vec_ops_t, log_t, phobic_energy, time_derivative_t, mobility_t, dist_t>;
 using coarsening_t  = tests::coarsening<jacobi_op_t, log_t>;
 
 using precond_interface = nmfd::preconditioners::preconditioner_interface<vec_ops_t, jacobi_op_t>;
@@ -344,9 +347,10 @@ int main( int argc, char const *argv[] )
     //   +1 = neumann (derivative = 0 at boundary)
     //    0 = periodic (left boundary uses value from N-1, right boundary uses value from 0)
 
-    vector_t solution( range ), exact_solution( range );
+    communication_t communication( range, left_bc, right_bc );
+    vector_t        solution = communication.vector(), exact_solution = communication.vector();
     rhs_t    rhs;
-    auto     vspace = std::make_shared<vec_ops_t>( range );
+    auto            vspace = communication.space;
     {
         vspace->assign_scalar( 0.0, solution );
         vector_view_t exact_view( exact_solution, false );
@@ -373,13 +377,15 @@ int main( int argc, char const *argv[] )
         exact_view.release();
     }
 
-    auto cahn_hilliard_jacobi_op = std::make_shared<jacobi_op_t>( range, step, cond );
-    auto cahn_hilliard_op        = std::make_shared<cahn_hilliard_op_t>( range, step, cond, cahn_hilliard_jacobi_op );
+    auto cahn_hilliard_jacobi_op = std::make_shared<jacobi_op_t>( vspace, step, cond, communication.distributor );
+    auto cahn_hilliard_op        = std::make_shared<cahn_hilliard_op_t>(
+        vspace, step, cond, cahn_hilliard_jacobi_op, cahn_hilliard_jacobi_op->get_time_derivative()
+    );
 
     std::shared_ptr<precond_interface> precond;
     if ( preconditioner_type == "diag" )
     {
-        precond = std::make_shared<smoother_t>( cahn_hilliard_jacobi_op );
+        precond = std::make_shared<smoother_t>( cahn_hilliard_jacobi_op, communication.distributor );
     }
     else if ( preconditioner_type == "mg" )
     {
@@ -387,6 +393,7 @@ int main( int argc, char const *argv[] )
         mg_params_t mg_params;
 
         mg_utils.log              = &log;
+        mg_utils.coarsening       = { communication.part, communication.periodic_flags, communication_t::stencil, dim };
         mg_params.direct_coarse   = false;
         mg_params.num_sweeps_pre  = mg_sweeps_pre;
         mg_params.num_sweeps_post = mg_sweeps_post;
@@ -434,7 +441,7 @@ int main( int argc, char const *argv[] )
     newton_solver->convergence_strategy()->set_tolerance( newton_tol );
 
     // Verify that F(exact_solution) is close to zero
-    vector_t F_exact( range );
+    vector_t F_exact = communication.vector();
     cahn_hilliard_op->apply( exact_solution, F_exact );
     scalar F_exact_norm = vspace->norm_l2( F_exact );
     log.info_f( "Verification: ||F(exact_solution)||_2 = %le", static_cast<double>( F_exact_norm ) );
@@ -451,7 +458,7 @@ int main( int argc, char const *argv[] )
     }
 
     // Final comparison
-    vector_t error( range );
+    vector_t error = communication.vector();
     vspace->assign_lin_comb( scalar( 1 ), solution, scalar( -1 ), exact_solution, error );
     scalar error_norm = vspace->norm_l2( error );
     scalar exact_norm = vspace->norm_l2( exact_solution );
