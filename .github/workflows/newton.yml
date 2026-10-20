@@ -1,6 +1,8 @@
 name: Newton
 
 on:
+  schedule:
+    - cron: '57 4 * * *'
   push:
   pull_request:
   workflow_dispatch:
@@ -17,12 +19,18 @@ on:
 permissions:
   contents: read
 
+env:
+  SCFD_ROOT: ${{ github.workspace }}/contrib/SCFD
+  NMFD_OPERATIONS_ROOT: ${{ github.workspace }}/contrib/nmfd-operations
+  NMFD_LINSOLVERS_ROOT: ${{ github.workspace }}/contrib/nmfd-linsolvers
+
 defaults:
   run:
     shell: bash
 
 jobs:
   cpu:
+    if: github.event_name != 'schedule'
     name: ${{ matrix.compiler }} / ${{ matrix.test }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -50,7 +58,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          submodules: recursive
+          submodules: true
       - name: Install compiler
         run: |
           sudo apt-get update
@@ -66,6 +74,7 @@ jobs:
             BUILD_DIR='build/${{ matrix.compiler }}/${{ matrix.test }}'
 
   mpi:
+    if: github.event_name != 'schedule'
     name: Original Cahn-Hilliard / MPI / ${{ matrix.ranks }} ranks
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -76,18 +85,19 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          submodules: recursive
+          submodules: true
       - run: sudo apt-get update && sudo apt-get install -y openmpi-bin libopenmpi-dev
       - run: make -j2 check_ch_mpi MPI_NP=${{ matrix.ranks }} MPIEXEC_FLAGS=--oversubscribe
 
   sanitizers:
+    if: github.event_name != 'schedule'
     name: GCC / ASan + UBSan
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
         with:
-          submodules: recursive
+          submodules: true
       - name: Build and test
         env:
           ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
@@ -102,8 +112,27 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          submodules: recursive
+          submodules: true
       - name: Build and test
         env:
           CUDA_ARCH: ${{ inputs.cuda_arch }}
         run: make -j2 check_cuda check_headers_cuda BUILD_DIR=build/cuda CUDA_ARCH="$CUDA_ARCH"
+
+  latest-dependencies:
+    name: Latest dependencies / CPU and MPI
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: true
+      - name: Select designated dependency branch tips
+        run: |
+          git submodule update --init --remote --checkout
+          git rev-parse HEAD
+          git submodule status
+      - run: sudo apt-get update && sudo apt-get install -y build-essential make openmpi-bin libopenmpi-dev
+      - name: Verify latest dependencies without changing pins
+        run: |
+          make -j2 test_cpu check_headers_cpu check_ch_original check_ch_mpi \
+            BUILD_DIR=build/latest MPI_NP=2 MPIEXEC_FLAGS=--oversubscribe TEST_OMP_NUM_THREADS=2

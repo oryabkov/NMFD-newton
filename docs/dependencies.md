@@ -1,19 +1,19 @@
 # Solver Dependencies
 
-Initialize with `git submodule update --init --recursive`.
+Initialize direct dependencies with `git submodule update --init`.
 Public solver/backend headers require these include paths:
 
 ```
 include
 contrib/nmfd-linsolvers/include
 contrib/nmfd-operations/include
-contrib/nmfd-operations/contrib/scfd/include
+contrib/SCFD/include
 contrib/json
 ```
 
 `contrib/nmfd-operations` owns the supported operations, spaces, block operators,
-and `nmfd/detail/vector_wrap.h`. Its SCFD pin is used by default; the historical
-direct `contrib/SCFD` checkout remains only for older external builds.
+and `nmfd/detail/vector_wrap.h`. Standalone builds use the direct `contrib/SCFD`
+pin. Dependency repositories' own submodules need not be initialized.
 `contrib/nmfd-linsolvers` owns GMRES, Jacobi, the iterative-solver base, monitors,
 preconditioners, and shared hierarchy helpers. There are no overlapping public
 headers between the two solver repositories, so include order cannot select a
@@ -25,6 +25,19 @@ migration. Jacobi keeps its existing template order and constructors; include
 default paths. Keep operations and SCFD pins compatible across dependencies.
 HYPRE reference headers are in `legacy/operations`, outside the public include
 tree. No supported operations are duplicated in this repository.
+
+## CI Modes
+
+Pinned jobs use committed direct gitlinks. The separate `latest-dependencies`
+job selects the branches declared in `.gitmodules`, logs the tested revisions,
+and verifies CPU solvers, public headers, original CH programs, and MPI. It runs
+on pushes, pull requests, manual dispatch, and daily from the default branch.
+It never commits or pushes changed pins. Run remote updates only in an isolated
+checkout, not over a developer's working trees.
+
+Integrating projects supply `SCFD_ROOT`, `NMFD_OPERATIONS_ROOT`, and
+`NMFD_LINSOLVERS_ROOT` to select one canonical checkout of each library. Ordinary
+builds do not fetch, switch branches, or modify dependency metadata.
 
 ## Verification
 

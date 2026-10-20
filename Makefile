@@ -4,7 +4,7 @@ include $(CONFIG_FILE)
 BUILD_DIR ?= build
 NMFD_OPERATIONS_ROOT ?= contrib/nmfd-operations
 NMFD_LINSOLVERS_ROOT ?= contrib/nmfd-linsolvers
-SCFD_ROOT ?= $(NMFD_OPERATIONS_ROOT)/contrib/scfd
+SCFD_ROOT ?= contrib/SCFD
 CUDA_ROOT ?= /usr/local/cuda
 NVCC ?= $(CUDA_ROOT)/bin/nvcc
 CUDA_ARCH ?= 75
