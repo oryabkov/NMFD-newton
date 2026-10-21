@@ -49,6 +49,8 @@ check_dependencies:
 		{ echo 'Initialize recursive submodules or set NMFD_LINSOLVERS_ROOT'; exit 1; }
 	@test -f $(NMFD_LINSOLVERS_ROOT)/include/nmfd/solvers/jacobi.h || \
 		{ echo 'NMFD-linsolvers must include migrated Jacobi; update the dependency or set NMFD_LINSOLVERS_ROOT'; exit 1; }
+	@test -f $(NMFD_LINSOLVERS_ROOT)/include/nmfd/solvers/dense1_extended_solver.h || \
+		{ echo 'NMFD-linsolvers must include the migrated extended solver; update the dependency or set NMFD_LINSOLVERS_ROOT'; exit 1; }
 	@test -f $(NMFD_OPERATIONS_ROOT)/include/nmfd/detail/vector_wrap.h || \
 		{ echo 'Initialize recursive submodules or set NMFD_OPERATIONS_ROOT'; exit 1; }
 	@test -f $(SCFD_ROOT)/include/scfd/utils/log.h || \

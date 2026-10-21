@@ -17,8 +17,9 @@ pin. Dependency repositories' own submodules need not be initialized.
 `contrib/nmfd-linsolvers` owns GMRES, Jacobi, the iterative-solver base, monitors,
 preconditioners, and shared hierarchy helpers. There are no overlapping public
 headers between the two solver repositories, so include order cannot select a
-different implementation. The bordered solver remains here until its own
-migration. Jacobi keeps its existing template order and constructors; include
+different implementation. The existing `dense1_extended_solver` now also lives
+in NMFD-linsolvers, retaining its public header and interface. Jacobi keeps its
+existing template order and constructors; include
 `nmfd/solvers/jacobi.h` from NMFD-linsolvers without changing client code.
 
 `NMFD_LINSOLVERS_ROOT`, `NMFD_OPERATIONS_ROOT`, and `SCFD_ROOT` can override the
