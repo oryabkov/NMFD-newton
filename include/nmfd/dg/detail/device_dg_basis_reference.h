@@ -1,5 +1,5 @@
-#ifndef __SCFD_DG_DEVICE_DG_BASIS_REFERENCE_H__
-#define __SCFD_DG_DEVICE_DG_BASIS_REFERENCE_H__
+#ifndef __NMFD_DG_DEVICE_DG_BASIS_REFERENCE_H__
+#define __NMFD_DG_DEVICE_DG_BASIS_REFERENCE_H__
 
 #include <cmath>
 
@@ -8,14 +8,14 @@
 
 #include <nmfd/dg/device_dg_qubature_ref.h>
 
-namespace scfd
+namespace nmfd
 {
 namespace dg
 {
 namespace detail
 {
 
-//SCFD_DEVICE_DG_BASIS_REFERENCE_ELEM_TYPES_N
+//NMFD_DEVICE_DG_BASIS_REFERENCE_ELEM_TYPES_N
 
 template <class T, int Dim, int MaxPolyDeg>
 struct device_dg_basis_elem_reference
@@ -70,7 +70,7 @@ struct device_dg_basis_reference
 {
     using elem_ref_t = device_dg_basis_elem_reference<T, Dim, MaxPolyDeg>;
 
-    elem_ref_t elem_refs[SCFD_DEVICE_DG_BASIS_REFERENCE_ELEM_TYPES_N];
+    elem_ref_t elem_refs[NMFD_DEVICE_DG_BASIS_REFERENCE_ELEM_TYPES_N];
 
     __DEVICE_TAG__ const elem_ref_t &get_elem_basis_ref( int elem_type ) const
     {
@@ -3973,6 +3973,6 @@ struct device_dg_basis_reference_init<T, 3, MaxPolyDeg>
 
 } /// namespace detail
 } /// namespace dg
-} /// namespace scfd
+} /// namespace nmfd
 
 #endif

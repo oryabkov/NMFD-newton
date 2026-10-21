@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with SimpleCFD.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef __SCFD_MESH_DEVICE_MESH_IMPL_H__
-#define __SCFD_MESH_DEVICE_MESH_IMPL_H__
+#ifndef __NMFD_MESH_DEVICE_MESH_IMPL_H__
+#define __NMFD_MESH_DEVICE_MESH_IMPL_H__
 
 #include "device_mesh.h"
 #include "device_mesh_funcs.h"
@@ -25,8 +25,8 @@
 
 //TODO do something with possible simultanious several types INSTANTIATE (mesh and elem_ref names conflict)
 //maybe create some kind of DEFINE_TEMPLATE_CONSTANT_BUFFER with explicit template params argumnet
-#define SCFD_DEVICE_MESH_INSTANTIATE( T, MEMORY, DIM, ORD )                                                            \
-    namespace scfd                                                                                                     \
+#define NMFD_DEVICE_MESH_INSTANTIATE( T, MEMORY, DIM, ORD )                                                            \
+    namespace nmfd                                                                                                     \
     {                                                                                                                  \
     namespace mesh                                                                                                     \
     {                                                                                                                  \
@@ -55,9 +55,9 @@
     }                                                                                                                  \
     }                                                                                                                  \
     }                                                                                                                  \
-    template class scfd::mesh::device_mesh<T, MEMORY, DIM, ORD>;
+    template class nmfd::mesh::device_mesh<T, MEMORY, DIM, ORD>;
 
-namespace scfd
+namespace nmfd
 {
 namespace mesh
 {
@@ -82,8 +82,8 @@ void device_mesh<T, Memory, Dim, Ord>::init_elems_data(
     const ForEach &for_each
 )
 {
-    using vec_t            = static_vec::vec<T, dim>;
-    using mat_t            = static_mat::mat<T, dim, dim>;
+    using vec_t            = scfd::static_vec::vec<T, dim>;
+    using mat_t            = scfd::static_mat::mat<T, dim, dim>;
     using host_mesh_t      = host_mesh<BasicMesh>;
     using host_ordinal     = typename host_mesh_t::ordinal_type;
     using elem_reference_t = gmsh_mesh_elem_reference<T>;
@@ -592,7 +592,7 @@ void device_mesh<T, Memory, Dim, Ord>::init_faces_data(
     const ForEach &for_each
 )
 {
-    using vec_t            = static_vec::vec<T, dim>;
+    using vec_t            = scfd::static_vec::vec<T, dim>;
     using host_mesh_t      = host_mesh<BasicMesh>;
     using host_ordinal     = typename host_mesh_t::ordinal_type;
     using elem_reference_t = gmsh_mesh_elem_reference<T>;
@@ -793,6 +793,6 @@ void device_mesh<T, Memory, Dim, Ord>::init_faces_data(
 }
 
 } /// namespace mesh
-} /// namespace scfd
+} /// namespace nmfd
 
 #endif

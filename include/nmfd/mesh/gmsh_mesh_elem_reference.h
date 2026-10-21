@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with SimpleCFD.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef __SCFD_MESH_GMSH_MESH_ELEM_REFERENCE_H__
-#define __SCFD_MESH_GMSH_MESH_ELEM_REFERENCE_H__
+#ifndef __NMFD_MESH_GMSH_MESH_ELEM_REFERENCE_H__
+#define __NMFD_MESH_GMSH_MESH_ELEM_REFERENCE_H__
 
 //TODO mesh/device_tag.h is temporal
 
@@ -69,7 +69,7 @@
 
 */
 
-namespace scfd
+namespace nmfd
 {
 namespace mesh
 {
@@ -87,7 +87,7 @@ namespace mesh
 template <class T, int ElemTypesNum = 8, int MaxFacesNum = 6, int MaxVertsNum = 8, int FaceMaxVertsNum = 4>
 struct gmsh_mesh_elem_reference
 {
-    using vec = static_vec::vec<T, 3>;
+    using vec = scfd::static_vec::vec<T, 3>;
 
     int faces_n[ElemTypesNum];
     int verts_n[ElemTypesNum];
@@ -653,6 +653,6 @@ struct gmsh_mesh_elem_reference
 };
 
 } /// namespace mesh
-} /// namespace scfd
+} /// namespace nmfd
 
 #endif

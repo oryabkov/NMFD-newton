@@ -15,8 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with SimpleCFD.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef __SCFD_MESH_DEVICE_MESH_CALC_PROPS_H__
-#define __SCFD_MESH_DEVICE_MESH_CALC_PROPS_H__
+#ifndef __NMFD_MESH_DEVICE_MESH_CALC_PROPS_H__
+#define __NMFD_MESH_DEVICE_MESH_CALC_PROPS_H__
 
 // TODO move to detail folder
 #include <scfd/arrays/tensorN_array.h>
@@ -29,7 +29,7 @@
 #include "nmfd/mesh/gmsh_mesh_elem_reference.h"
 #include <scfd/for_each/for_each_func_macro.h>
 
-namespace scfd
+namespace nmfd
 {
 namespace mesh
 {
@@ -698,6 +698,6 @@ true); for (int i_ = 0;i_ < map_elems.get_size();++i_)
 
 } // namespace detail
 } // namespace mesh
-} // namespace scfd
+} // namespace nmfd
 
 #endif

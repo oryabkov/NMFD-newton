@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with SimpleCFD.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef __SCFD_CUBATURE_REFERENCE_H__
-#define __SCFD_CUBATURE_REFERENCE_H__
+#ifndef __NMFD_CUBATURE_REFERENCE_H__
+#define __NMFD_CUBATURE_REFERENCE_H__
 
 //TODO mesh/device_tag.h is temporal
 
@@ -31,9 +31,9 @@
 //TODO it would be useful also to have cubature structure for given element and given order (see for example some TODO's in t_DG_tml constructor)
 
 //TODO it must be 8 if we need pyramids! for now we just don't need em.
-#define CUBATURE_REFERENCE_ELEM_TYPES_N 7
+#define NMFD_MESH_CUBATURE_REFERENCE_ELEM_TYPES_N 7
 
-namespace scfd
+namespace nmfd
 {
 namespace mesh
 {
@@ -205,7 +205,7 @@ __DEVICE_TAG__ int get_face_cubature_reference_max_pnts_n( int max_order )
 template <int max_order, class T>
 struct elem_cubature_reference
 {
-    typedef static_vec::vec<T, 3> vec_t;
+    typedef scfd::static_vec::vec<T, 3> vec_t;
 
     static const int max_pnts_n = cubature_reference_max_pnts_n<max_order>::value;
 
@@ -946,16 +946,16 @@ struct elem_cubature_reference
 template <int max_order, class T>
 struct cubature_reference
 {
-    typedef static_vec::vec<T, 3>                 vec_t;
+    typedef scfd::static_vec::vec<T, 3>                 vec_t;
     typedef elem_cubature_reference<max_order, T> elem_cubature_t;
 
     static const int max_pnts_n = cubature_reference_max_pnts_n<max_order>::value;
 
-    /*int       pnts_n[CUBATURE_REFERENCE_ELEM_TYPES_N][max_order+1];
-    T       weights[CUBATURE_REFERENCE_ELEM_TYPES_N][max_order+1][max_pnts_n];
-    vec_t       pnts[CUBATURE_REFERENCE_ELEM_TYPES_N][max_order+1][max_pnts_n];*/
+    /*int       pnts_n[NMFD_MESH_CUBATURE_REFERENCE_ELEM_TYPES_N][max_order+1];
+    T       weights[NMFD_MESH_CUBATURE_REFERENCE_ELEM_TYPES_N][max_order+1][max_pnts_n];
+    vec_t       pnts[NMFD_MESH_CUBATURE_REFERENCE_ELEM_TYPES_N][max_order+1][max_pnts_n];*/
     /// TODO dirty hack!! won't work for 2d solver case
-    elem_cubature_t cubatures[CUBATURE_REFERENCE_ELEM_TYPES_N - 2];
+    elem_cubature_t cubatures[NMFD_MESH_CUBATURE_REFERENCE_ELEM_TYPES_N - 2];
 
     __DEVICE_TAG__ const elem_cubature_t &get_elem_cubature( int elem_type ) const
     {
@@ -1003,6 +1003,6 @@ struct cubature_reference
 };
 
 } /// namespace mesh
-} /// namespace scfd
+} /// namespace nmfd
 
 #endif

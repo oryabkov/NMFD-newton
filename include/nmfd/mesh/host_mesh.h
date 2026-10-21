@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with SimpleCFD.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef __SCFD_MESH_HOST_MESH_H__
-#define __SCFD_MESH_HOST_MESH_H__
+#ifndef __NMFD_MESH_HOST_MESH_H__
+#define __NMFD_MESH_HOST_MESH_H__
 
 #include <memory>
 #include <algorithm>
@@ -33,7 +33,7 @@
 //(last ghost level) including incorrect ones (outer faces). Not a problem if no one will use them but some
 //inconsistency presents.
 
-namespace scfd
+namespace nmfd
 {
 namespace mesh
 {
@@ -78,9 +78,9 @@ public:
     /// In case of inheritance we get it at once
 
     /// Part of nodes interface on this level (just get coords with static_vec result)
-    static_vec::vec<scalar_type, dim> get_node_coords( ordinal_type i ) const
+    scfd::static_vec::vec<scalar_type, dim> get_node_coords( ordinal_type i ) const
     {
-        static_vec::vec<scalar_type, dim> res;
+        scfd::static_vec::vec<scalar_type, dim> res;
         parent_type::get_node_coords( i, res.d );
         return res;
     }
@@ -828,6 +828,6 @@ protected:
 };
 
 } /// namespace mesh
-} /// namespace scfd
+} /// namespace nmfd
 
 #endif

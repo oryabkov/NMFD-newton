@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with SimpleCFD.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef __SCFD_DEVICE_DG_QUBATURE_REF_CONST_DATA_ACCESS_H__
-#define __SCFD_DEVICE_DG_QUBATURE_REF_CONST_DATA_ACCESS_H__
+#ifndef __NMFD_DEVICE_DG_QUBATURE_REF_CONST_DATA_ACCESS_H__
+#define __NMFD_DEVICE_DG_QUBATURE_REF_CONST_DATA_ACCESS_H__
 
 #include <nmfd/mesh/gmsh_mesh_elem_reference.h>
 #include <nmfd/mesh/cubature_reference.h>
@@ -23,7 +23,7 @@
 #include <nmfd/mesh/device_mesh.h>
 #include <nmfd/dg/device_dg_qubature_ref.h>
 
-namespace scfd
+namespace nmfd
 {
 namespace dg
 {
@@ -37,13 +37,13 @@ __DEVICE_TAG__ const mesh::gmsh_mesh_elem_reference<T> &get_elem_ref()
 }
 
 template <class T>
-__DEVICE_TAG__ const mesh::cubature_reference<SCFD_DG_MAX_POLY_ORDER * 2 + 1, T> &get_cub_ref()
+__DEVICE_TAG__ const mesh::cubature_reference<NMFD_DG_MAX_POLY_ORDER * 2 + 1, T> &get_cub_ref()
 {
     //TODO some kind of error
 }
 
 template <class T, int Dim, int MaxPolyDeg>
-__DEVICE_TAG__ const device_dg_basis_reference<T, Dim, SCFD_DG_MAX_POLY_ORDER> &get_basis_ref()
+__DEVICE_TAG__ const device_dg_basis_reference<T, Dim, NMFD_DG_MAX_POLY_ORDER> &get_basis_ref()
 {
     //TODO some kind of error
 }
@@ -62,6 +62,6 @@ __DEVICE_TAG__ const device_dg_qubature_ref<T, Memory, Dim> &get_dg_qubature_ref
 
 } /// namespace detail
 } /// namespace mesh
-} /// namespace scfd
+} /// namespace nmfd
 
 #endif

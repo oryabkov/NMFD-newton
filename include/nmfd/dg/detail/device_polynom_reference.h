@@ -1,10 +1,10 @@
-#ifndef __SCFD_DG_DEVICE_POLYNOM_REFERENCE_H__
-#define __SCFD_DG_DEVICE_POLYNOM_REFERENCE_H__
+#ifndef __NMFD_DG_DEVICE_POLYNOM_REFERENCE_H__
+#define __NMFD_DG_DEVICE_POLYNOM_REFERENCE_H__
 
 #include "polylen_static.h"
 #include "polynom_indexing.h"
 
-namespace scfd
+namespace nmfd
 {
 namespace dg
 {
@@ -61,6 +61,6 @@ struct device_polynom_reference
 
 } /// namespace detail
 } /// namespace dg
-} /// namespace scfd
+} /// namespace nmfd
 
 #endif

@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with SimpleCFD.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef __SCFD_MESH_GMSH_MESH_WRAP_H__
-#define __SCFD_MESH_GMSH_MESH_WRAP_H__
+#ifndef __NMFD_MESH_GMSH_MESH_WRAP_H__
+#define __NMFD_MESH_GMSH_MESH_WRAP_H__
 
 #include <memory>
 #include <stdexcept>
@@ -36,7 +36,7 @@
 #include "detail/face_key.h"
 #include "gmsh_mesh_elem_reference.h"
 
-namespace scfd
+namespace nmfd
 {
 namespace mesh
 {
@@ -68,8 +68,8 @@ public:
 
     /// ISSUE not sure about exmplicit usage of these in BasicMesh
     /// I mean we explicitly add them to BasicMesh concept, is it right?
-    using vec_type = static_vec::vec<scalar_type, dim>;
-    using mat_type = static_mat::mat<scalar_type, dim, dim>;
+    using vec_type = scfd::static_vec::vec<scalar_type, dim>;
+    using mat_type = scfd::static_mat::mat<scalar_type, dim, dim>;
 
 public:
     /// No 'empty' state
@@ -944,6 +944,6 @@ private:
 };
 
 } /// namespace mesh
-} /// namespace scfd
+} /// namespace nmfd
 
 #endif

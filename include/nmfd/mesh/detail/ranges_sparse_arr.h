@@ -14,13 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with SimpleCFD.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef __SCFD_MESH_RANGES_SPARSE_ARR_H__
-#define __SCFD_MESH_RANGES_SPARSE_ARR_H__
+#ifndef __NMFD_MESH_RANGES_SPARSE_ARR_H__
+#define __NMFD_MESH_RANGES_SPARSE_ARR_H__
 
 #include <vector>
 #include "sparse_arr.h"
 
-namespace scfd
+namespace nmfd
 {
 namespace mesh
 {
@@ -111,6 +111,6 @@ struct ranges_sparse_arr
 
 } /// namespace detail
 } /// namespace mesh
-} /// namespace scfd
+} /// namespace nmfd
 
 #endif

@@ -1,7 +1,7 @@
-#ifndef __SCFD_DG_POLYLEN_STATIC_H__
-#define __SCFD_DG_POLYLEN_STATIC_H__
+#ifndef __NMFD_DG_POLYLEN_STATIC_H__
+#define __NMFD_DG_POLYLEN_STATIC_H__
 
-namespace scfd
+namespace nmfd
 {
 namespace dg
 {
@@ -92,6 +92,6 @@ struct polylen_static
 
 } /// namespace detail
 } /// namespace dg
-} /// namespace scfd
+} /// namespace nmfd
 
 #endif

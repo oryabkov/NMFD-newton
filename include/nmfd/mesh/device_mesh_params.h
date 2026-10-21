@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with SimpleCFD.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef __SCFD_MESH_DEVICE_MESH_PARAMS_H__
-#define __SCFD_MESH_DEVICE_MESH_PARAMS_H__
+#ifndef __NMFD_MESH_DEVICE_MESH_PARAMS_H__
+#define __NMFD_MESH_DEVICE_MESH_PARAMS_H__
 
-namespace scfd
+namespace nmfd
 {
 namespace mesh
 {
@@ -64,6 +64,6 @@ struct device_mesh_params
 };
 
 } /// namespace mesh
-} /// namespace scfd
+} /// namespace nmfd
 
 #endif

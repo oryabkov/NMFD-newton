@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with SimpleCFD.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef __SCFD_DEVICE_DG_QUBATURE_REF_H__
-#define __SCFD_DEVICE_DG_QUBATURE_REF_H__
+#ifndef __NMFD_DEVICE_DG_QUBATURE_REF_H__
+#define __NMFD_DEVICE_DG_QUBATURE_REF_H__
 
 #include "scfd/static_mat/mat.h"
 #include <scfd/arrays/array.h>
@@ -23,21 +23,21 @@
 
 #include <nmfd/mesh/device_mesh.h>
 
-#ifndef SCFD_DG_MAX_POLY_ORDER
-#    define SCFD_DG_MAX_POLY_ORDER 2
+#ifndef NMFD_DG_MAX_POLY_ORDER
+#    define NMFD_DG_MAX_POLY_ORDER 2
 #endif
 
-#ifndef SCFD_DEVICE_DG_BASIS_REFERENCE_ELEM_TYPES_N
-#    define SCFD_DEVICE_DG_BASIS_REFERENCE_ELEM_TYPES_N 8
+#ifndef NMFD_DEVICE_DG_BASIS_REFERENCE_ELEM_TYPES_N
+#    define NMFD_DEVICE_DG_BASIS_REFERENCE_ELEM_TYPES_N 8
 #endif
 
-namespace scfd
+namespace nmfd
 {
 namespace dg
 {
 
 //TODO is it really safe?
-using namespace arrays;
+using namespace scfd::arrays;
 
 namespace detail
 {
@@ -61,13 +61,13 @@ struct empty_loc_coords
 };
 
 template <class T, int Dim>
-using elem_jacobi_mat = static_mat::mat<T, Dim, Dim>;
+using elem_jacobi_mat = scfd::static_mat::mat<T, Dim, Dim>;
 
 template <class T, int Dim>
 struct elem_loc_coords
 {
     elem_jacobi_mat<T, Dim> J;
-    static_vec::vec<T, Dim> c0;
+    scfd::static_vec::vec<T, Dim> c0;
 
     __DEVICE_TAG__ const elem_jacobi_mat<T, Dim> &get_jacobi_mat() const
     {
@@ -78,8 +78,8 @@ struct elem_loc_coords
 template <class T, int Dim>
 struct face_loc_coords
 {
-    static_mat::mat<T, Dim, Dim - 1> J;
-    static_vec::vec<T, Dim>          c0;
+    scfd::static_mat::mat<T, Dim, Dim - 1> J;
+    scfd::static_vec::vec<T, Dim>          c0;
 };
 
 template <class T, int Dim, bool is_needed>
@@ -248,7 +248,7 @@ struct device_dg_qubature_ref
     using basis_transition_view_t       = typename basis_transition_t::view_type;
 
     using device_dg_qubature_ref_funcs_t =
-        detail::device_dg_qubature_ref_funcs<T, Memory, Dim, ordinal_type, SCFD_DG_MAX_POLY_ORDER>;
+        detail::device_dg_qubature_ref_funcs<T, Memory, Dim, ordinal_type, NMFD_DG_MAX_POLY_ORDER>;
 
     /// TODO don't like this but otherwise we don't have access to these params in cpu methods
     /// like convert_basis_coeffs_into_monom_coeffs (copy of device_mesh is lost at this stage!)
@@ -471,6 +471,6 @@ struct device_dg_qubature_ref
 };
 
 } /// namespace dg
-} /// namespace scfd
+} /// namespace nmfd
 
 #endif

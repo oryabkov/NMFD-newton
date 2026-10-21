@@ -2,7 +2,7 @@
 #include <iostream>
 #include <nmfd/dg/detail/polynom_indexing.h>
 
-using namespace scfd::dg::detail;
+using namespace nmfd::dg::detail;
 
 static const int poly_deg = 2;
 static const int vars_n   = 5;

@@ -14,19 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with SimpleCFD.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef __SCFD_DEVICE_DG_QUBATURE_REF_IMPL_H__
-#define __SCFD_DEVICE_DG_QUBATURE_REF_IMPL_H__
+#ifndef __NMFD_DEVICE_DG_QUBATURE_REF_IMPL_H__
+#define __NMFD_DEVICE_DG_QUBATURE_REF_IMPL_H__
 
 #include "detail/polynom_indexing.h"
 #include "device_dg_qubature_ref.h"
 #include "device_dg_qubature_ref_funcs.h"
 
-///SCFD_DG_MAX_POLY_ORDER
+///NMFD_DG_MAX_POLY_ORDER
 
 //TODO do something with possible simultanious several types INSTANTIATE (mesh and elem_ref names conflict)
 //maybe create some kind of DEFINE_TEMPLATE_CONSTANT_BUFFER with explicit template params argumnet
-#define SCFD_DEVICE_DG_QUBATURE_REF_INSTANTIATE( T, MEMORY, DIM, ORD, MAX_POLY_ORDER )                                 \
-    namespace scfd                                                                                                     \
+#define NMFD_DEVICE_DG_QUBATURE_REF_INSTANTIATE( T, MEMORY, DIM, ORD, MAX_POLY_ORDER )                                 \
+    namespace nmfd                                                                                                     \
     {                                                                                                                  \
     namespace dg                                                                                                       \
     {                                                                                                                  \
@@ -80,9 +80,9 @@
     }                                                                                                                  \
     }                                                                                                                  \
     }                                                                                                                  \
-    template class scfd::dg::device_dg_qubature_ref<T, MEMORY, DIM>;
+    template class nmfd::dg::device_dg_qubature_ref<T, MEMORY, DIM>;
 
-namespace scfd
+namespace nmfd
 {
 namespace dg
 {
@@ -336,16 +336,16 @@ void device_dg_qubature_ref<T, Memory, Dim>::init(
     const device_mesh_t &device_mesh, int poly_order, int vol_qub_order, int faces_qub_order, const ForEach &for_each
 )
 {
-    if ( poly_order > SCFD_DG_MAX_POLY_ORDER )
-        throw std::runtime_error( "device_dg_qubature_ref::init: poly_order <= SCFD_DG_MAX_POLY_ORDER is violated" );
+    if ( poly_order > NMFD_DG_MAX_POLY_ORDER )
+        throw std::runtime_error( "device_dg_qubature_ref::init: poly_order <= NMFD_DG_MAX_POLY_ORDER is violated" );
     if ( vol_qub_order > poly_order * 2 )
         throw std::runtime_error( "device_dg_qubature_ref::init: vol_qub_order <= poly_order*2 is violated" );
     if ( faces_qub_order > poly_order * 2 + 1 )
         throw std::runtime_error( "device_dg_qubature_ref::init: faces_qub_order <= poly_order*2+1 is violated" );
 
     using elem_reference_t  = mesh::gmsh_mesh_elem_reference<T>;
-    using qub_reference_t   = mesh::cubature_reference<SCFD_DG_MAX_POLY_ORDER * 2 + 1, T>;
-    using basis_reference_t = detail::device_dg_basis_reference<T, Dim, SCFD_DG_MAX_POLY_ORDER>;
+    using qub_reference_t   = mesh::cubature_reference<NMFD_DG_MAX_POLY_ORDER * 2 + 1, T>;
+    using basis_reference_t = detail::device_dg_basis_reference<T, Dim, NMFD_DG_MAX_POLY_ORDER>;
 
     this->poly_order         = poly_order;
     this->vol_qub_order      = vol_qub_order;
@@ -414,7 +414,7 @@ void device_dg_qubature_ref<T, Memory, Dim>::init(
     elem_reference_t  elem_ref_;
     qub_reference_t   qub_ref_;
     basis_reference_t basis_ref_;
-    detail::copy_data_to_const_buf<T, Memory, Dim, ordinal_type, SCFD_DG_MAX_POLY_ORDER>(
+    detail::copy_data_to_const_buf<T, Memory, Dim, ordinal_type, NMFD_DG_MAX_POLY_ORDER>(
         elem_ref_, qub_ref_, basis_ref_, device_mesh, *this
     );
 
@@ -442,6 +442,6 @@ void device_dg_qubature_ref<T, Memory, Dim>::convert_basis_coeffs_into_monom_coe
 }
 
 } /// namespace dg
-} /// namespace scfd
+} /// namespace nmfd
 
 #endif

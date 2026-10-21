@@ -3,7 +3,7 @@
 #include <string>
 #include <nmfd/dg/detail/polynom_indexing.h>
 
-using namespace scfd::dg::detail;
+using namespace nmfd::dg::detail;
 
 #ifndef DEGREE
 #    define DEGREE 3

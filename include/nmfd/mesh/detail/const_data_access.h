@@ -14,11 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with SimpleCFD.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef __SCFD_MESH_DEVICE_MESH_CONST_DATA_ACCESS_H__
-#define __SCFD_MESH_DEVICE_MESH_CONST_DATA_ACCESS_H__
+#ifndef __NMFD_MESH_DEVICE_MESH_CONST_DATA_ACCESS_H__
+#define __NMFD_MESH_DEVICE_MESH_CONST_DATA_ACCESS_H__
 
 #include "scfd/utils/device_tag.h"
-namespace scfd
+namespace nmfd
 {
 namespace mesh
 {
@@ -39,6 +39,6 @@ __DEVICE_TAG__ const gmsh_mesh_elem_reference<T> &get_elem_ref()
 
 } /// namespace detail
 } /// namespace mesh
-} /// namespace scfd
+} /// namespace nmfd
 
 #endif

@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with SimpleCFD.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef __SCFD_DEVICE_DG_QUBATURE_REF_FUNCS_H__
-#define __SCFD_DEVICE_DG_QUBATURE_REF_FUNCS_H__
+#ifndef __NMFD_DEVICE_DG_QUBATURE_REF_FUNCS_H__
+#define __NMFD_DEVICE_DG_QUBATURE_REF_FUNCS_H__
 
 #include <nmfd/mesh/cubature_reference.h>
 #include "detail/const_data_access.h"
@@ -23,7 +23,7 @@
 #include "detail/polynom_indexing.h"
 #include "scfd/utils/scalar_traits.h"
 
-namespace scfd
+namespace nmfd
 {
 namespace dg
 {
@@ -214,7 +214,7 @@ struct device_dg_qubature_ref_funcs
             int                          vol_qub_order = dg_ref().vol_qub_order;
             elem_type_ord_t              elem_type     = mesh().get_elem_type( i );
             T                            det_J         = dg_ref().coords_jacobs_dets( i );
-            static_mat::mat<T, dim, dim> J, J_inv;
+            scfd::static_mat::mat<T, dim, dim> J, J_inv;
             vec_t                        c0;
 
 #pragma unroll
@@ -245,12 +245,12 @@ struct device_dg_qubature_ref_funcs
             {
                 dg_ref().et_qubature_weights( i, pnt_i ) = elem_q_loc.get_weight( vol_qub_order, pnt_i ) * det_J;
 
-                static_vec::vec<T, dim> ref_pnt;
+                scfd::static_vec::vec<T, dim> ref_pnt;
 #pragma unroll
                 for ( int ii1 = 0; ii1 < dim; ++ii1 )
                     ref_pnt[ii1] = elem_q_loc.get_pnt( vol_qub_order, pnt_i, ii1 );
 
-                static_vec::vec<T, dim> g_pnt;
+                scfd::static_vec::vec<T, dim> g_pnt;
 #pragma unroll
                 for ( int ii1 = 0; ii1 < dim; ++ii1 )
                 {
@@ -303,7 +303,7 @@ struct device_dg_qubature_ref_funcs
         {
             elem_type_ord_t face_type = mesh().get_face_type( i );
 
-            static_mat::mat<T, dim, dim - 1> J;
+            scfd::static_mat::mat<T, dim, dim - 1> J;
             T                                integral_mul_J;
             vec_t                            c0;
 
@@ -384,7 +384,7 @@ struct device_dg_qubature_ref_funcs
             int                              faces_qub_order = dg_ref().faces_qub_order;
             elem_type_ord_t                  face_type       = mesh().get_face_type( i );
             T                                mul             = dg_ref().face_coords_integral_muls( i );
-            static_mat::mat<T, dim, dim - 1> J;
+            scfd::static_mat::mat<T, dim, dim - 1> J;
             vec_t                            c0;
 
 #pragma unroll
@@ -412,12 +412,12 @@ struct device_dg_qubature_ref_funcs
             {
                 dg_ref().et_face_qubature_weights( i, pnt_i ) = face_q_loc.get_weight( faces_qub_order, pnt_i ) * mul;
 
-                static_vec::vec<T, dim - 1> ref_pnt;
+                scfd::static_vec::vec<T, dim - 1> ref_pnt;
 #pragma unroll
                 for ( int ii1 = 0; ii1 < dim - 1; ++ii1 )
                     ref_pnt[ii1] = face_q_loc.get_pnt( faces_qub_order, pnt_i, ii1 );
 
-                static_vec::vec<T, dim> g_pnt;
+                scfd::static_vec::vec<T, dim> g_pnt;
 #pragma unroll
                 for ( int ii1 = 0; ii1 < dim; ++ii1 )
                 {
@@ -730,6 +730,6 @@ struct device_dg_qubature_ref_funcs
 
 } /// namespace detail
 } /// namespace dg
-} /// namespace scfd
+} /// namespace nmfd
 
 #endif

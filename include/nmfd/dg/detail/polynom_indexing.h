@@ -1,9 +1,9 @@
-#ifndef __SCFD_POLYNOM_INDEXING_H__
-#define __SCFD_POLYNOM_INDEXING_H__
+#ifndef __NMFD_POLYNOM_INDEXING_H__
+#define __NMFD_POLYNOM_INDEXING_H__
 
 #include <scfd/utils/device_tag.h>
 
-namespace scfd
+namespace nmfd
 {
 namespace dg
 {
@@ -196,6 +196,6 @@ __DEVICE_TAG__ Ord monom_to_polynom_index( Ord vars_n, Ord deg, Ord mon[MaxDeg],
 
 } /// namespace detail
 } /// namespace dg
-} /// namespace scfd
+} /// namespace nmfd
 
 #endif

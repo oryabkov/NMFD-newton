@@ -14,13 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with SimpleCFD.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef __SCFD_MESH_FACE_KEY_H__
-#define __SCFD_MESH_FACE_KEY_H__
+#ifndef __NMFD_MESH_FACE_KEY_H__
+#define __NMFD_MESH_FACE_KEY_H__
 
 #include <algorithm>
 #include <functional>
 
-namespace scfd
+namespace nmfd
 {
 namespace mesh
 {
@@ -158,6 +158,6 @@ struct face_key_hash_func
 
 } /// namespace detail
 } /// namespace mesh
-} /// namespace scfd
+} /// namespace nmfd
 
 #endif

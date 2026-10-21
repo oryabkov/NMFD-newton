@@ -14,15 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with SimpleCFD.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef __SCFD_MESH_DEVICE_MESH_H__
-#define __SCFD_MESH_DEVICE_MESH_H__
+#ifndef __NMFD_MESH_DEVICE_MESH_H__
+#define __NMFD_MESH_DEVICE_MESH_H__
 
 #include <scfd/arrays/array.h>
 #include <scfd/arrays/tensorN_array.h>
 #include "device_mesh_params.h"
 #include "host_mesh.h"
 
-namespace scfd
+namespace nmfd
 {
 namespace mesh
 {
@@ -53,7 +53,7 @@ struct device_mesh_funcs;
 //TODO for now Ord = SCFD_ARRAYS_ORDINAL_TYPE is only supported (arrays don't have Ord template parameter for now)
 
 //TODO is it really safe?
-using namespace arrays;
+using namespace scfd::arrays;
 
 template <class T, class Memory, int Dim = 3, class Ord = SCFD_ARRAYS_ORDINAL_TYPE>
 struct device_mesh
@@ -285,6 +285,6 @@ struct device_mesh
 };
 
 } /// namespace mesh
-} /// namespace scfd
+} /// namespace nmfd
 
 #endif
