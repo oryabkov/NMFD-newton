@@ -44,21 +44,23 @@ namespace solvers
 {
 
 template <
-    class VectorSpace, class Log, class NonlinearOperator, class IterationOperator,
-    class ProjectOperator = operations::ident_operator<VectorSpace>,
-    class QualityFunctor  = operations::zero_functional<VectorSpace>,
+    class VectorSpaceDom, class Log, class NonlinearOperator, class IterationOperator,
+    class ProjectOperator = operations::ident_operator<VectorSpaceDom>,
+    class QualityFunctor  = operations::zero_functional<VectorSpaceDom>,
     class ConvergenceStrategy =
-        default_convergence_strategy<VectorSpace, Log, NonlinearOperator, ProjectOperator, QualityFunctor>>
+        default_convergence_strategy<VectorSpaceDom, Log, NonlinearOperator, ProjectOperator, QualityFunctor>,
+        class VectorSpaceIm = VectorSpaceDom
+        >
 class nonlinear_solver
 {
-    using T                   = typename VectorSpace::scalar_type;
+    using T                   = typename VectorSpaceDom::scalar_type;
     using logged_obj_t        = scfd::utils::logged_obj_base<Log>;
     using logged_obj_params_t = typename logged_obj_t::params;
 
 public:
-    using scalar_type       = typename VectorSpace::scalar_type;
-    using vector_type       = typename VectorSpace::vector_type;
-    using vector_space_type = VectorSpace;
+    using scalar_type       = typename VectorSpaceDom::scalar_type;
+    using vector_type       = typename VectorSpaceDom::vector_type;
+    using vector_space_type = VectorSpaceDom;
 
     struct params : public logged_obj_t::params
     {
@@ -70,20 +72,20 @@ public:
     };
     struct utils
     {
-        std::shared_ptr<VectorSpace> vec_space;
+        std::shared_ptr<VectorSpaceDom> vec_space;
         Log                         *log = nullptr;
         utils()                          = default;
-        utils( std::shared_ptr<VectorSpace> vec_space_, Log *log_ = nullptr )
+        utils( std::shared_ptr<VectorSpaceDom> vec_space_, Log *log_ = nullptr )
             : vec_space( std::move( vec_space_ ) ), log( log_ )
         {
         }
         template <class Backend>
-        utils( Backend &backend, std::shared_ptr<VectorSpace> vec_space )
+        utils( Backend &backend, std::shared_ptr<VectorSpaceDom> vec_space )
             : utils( std::move( vec_space ), &backend.log() )
         {
         }
         template <class Backend>
-        utils( std::shared_ptr<Backend> backend, std::shared_ptr<VectorSpace> vec_space )
+        utils( std::shared_ptr<Backend> backend, std::shared_ptr<VectorSpaceDom> vec_space )
             : utils( std::move( vec_space ) )
         {
             if ( !backend )
@@ -96,7 +98,7 @@ public:
     )
 
     nonlinear_solver(
-        std::shared_ptr<VectorSpace> vec_ops, Log *log, std::shared_ptr<IterationOperator> iter_op,
+        std::shared_ptr<VectorSpaceDom> vec_ops, Log *log, std::shared_ptr<IterationOperator> iter_op,
         std::shared_ptr<ConvergenceStrategy> conv_strat = nullptr
     )
         : vec_ops_( vec_ops ? std::move( vec_ops ) : throw std::invalid_argument( "Newton requires a vector space" ) ),
@@ -209,9 +211,9 @@ public:
     }
 
 private:
-    using vec_wrap_t = ::nmfd::detail::vector_wrap<VectorSpace, false, false>;
+    using vec_wrap_t = ::nmfd::detail::vector_wrap<VectorSpaceDom, false, false>;
 
-    std::shared_ptr<VectorSpace>         vec_ops_;
+    std::shared_ptr<VectorSpaceDom>         vec_ops_;
     std::shared_ptr<NonlinearOperator>   nonlin_op_;
     std::shared_ptr<ProjectOperator>     project_op_;
     std::shared_ptr<QualityFunctor>      quality_func_;
