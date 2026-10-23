@@ -41,10 +41,22 @@ namespace nmfd
 {
 namespace solvers
 {
+// Override only residual assessment; iteration, backtracking and rollback stay shared.
+struct nonlinear_residual_norm
+{
+    template <class Space, class Operator>
+    static auto
+    evaluate( Space &space, Operator &op, const typename Space::vector_type &state, typename Space::vector_type &work )
+    {
+        op.apply( state, work );
+        return space.norm_l2( work );
+    }
+};
+
 template <
     class VectorSpace, class Log, class NonlinearOperator,
     class ProjectOperator = operations::ident_operator<VectorSpace>,
-    class QualityFunctor  = operations::zero_functional<VectorSpace>>
+    class QualityFunctor = operations::zero_functional<VectorSpace>, class ResidualNorm = nonlinear_residual_norm>
 class default_convergence_strategy : public scfd::utils::logged_obj_base<Log>
 {
 private:
@@ -255,8 +267,7 @@ public:
                 return true;
             }
         }
-        nonlin_op->apply( x, *Fx );
-        T normFx = vec_space_->norm_l2( *Fx );
+        T normFx = ResidualNorm::evaluate( *vec_space_, *nonlin_op, x, *Fx );
         if ( !std::isfinite( normFx ) ) //set result_status = 2 if the provided vector is inconsistent
         {
             result_status = 2;
@@ -592,8 +603,7 @@ private:
                 }
             }
         }
-        nonlin_op->apply( x1, *Fx );
-        T normFx1 = vec_space_->norm_l2( *Fx );
+        T normFx1 = ResidualNorm::evaluate( *vec_space_, *nonlin_op, x1, *Fx );
         return { normFx1, returned_ok };
     }
 
