@@ -10,13 +10,16 @@ void test( test_report &report )
     for ( bool full_check : { false, true } )
     {
         typename fixture::params_type p;
-        p.perform_full_check = full_check;
+        p.perform_full_check     = full_check;
+        p.abs_tol                = T( .125 );
+        p.relax_tolerance_factor = T( 8 );
         fixture f( p );
         f.linear->converged = false;
         vector_type x{ T( 2 ) };
         const bool  success = f.solver.solve( &f.problem, nullptr, nullptr, x );
         report.check<T>(
-            !success && f.strategy->get_result_status() == 6 && x[0] == T( 2 ) && f.linear->calls == 1,
+            !success && f.strategy->get_result_status() == 6 && x[0] == T( 2 ) && f.linear->calls == 1 &&
+                !f.strategy->used_relaxed_tolerance(),
             "failed increment is rejected independently of vector validation policy"
         );
         f.linear->converged = true;
@@ -33,6 +36,8 @@ void test( test_report &report )
     {
         typename fixture::params_type p;
         p.max_backtracking_trials = 3;
+        p.abs_tol                 = T( .125 );
+        p.relax_tolerance_factor  = T( 8 );
         fixture f( p );
         f.problem.reference_state  = T( 2 );
         f.problem.invalid_residual = expected == 2;
@@ -41,8 +46,9 @@ void test( test_report &report )
         vector_type x{ T( 2 ) };
         const bool  success = f.solver.solve( &f.problem, nullptr, nullptr, x );
         report.check<T>(
-            !success && f.strategy->get_result_status() == expected && x[0] == T( 2 ),
-            "nonfinite numerical failure returns false without updating state"
+            !success && f.strategy->get_result_status() == expected && x[0] == T( 2 ) &&
+                !f.strategy->used_relaxed_tolerance(),
+            "relaxed tolerance cannot mask nonfinite numerical failures"
         );
         report.check<T>(
             f.problem.trial_calls == ( expected == 3 ? 3u : 0u ),
@@ -132,6 +138,8 @@ void test_projection( test_report &report )
         auto                           space = std::make_shared<typename fixture::space_type>();
         typename strategy_type::params p;
         p.max_backtracking_trials = 2;
+        p.abs_tol                 = T( .125 );
+        p.relax_tolerance_factor  = T( 8 );
         p.newton_weight_threshold = weight_cutoff ? T( .75 ) : T( 1e-12 );
         strategy_type                  strategy( space, nullptr, p );
         typename fixture::problem_type problem;
@@ -141,8 +149,8 @@ void test_projection( test_report &report )
         strategy.check_convergence( &problem, &projection, nullptr, x, dx );
         report.check<T>(
             strategy.check_convergence( &problem, &projection, nullptr, x, dx ) && strategy.get_result_status() == 10 &&
-                x[0] == T( 2 ) && projection.calls == ( weight_cutoff ? 1u : 2u ),
-            "projection failure is preserved at both weight and trial cutoffs"
+                x[0] == T( 2 ) && projection.calls == ( weight_cutoff ? 1u : 2u ) && !strategy.used_relaxed_tolerance(),
+            "relaxed tolerance cannot mask projection failure at weight or trial cutoffs"
         );
         report.check<T>(
             problem.residual_calls == 2 && problem.invalid_state_calls == 0,

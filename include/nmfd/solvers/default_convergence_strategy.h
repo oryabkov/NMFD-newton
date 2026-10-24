@@ -278,7 +278,8 @@ public:
         {
             result_status = 0;
             logged_obj_type::info_f(
-                "iteration %u, residuals n: %le < tol(): %le => finished.", iterations, (double)normFx, (double)tol()
+                "iteration %u, residuals n: %le <= tol(): %le => converged at requested tolerance.", iterations,
+                (double)normFx, (double)tol()
             );
             return true;
         }
@@ -339,6 +340,12 @@ public:
                     finish        = true;
                     break;
                 }
+                // Cache valid improvements before any iteration or backtracking limit is applied.
+                if ( normFx1 <= Fx1_storage_norm_ )
+                {
+                    vec_space_->assign( *x1, *x1_storage );
+                    Fx1_storage_norm_ = normFx1;
+                }
                 if ( ( normFx1 - normFx ) <= prm_.maximum_norm_increase * normFx )
                 {
                     vec_space_->assign( *x1, x );
@@ -376,69 +383,49 @@ public:
                 break;
             }
         } while ( true );
-        //store norm only if the step is successfull
-        if ( prm_.store_norms_history )
-        {
-            norms_evolution.push_back( normFx1 );
-        }
-
-        //auto min_value = *std::min_element(norms_storage.begin(),norms_storage.end());
-        //norms_storage.push_back(normFx1);
         iterations++;
         if ( ( iterations > prm_.max_iters_num ) && ( !finish ) )
         {
             result_status = 9; //maximum iterations reached.
             finish        = true;
         }
-        auto result_status_string = parse_result_status( result_status );
-        auto finish_string        = parse_bool( finish );
-        logged_obj_type::info_f(
-            "iteration: %u, max_iterations: %u, residuals n: %le, n+1: %le, min_value: %le, result_status: %i => %s, "
-            "is_finished = %s, newton_weight = %le, stagnation = %u ",
-            iterations, prm_.max_iters_num, static_cast<double>( normFx ), static_cast<double>( normFx1 ),
-            static_cast<double>( Fx1_storage_norm_ ), result_status, result_status_string.c_str(),
-            finish_string.c_str(), static_cast<double>( newton_weight ), stagnation
-        );
-
-        // store this solution point if the norm is the smalles of all
-        if ( ( ( !std::isfinite( Fx1_storage_norm_ ) ) || ( Fx1_storage_norm_ >= normFx1 ) ) &&
-             ( ( result_status == 1 ) || ( result_status == 4 ) ) )
+        const bool can_relax = result_status == 4 || result_status == 5 || result_status == 8 || result_status == 9;
+        if ( finish && can_relax && std::isfinite( Fx1_storage_norm_ ) )
         {
-            vec_space_->assign( *x1, *x1_storage );
-            Fx1_storage_norm_ = normFx1;
+            vec_space_->assign( *x1_storage, x );
+            normFx1 = Fx1_storage_norm_;
+            if ( normFx1 <= tol() * prm_.relax_tolerance_factor )
+            {
+                used_relaxed_tolerance_ = normFx1 > tol();
+                if ( used_relaxed_tolerance_ )
+                {
+                    logged_obj_type::warning_f(
+                        "Newton is setting relaxed tolerance = %le, solution with norm = %le, requested tolerance = "
+                        "%le, stopping status = %i",
+                        double( tol() * prm_.relax_tolerance_factor ), (double)normFx1, (double)tol(), result_status
+                    );
+                }
+                result_status = 0;
+            }
         }
 
+        if ( prm_.store_norms_history )
+        {
+            norms_evolution.push_back( normFx1 );
+        }
+        auto        result_status_string = parse_result_status( result_status );
+        auto        finish_string        = parse_bool( finish );
+        const char *acceptance           = result_status != 0 ? "none" : used_relaxed_tolerance_ ? "relaxed" : "strict";
+        logged_obj_type::info_f(
+            "iteration: %u, max_iterations: %u, residuals n: %le, n+1: %le, min_value: %le, result_status: %i => %s, "
+            "is_finished = %s, newton_weight = %le, stagnation = %u, acceptance = %s",
+            iterations, prm_.max_iters_num, static_cast<double>( normFx ), static_cast<double>( normFx1 ),
+            static_cast<double>( Fx1_storage_norm_ ), result_status, result_status_string.c_str(),
+            finish_string.c_str(), static_cast<double>( newton_weight ), stagnation, acceptance
+        );
 
         if ( finish )
         {
-            //this sets minimum norm solution that is correct finite solution before solution algorithm stops
-            if ( ( ( std::isfinite( Fx1_storage_norm_ ) ) && ( Fx1_storage_norm_ < normFx1 ) ) )
-            {
-                /// NOTE x1 is actually not needed anymore just for convinience (mb delete it?)
-                vec_space_->assign( *x1_storage, *x1 );
-                vec_space_->assign( *x1_storage, x );
-                normFx1 = Fx1_storage_norm_;
-                //signal that relaxed tolerance converged and put it into vector of signals
-                if ( normFx1 <= tol() * prm_.relax_tolerance_factor )
-                {
-                    logged_obj_type::warning_f(
-                        "Newton is setting relaxed tolerance = %le,  solution with norm = %le",
-                        double( tol() * prm_.relax_tolerance_factor ), (double)normFx1
-                    );
-                    result_status = 0;
-                }
-            }
-
-            /*bool relaxed_tolerance_reached_max = *std::max_element(relaxed_tolerance_reached.begin(),relaxed_tolerance_reached.end());
-            if( relaxed_tolerance_reached_max&&(result_status>0)&&(relaxed_tolerance_reached.size()>0) )
-            {
-                auto min_value = *std::min_element(norms_storage.begin(),norms_storage.end());
-                size_t soluton_num = 0;
-                for(int jjj = 0;jjj<relaxed_tolerance_reached.size();jjj++)
-                {
-                    log->warning_f("continuation::convergence: solution %i: norm = %le, flag = %s, relaxed_tol = %le", soluton_num++, norms_storage[jjj], (relaxed_tolerance_reached[jjj]?"true":"false"), tolerance*relax_tolerance_factor  );
-                }
-            }*/
             //this signals that we couldn't set up the solution with the relaxed tolerance
             if ( result_status > 0 )
             {
@@ -470,14 +457,19 @@ public:
     {
         return result_status;
     }
+    bool used_relaxed_tolerance() const
+    {
+        return used_relaxed_tolerance_;
+    }
     void reset_iterations()
     {
         iterations = 0;
         //reset_weight();
         norms_evolution.clear();
-        stagnation       = 0;
-        increment_ok_    = true; //increment ok
-        Fx_initial_norm_ = 0;
+        stagnation              = 0;
+        increment_ok_           = true; //increment ok
+        Fx_initial_norm_        = 0;
+        used_relaxed_tolerance_ = false;
     }
     /*void reset_weight()
     {
@@ -560,7 +552,8 @@ private:
     unsigned int   iterations;
     unsigned int   stagnation = 0;
     int            result_status;
-    bool           increment_ok_ = true;
+    bool           increment_ok_           = true;
+    bool           used_relaxed_tolerance_ = false;
     vec_wrap_type  x1, x1_storage, Fx;
     T              Fx_initial_norm_ = 0;
     T              Fx1_storage_norm_;

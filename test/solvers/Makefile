@@ -2,6 +2,7 @@
 
 NEWTON_REGRESSION_TESTS = test_newton_failure_reporting.bin test_newton_backtracking.bin test_newton_convergence.bin test_newton_vector_ownership.bin test_newton_backtracking_json.bin test_newton_configuration.bin test_newton_configuration_json.bin test_newton_operator_binding.bin test_newton_dependency_ownership.bin
 NEWTON_REGRESSION_HEADERS = newton_test_fixture.h $(wildcard ../../include/nmfd/solvers/*.h ../../include/nmfd/detail/*.h) $(NMFD_OPERATIONS_ROOT)/include/nmfd/operations/static_vector_space.h $(NMFD_OPERATIONS_ROOT)/include/nmfd/detail/vector_wrap.h
+NEWTON_REGRESSION_HEADERS += $(NMFD_OPERATIONS_ROOT)/include/nmfd/operations/pair_vector_space.h
 
 all: test_gmres.bin test_gmres_mg.bin test_nonlinear_solver.bin test_dense1_extended_solver.bin $(NEWTON_REGRESSION_TESTS)
 

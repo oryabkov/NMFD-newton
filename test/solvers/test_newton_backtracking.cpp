@@ -243,7 +243,8 @@ void test_logging( test_report &report )
     report.check<T>(
         strategy.check_convergence( &problem, nullptr, nullptr, x, dx ) && strategy.get_result_status() == 0 &&
             log.messages.find( "returned_ok: true" ) != std::string::npos &&
-            log.messages.find( "newton_weight = 1.000000e+00, stagnation = 0" ) != std::string::npos,
+            log.messages.find( "newton_weight = 1.000000e+00, stagnation = 0" ) != std::string::npos &&
+            log.messages.find( "acceptance = strict" ) != std::string::npos,
         "formatted trial and iteration logs preserve floating and unsigned arguments"
     );
     log.messages.clear();
@@ -258,6 +259,25 @@ void test_logging( test_report &report )
             log.messages.find( "||x| = 2.000000e+00, relaxed_tol = 1.000000e-06" ) != std::string::npos &&
             log.messages.find( "solution quality = 3.000000e+00" ) != std::string::npos,
         "failure and quality logs preserve floating arguments"
+    );
+    log.messages.clear();
+    p.abs_tol                = T( .125 );
+    p.relax_tolerance_factor = T( 4 );
+    p.max_iters_num          = 1;
+    p.newton_weight_initial  = T( .5 );
+    strategy_type relaxed( space, &log, p );
+    x[0]  = T( 2 );
+    dx[0] = T( -1 );
+    relaxed.check_convergence( &problem, nullptr, nullptr, x, dx );
+    report.check<T>(
+        relaxed.check_convergence( &problem, nullptr, nullptr, x, dx ) && relaxed.used_relaxed_tolerance() &&
+            log.messages.find( "acceptance = relaxed" ) != std::string::npos &&
+            log.messages.find( "result_status: 0" ) != std::string::npos &&
+            log.messages.find( "result_status: 9" ) == std::string::npos &&
+            log.messages.find( "stopping status = 9" ) != std::string::npos &&
+            log.messages.find( "requested tolerance = 1.250000e-01" ) != std::string::npos &&
+            log.messages.find( "solution with norm = 5.000000e-01" ) != std::string::npos,
+        "relaxed acceptance logs the returned residual and final success status"
     );
 }
 
