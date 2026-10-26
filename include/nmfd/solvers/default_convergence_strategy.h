@@ -27,12 +27,14 @@ convergence rules for Newton iterator for continuation process
 #include <stdexcept>
 #include <limits>
 #include <memory>
+#include <type_traits>
 #include <scfd/utils/logged_obj_base.h>
 #include <nmfd/operations/ident_operator.h>
 #include <nmfd/operations/zero_functional.h>
 #include <nmfd/detail/algo_hierarchy_macro.h>
 #include <nmfd/detail/algo_hierarchy_creator.h>
 #include <nmfd/detail/vector_wrap.h>
+#include <nmfd/solvers/krylov/operator_apply.h>
 
 /// TODO check it!
 /// NOTE originally taken from deflated_continuation timesteppers branch source/continuation/convergence_strategy.h 22.07.2025
@@ -84,7 +86,9 @@ public:
         T    newton_weight_mul       = T( 0.5 );
         T    relax_tolerance_factor  = T( 1 );
         bool verbose = true, store_norms_history = false;
-        bool perform_full_check = true;
+        bool perform_full_check               = true;
+        bool allow_inexact_increment          = false;
+        T    maximum_relative_linear_residual = T( 0.1 );
 
 
         params( const std::string &log_pefix = "", const std::string &log_name = "default_convergence_strategy::" )
@@ -109,6 +113,9 @@ public:
             updated.verbose                 = j.value( "verbose", verbose );
             updated.perform_full_check      = j.value( "perform_full_check", perform_full_check );
             updated.store_norms_history     = j.value( "store_norms_history", store_norms_history );
+            updated.allow_inexact_increment = j.value( "allow_inexact_increment", allow_inexact_increment );
+            updated.maximum_relative_linear_residual =
+                j.value( "maximum_relative_linear_residual", maximum_relative_linear_residual );
             validate_parameters( updated );
             *this = std::move( updated );
         }
@@ -129,6 +136,8 @@ public:
                 //{"out_min_resid_norm", out_min_resid_norm},
                 { "verbose", verbose },
                 { "perform_full_check", perform_full_check },
+                { "allow_inexact_increment", allow_inexact_increment },
+                { "maximum_relative_linear_residual", maximum_relative_linear_residual },
                 { "store_norms_history", store_norms_history }
                 //{"divide_out_norms_by_rel_base", divide_out_norms_by_rel_base}
             };
@@ -250,6 +259,43 @@ public:
     {
         increment_ok_ = increment_ok_flag;
     }
+    void set_allow_inexact_increment( bool enabled )
+    {
+        prm_.allow_inexact_increment = enabled;
+    }
+    bool used_inexact_increment() const
+    {
+        return used_inexact_increment_;
+    }
+
+    // Assess the returned correction, not a preconditioned or recursive solver norm.
+    // Reuse trial storage before backtracking; rhs and delta must not alias it.
+    template <class JacobiOperator>
+    bool accept_inexact_increment( const JacobiOperator &jacobi, const T_vec &rhs, const T_vec &delta )
+    {
+        if ( !prm_.allow_inexact_increment )
+            return false;
+        if ( !vec_space_->is_valid_number( rhs ) || !vec_space_->is_valid_number( delta ) )
+            return false;
+        if ( !krylov::apply_operator( jacobi, delta, *x1 ) )
+            return false;
+        vec_space_->add_lin_comb( T( 1 ), rhs, T( -1 ), *x1 );
+        if ( !vec_space_->is_valid_number( *x1 ) )
+            return false;
+        const T    rhs_norm    = vec_space_->norm_l2( rhs );
+        const T    defect_norm = vec_space_->norm_l2( *x1 );
+        const bool accepted    = std::isfinite( rhs_norm ) && std::isfinite( defect_norm ) &&
+                              defect_norm <= prm_.maximum_relative_linear_residual * rhs_norm;
+        if ( accepted )
+        {
+            used_inexact_increment_ = true;
+            logged_obj_type::info_f(
+                "accepted inexact increment: true linear residual = %le, rhs norm = %le, relative limit = %le",
+                double( defect_norm ), double( rhs_norm ), double( prm_.maximum_relative_linear_residual )
+            );
+        }
+        return accepted;
+    }
     bool check_convergence(
         NonlinearOperator *nonlin_op, ProjectOperator *project_op, QualityFunctor *quality_func, T_vec &x,
         T_vec &delta_x
@@ -283,7 +329,7 @@ public:
             );
             return true;
         }
-        if ( !increment_ok_ )
+        if ( !increment_ok_ && !try_inexact_increment( *nonlin_op, x, delta_x ) )
         {
             result_status = 6;
             return true;
@@ -470,6 +516,7 @@ public:
         increment_ok_           = true; //increment ok
         Fx_initial_norm_        = 0;
         used_relaxed_tolerance_ = false;
+        used_inexact_increment_ = false;
     }
     /*void reset_weight()
     {
@@ -481,6 +528,33 @@ public:
     }
 
 private:
+    template <class Operator, class = void>
+    struct has_jacobi_operator : std::false_type
+    {
+    };
+    template <class Operator>
+    struct has_jacobi_operator<Operator, std::void_t<decltype( *std::declval<Operator &>().get_jacobi_operator() )>>
+        : std::true_type
+    {
+    };
+
+    bool try_inexact_increment( NonlinearOperator &op, const T_vec &state, const T_vec &delta )
+    {
+        if ( !prm_.allow_inexact_increment )
+            return false;
+        if constexpr ( has_jacobi_operator<NonlinearOperator>::value )
+        {
+            const auto jacobi = op.get_jacobi_operator();
+            if ( !jacobi )
+                return false;
+            // A custom merit norm need not leave the equation residual in Fx.
+            op.apply( state, *Fx );
+            vec_space_->scale( T( -1 ), *Fx );
+            return accept_inexact_increment( *jacobi, *Fx, delta );
+        }
+        return false;
+    }
+
     static void validate_tolerances( T abs_tol, T rel_tol )
     {
         if ( !std::isfinite( abs_tol ) || !std::isfinite( rel_tol ) || abs_tol < T( 0 ) || rel_tol < T( 0 ) )
@@ -492,6 +566,11 @@ private:
     static void validate_parameters( const params &prm )
     {
         validate_tolerances( prm.abs_tol, prm.rel_tol );
+        if ( !std::isfinite( prm.maximum_relative_linear_residual ) || prm.maximum_relative_linear_residual <= T( 0 ) ||
+             prm.maximum_relative_linear_residual >= T( 1 ) )
+        {
+            throw std::invalid_argument( "Inexact increments require 0 < maximum_relative_linear_residual < 1" );
+        }
         // Match the signed setter and leave room for the terminal iteration count.
         if ( prm.max_iters_num == 0 ||
              prm.max_iters_num > static_cast<unsigned int>( std::numeric_limits<int>::max() ) )
@@ -554,6 +633,7 @@ private:
     int            result_status;
     bool           increment_ok_           = true;
     bool           used_relaxed_tolerance_ = false;
+    bool           used_inexact_increment_ = false;
     vec_wrap_type  x1, x1_storage, Fx;
     T              Fx_initial_norm_ = 0;
     T              Fx1_storage_norm_;

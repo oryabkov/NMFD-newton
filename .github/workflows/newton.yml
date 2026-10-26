@@ -43,6 +43,7 @@ jobs:
           - failure_reporting
           - backtracking
           - convergence
+          - inexact_increment
           - residual_norm
           - vector_ownership
           - configuration

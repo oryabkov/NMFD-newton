@@ -24,9 +24,9 @@ OPERATIONS_HEADERS := $(shell find $(NMFD_OPERATIONS_ROOT)/include -type f \( -n
 LINSOLVER_HEADERS := $(shell find $(NMFD_LINSOLVERS_ROOT)/include -type f -name '*.h' 2>/dev/null)
 TEST_HEADERS := $(CORE_HEADERS) $(LINSOLVER_HEADERS) $(OPERATIONS_HEADERS) $(wildcard test/solvers/*.h)
 
-REGRESSIONS := failure_reporting backtracking convergence residual_norm vector_ownership configuration operator_binding dependency_ownership linsolvers
+REGRESSIONS := failure_reporting backtracking convergence inexact_increment residual_norm vector_ownership configuration operator_binding dependency_ownership linsolvers
 REGRESSION_BINS := $(addprefix $(BUILD_DIR)/test_newton_,$(addsuffix .bin,$(REGRESSIONS)))
-JSON_BINS := $(BUILD_DIR)/test_newton_backtracking_json.bin $(BUILD_DIR)/test_newton_configuration_json.bin $(BUILD_DIR)/test_newton_linsolvers_json.bin
+JSON_BINS := $(BUILD_DIR)/test_newton_backtracking_json.bin $(BUILD_DIR)/test_newton_configuration_json.bin $(BUILD_DIR)/test_newton_linsolvers_json.bin $(BUILD_DIR)/test_newton_inexact_increment_json.bin
 DENSE_TESTS := gmres nonlinear_solver direct_solver newton_direct_solver
 DENSE_CPU_BINS := $(foreach precision,float double,$(addprefix $(BUILD_DIR)/$(precision)/test_,$(addsuffix _dense_cpu.bin,$(DENSE_TESTS))))
 DENSE_CUDA_BINS := $(foreach precision,float double,$(addprefix $(BUILD_DIR)/$(precision)/test_,$(addsuffix _dense_cuda.bin,$(DENSE_TESTS))))
@@ -154,6 +154,12 @@ check_backtracking_json: $(BUILD_DIR)/test_newton_backtracking_json.bin
 check_configuration: check_configuration_json
 check_configuration_json: $(BUILD_DIR)/test_newton_configuration_json.bin
 	OMP_NUM_THREADS=$(TEST_OMP_NUM_THREADS) $(BUILD_DIR)/test_newton_configuration_json.bin
+
+check_inexact_increment: check_inexact_increment_json
+
+.PHONY: check_inexact_increment_json
+check_inexact_increment_json: $(BUILD_DIR)/test_newton_inexact_increment_json.bin
+	OMP_NUM_THREADS=$(TEST_OMP_NUM_THREADS) $(BUILD_DIR)/test_newton_inexact_increment_json.bin
 
 check_linsolvers: $(BUILD_DIR)/test_newton_linsolvers.bin check_linsolvers_json $(BUILD_DIR)/test_newton_linsolvers_reverse.bin
 	OMP_NUM_THREADS=$(TEST_OMP_NUM_THREADS) $(BUILD_DIR)/test_newton_linsolvers.bin
