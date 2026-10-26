@@ -277,7 +277,7 @@ public:
             return false;
         if ( !vec_space_->is_valid_number( rhs ) || !vec_space_->is_valid_number( delta ) )
             return false;
-        if ( !krylov::apply_operator( jacobi, delta, *x1 ) )
+        if ( !apply_jacobi( jacobi, delta, *x1 ) )
             return false;
         vec_space_->add_lin_comb( T( 1 ), rhs, T( -1 ), *x1 );
         if ( !vec_space_->is_valid_number( *x1 ) )
@@ -528,6 +528,46 @@ public:
     }
 
 private:
+    template <class Operator, class = void>
+    struct has_jacobi_apply : std::false_type
+    {
+    };
+    template <class Operator>
+    struct has_jacobi_apply<
+        Operator, std::void_t<decltype( std::declval<const Operator &>()
+                                            .apply( std::declval<const T_vec &>(), std::declval<T_vec &>() ) )>>
+        : std::true_type
+    {
+    };
+
+    template <class Operator, class = void>
+    struct has_jacobi_product : std::false_type
+    {
+    };
+    template <class Operator>
+    struct has_jacobi_product<
+        Operator,
+        std::void_t<
+            decltype( std::declval<T_vec &>() = std::declval<const Operator &>() * std::declval<const T_vec &>() )>>
+        : std::true_type
+    {
+    };
+
+    // Direct solvers may expose a raw matrix rather than an apply() operator.
+    template <class Operator>
+    static bool apply_jacobi( const Operator &jacobi, const T_vec &delta, T_vec &result )
+    {
+        if constexpr ( has_jacobi_apply<Operator>::value )
+            return krylov::apply_operator( jacobi, delta, result );
+        else if constexpr ( has_jacobi_product<Operator>::value )
+        {
+            result = jacobi * delta;
+            return true;
+        }
+        else
+            return false;
+    }
+
     template <class Operator, class = void>
     struct has_jacobi_operator : std::false_type
     {

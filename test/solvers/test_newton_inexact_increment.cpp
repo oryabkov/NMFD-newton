@@ -1,4 +1,5 @@
 #include "newton_test_fixture.h"
+#include <scfd/static_mat/mat.h>
 
 namespace
 {
@@ -79,8 +80,8 @@ void test_newton( test_report &report )
 template <class T>
 struct controlled_jacobi
 {
-    using vector_type            = typename newton_fixture<T>::vector_type;
-    mutable unsigned int calls   = 0;
+    using vector_type          = typename newton_fixture<T>::vector_type;
+    mutable unsigned int calls = 0, products = 0;
     bool                 success = true, nonfinite = false, throws = false;
     bool                 apply( const vector_type &in, vector_type &out ) const
     {
@@ -89,6 +90,11 @@ struct controlled_jacobi
             throw std::runtime_error( "injected Jacobian failure" );
         out[0] = nonfinite ? std::numeric_limits<T>::infinity() : in[0];
         return success;
+    }
+    vector_type operator*( const vector_type &in ) const
+    {
+        ++products;
+        return in;
     }
 };
 
@@ -136,6 +142,98 @@ void test_assessment( test_report &report )
         propagated = true;
     }
     report.check<T>( propagated, "operator exceptions propagate" );
+    report.check<T>( jacobi.products == 0, "apply takes precedence over multiplication, including failures" );
+}
+
+// Coupled linear equations 2*x+y=4, x+3*y=7 have the root (1,2).
+// Like the original direct-solver example, the Jacobian is a raw SCFD matrix.
+// An injected linear failure exercises strict rejection and inexact recovery.
+template <class T>
+struct matrix_problem
+{
+    using vector_type                            = scfd::static_vec::vec<T, 2>;
+    using jacobi_operator_type                   = scfd::static_mat::mat<T, 2, 2>;
+    std::shared_ptr<jacobi_operator_type> jacobi = std::make_shared<jacobi_operator_type>();
+
+    matrix_problem()
+    {
+        ( *jacobi )( 0, 0 ) = T( 2 );
+        ( *jacobi )( 0, 1 ) = ( *jacobi )( 1, 0 ) = T( 1 );
+        ( *jacobi )( 1, 1 )                       = T( 3 );
+    }
+    void apply( const vector_type &state, vector_type &result ) const
+    {
+        result = *jacobi * state;
+        result[0] -= T( 4 );
+        result[1] -= T( 7 );
+    }
+    void set_linearization_point( const vector_type & )
+    {
+    }
+    std::shared_ptr<const jacobi_operator_type> get_jacobi_operator() const
+    {
+        return jacobi;
+    }
+};
+
+template <class T>
+struct matrix_solver
+{
+    using problem_type = matrix_problem<T>;
+    using vector_type  = typename problem_type::vector_type;
+    std::shared_ptr<const typename problem_type::jacobi_operator_type> jacobi;
+    T                                                                  fraction = T( 19 ) / T( 20 );
+
+    void set_operator( std::shared_ptr<const typename problem_type::jacobi_operator_type> op )
+    {
+        jacobi = std::move( op );
+    }
+    bool solve( const vector_type &rhs, vector_type &result ) const
+    {
+        result = inv( *jacobi ) * rhs;
+        result *= fraction;
+        return false;
+    }
+};
+
+template <class T>
+void test_matrix_jacobi( test_report &report )
+{
+    using problem_type   = matrix_problem<T>;
+    using vector_type    = typename problem_type::vector_type;
+    using space_type     = nmfd::operations::static_vector_space<T, 2, vector_type>;
+    using strategy_type  = nmfd::solvers::default_convergence_strategy<space_type, scfd::utils::log_std, problem_type>;
+    using iteration_type = nmfd::solvers::newton_iteration<space_type, problem_type, matrix_solver<T>>;
+    using solver_type = nmfd::solvers::nonlinear_solver<space_type, scfd::utils::log_std, problem_type, iteration_type>;
+    auto         space     = std::make_shared<space_type>();
+    auto         linear    = std::make_shared<matrix_solver<T>>();
+    auto         iteration = std::make_shared<iteration_type>( space, linear );
+    auto         strategy  = std::make_shared<strategy_type>( space, nullptr );
+    solver_type  solver( space, nullptr, iteration, strategy );
+    problem_type problem;
+    for ( bool enabled : { false, true } )
+    {
+        strategy->set_allow_inexact_increment( enabled );
+        vector_type initial{ T( 4 ), T( -3 ) }, state;
+        const bool  converged = solver.solve( &problem, nullptr, nullptr, initial, state );
+        vector_type residual;
+        problem.apply( state, residual );
+        report.check<T>(
+            enabled
+                ? converged && strategy->used_inexact_increment() &&
+                      space->norm_l2( residual ) <= strategy->abs_tol() &&
+                      std::abs( state[0] - T( 1 ) ) <= T( 10 ) * strategy->abs_tol() &&
+                      std::abs( state[1] - T( 2 ) ) <= T( 10 ) * strategy->abs_tol()
+                : !converged && strategy->get_result_status() == 6 && state[0] == initial[0] && state[1] == initial[1],
+            enabled ? "raw matrix supports inexact Newton convergence"
+                    : "raw matrix preserves strict rejection and rollback"
+        );
+    }
+    vector_type rhs{ T( 4 ), T( 7 ) }, delta{ T( .5 ), T( 1 ) };
+    report.check<T>(
+        !strategy->accept_inexact_increment( *problem.jacobi, rhs, delta ),
+        "raw matrix rejects corrections with excessive true defect"
+    );
 }
 
 template <class T>
@@ -189,6 +287,38 @@ struct residual_only
         out[0] = in[0];
     }
 };
+
+struct opaque_jacobi
+{
+};
+struct opaque_problem : residual_only
+{
+    std::shared_ptr<const opaque_jacobi> get_jacobi_operator() const
+    {
+        return std::make_shared<opaque_jacobi>();
+    }
+};
+
+void test_opaque_jacobi( test_report &report )
+{
+    using space_type = newton_fixture<double>::space_type;
+    nmfd::solvers::default_convergence_strategy<space_type, scfd::utils::log_std, opaque_problem> strategy(
+        std::make_shared<space_type>(), nullptr
+    );
+    opaque_problem op;
+    for ( bool enabled : { false, true } )
+    {
+        strategy.reset_iterations();
+        strategy.set_allow_inexact_increment( enabled );
+        strategy.increment_ok( false );
+        newton_fixture<double>::vector_type state{ 1 }, delta{ -1 };
+        report.check<double>(
+            strategy.check_convergence( &op, nullptr, nullptr, state, delta ) && strategy.get_result_status() == 6 &&
+                state[0] == 1 && !strategy.used_inexact_increment(),
+            "unsupported Jacobian compiles and cannot accept an unchecked correction"
+        );
+    }
+}
 }
 
 int main()
@@ -200,6 +330,10 @@ int main()
     test_assessment<float>( report );
     test_assessment<double>( report );
     test_assessment<long double>( report );
+    test_matrix_jacobi<float>( report );
+    test_matrix_jacobi<double>( report );
+    test_matrix_jacobi<long double>( report );
+    test_opaque_jacobi( report );
     test_configuration<float>( report );
     test_configuration<double>( report );
     test_configuration<long double>( report );
