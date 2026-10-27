@@ -61,8 +61,22 @@ using current = hip<Type, Log>;
 } // namespace platform
 } // namespace nmfd
 
+#elif defined( PLATFORM_OMP )
+#    include "omp.h"
+
+namespace nmfd
+{
+namespace platform
+{
+
+template <class Type, class Log = scfd::utils::log_std>
+using current = omp<Type, Log>;
+
+} // namespace platform
+} // namespace nmfd
+
 #else
-#    error "No platform has been chosen (define PLATFORM_SERIAL_CPU or PLATFORM_CUDA)."
+#    error "No platform has been chosen (define PLATFORM_SERIAL_CPU or PLATFORM_CUDA or PLATFORM_HIP or PLATFORM_OMP)."
 #endif
 
 namespace nmfd

@@ -2,6 +2,7 @@
 #include <cmath>
 #include <random>
 
+#include <nmfd/platform/dense_solvers_singleton_impl.h>
 #include <nmfd/platform/platform.h>
 
 #ifndef USE_DOUBLE_PRECISION

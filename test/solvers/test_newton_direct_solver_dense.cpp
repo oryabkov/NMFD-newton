@@ -5,6 +5,7 @@
 
 #include <nmfd/solvers/nonlinear_solver.h>
 #include <nmfd/solvers/newton_iteration.h>
+#include <nmfd/platform/dense_solvers_singleton_impl.h>
 #include <nmfd/platform/platform.h>
 #include <nmfd/operations/matrix_operator.h>
 

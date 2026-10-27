@@ -9,12 +9,12 @@
 
 #include <nmfd/operations/dense_operations_cuda_hip.h>
 
-const double eps = 1e-10;
-
 #ifndef USE_DOUBLE_PRECISION
-using scalar = float;
+using scalar                = float;
+inline constexpr scalar eps = 1e-5f;
 #else
-using scalar = double;
+using scalar                = double;
+inline constexpr scalar eps = 1e-10;
 #endif
 
 int main( int argc, char const *args[] )

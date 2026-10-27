@@ -25,8 +25,8 @@ test_gmres_dense_all: test_gmres_dense_cpu test_gmres_dense_cuda
 test_gmres_dense_cpu: test_gmres_dense.cpp
 	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_ROOT) $(INCLUDE_LOCAL) $(INCLUDE_CONTRIB) -DPLATFORM_SERIAL_CPU $(PRECISION_DEFINE) test_gmres_dense.cpp -o test_gmres_dense_cpu_$(PRECISION_SUFFIX).bin
 
-test_gmres_dense_cuda: test_gmres_dense.cpp dense_solvers_cuda_inst.cu
-	$(CUDACOMPILER) $(CUDAFLAGS) $(INCLUDE_ROOT) $(INCLUDE_LOCAL) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA $(PRECISION_DEFINE) -x cu test_gmres_dense.cpp dense_solvers_cuda_inst.cu -o test_gmres_dense_cuda_$(PRECISION_SUFFIX).bin $(CUDA_SOLVER_LIBS)
+test_gmres_dense_cuda: test_gmres_dense.cpp
+	$(CUDACOMPILER) $(CUDAFLAGS) $(INCLUDE_ROOT) $(INCLUDE_LOCAL) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA $(PRECISION_DEFINE) -x cu test_gmres_dense.cpp -o test_gmres_dense_cuda_$(PRECISION_SUFFIX).bin $(CUDA_SOLVER_LIBS)
 
 test_nonlinear_solver_circle.bin: test_nonlinear_solver_circle.cpp
 	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_ROOT) $(INCLUDE_LOCAL) $(INCLUDE_CONTRIB) test_nonlinear_solver_circle.cpp -o test_nonlinear_solver_circle.bin
@@ -38,8 +38,8 @@ test_nonlinear_solver_dense_all: test_nonlinear_solver_dense_cpu test_nonlinear_
 test_nonlinear_solver_dense_cpu: test_nonlinear_solver_dense.cpp
 	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_ROOT) $(INCLUDE_LOCAL) $(INCLUDE_CONTRIB) -DPLATFORM_SERIAL_CPU $(PRECISION_DEFINE) test_nonlinear_solver_dense.cpp -o test_nonlinear_solver_dense_cpu_$(PRECISION_SUFFIX).bin
 
-test_nonlinear_solver_dense_cuda: test_nonlinear_solver_dense.cpp dense_solvers_cuda_inst.cu
-	$(CUDACOMPILER) $(CUDAFLAGS) $(INCLUDE_ROOT) $(INCLUDE_LOCAL) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA $(PRECISION_DEFINE) -x cu test_nonlinear_solver_dense.cpp dense_solvers_cuda_inst.cu -o test_nonlinear_solver_dense_cuda_$(PRECISION_SUFFIX).bin $(CUDA_SOLVER_LIBS)
+test_nonlinear_solver_dense_cuda: test_nonlinear_solver_dense.cpp
+	$(CUDACOMPILER) $(CUDAFLAGS) $(INCLUDE_ROOT) $(INCLUDE_LOCAL) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA $(PRECISION_DEFINE) -x cu test_nonlinear_solver_dense.cpp -o test_nonlinear_solver_dense_cuda_$(PRECISION_SUFFIX).bin $(CUDA_SOLVER_LIBS)
 
 # test_direct_solver_dense
 
@@ -48,8 +48,8 @@ test_direct_solver_dense_all: test_direct_solver_dense_cpu test_direct_solver_de
 test_direct_solver_dense_cpu: test_direct_solver_dense.cpp
 	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_ROOT) $(INCLUDE_LOCAL) $(INCLUDE_CONTRIB) -DPLATFORM_SERIAL_CPU $(PRECISION_DEFINE) test_direct_solver_dense.cpp -o test_direct_solver_dense_cpu_$(PRECISION_SUFFIX).bin
 
-test_direct_solver_dense_cuda: test_direct_solver_dense.cpp dense_solvers_cuda_inst.cu
-	$(CUDACOMPILER) $(CUDAFLAGS) $(INCLUDE_ROOT) $(INCLUDE_LOCAL) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA $(PRECISION_DEFINE) -x cu test_direct_solver_dense.cpp dense_solvers_cuda_inst.cu -o test_direct_solver_dense_cuda_$(PRECISION_SUFFIX).bin $(CUDA_SOLVER_LIBS)
+test_direct_solver_dense_cuda: test_direct_solver_dense.cpp
+	$(CUDACOMPILER) $(CUDAFLAGS) $(INCLUDE_ROOT) $(INCLUDE_LOCAL) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA $(PRECISION_DEFINE) -x cu test_direct_solver_dense.cpp -o test_direct_solver_dense_cuda_$(PRECISION_SUFFIX).bin $(CUDA_SOLVER_LIBS)
 
 # test_newton_direct_solver_dense
 
@@ -58,5 +58,5 @@ test_newton_direct_solver_dense_all: test_newton_direct_solver_dense_cpu test_ne
 test_newton_direct_solver_dense_cpu: test_newton_direct_solver_dense.cpp
 	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_ROOT) $(INCLUDE_LOCAL) $(INCLUDE_CONTRIB) -DPLATFORM_SERIAL_CPU $(PRECISION_DEFINE) test_newton_direct_solver_dense.cpp -o test_newton_direct_solver_dense_cpu_$(PRECISION_SUFFIX).bin
 
-test_newton_direct_solver_dense_cuda: test_newton_direct_solver_dense.cpp dense_solvers_cuda_inst.cu
-	$(CUDACOMPILER) $(CUDAFLAGS) $(INCLUDE_ROOT) $(INCLUDE_LOCAL) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA $(PRECISION_DEFINE) -x cu test_newton_direct_solver_dense.cpp dense_solvers_cuda_inst.cu -o test_newton_direct_solver_dense_cuda_$(PRECISION_SUFFIX).bin $(CUDA_SOLVER_LIBS)
+test_newton_direct_solver_dense_cuda: test_newton_direct_solver_dense.cpp
+	$(CUDACOMPILER) $(CUDAFLAGS) $(INCLUDE_ROOT) $(INCLUDE_LOCAL) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA $(PRECISION_DEFINE) -x cu test_newton_direct_solver_dense.cpp -o test_newton_direct_solver_dense_cuda_$(PRECISION_SUFFIX).bin $(CUDA_SOLVER_LIBS)

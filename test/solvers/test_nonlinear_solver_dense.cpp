@@ -7,6 +7,7 @@
 #include <nmfd/solvers/newton_iteration.h>
 #include <nmfd/solvers/monitor_krylov.h>
 #include <nmfd/solvers/gmres.h>
+#include <nmfd/platform/dense_solvers_singleton_impl.h>
 #include <nmfd/platform/platform.h>
 #include <nmfd/operations/matrix_operator.h>
 

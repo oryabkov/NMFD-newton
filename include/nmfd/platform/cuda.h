@@ -44,8 +44,6 @@ private:
 public:
     using vector_space_type     = operations::dense_vector_space<traits_type, scfd_backend_type>;
     using dense_operations_type = operations::dense_operations_cuda_hip<Type, scfd_backend_type>;
-    using cublas_t              = scfd::cublas_wrap;
-    using cusolver_t            = scfd::cusolver_wrap;
 
 public:
     log_type &log()
@@ -53,19 +51,7 @@ public:
         return log_;
     }
 
-    cublas_t &cublas()
-    {
-        return scfd::cublas_wrap::inst();
-    }
-
-    cusolver_t &cusolver()
-    {
-        return scfd::cusolver_wrap::inst();
-    }
-
 protected:
-    scfd::cublas_wrap   cublas_{ true };
-    scfd::cusolver_wrap cusolver_{ &cublas_, true };
     log_type            log_;
 };
 

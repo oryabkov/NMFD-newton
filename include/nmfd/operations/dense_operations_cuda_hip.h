@@ -21,6 +21,7 @@ public:
     using scalar_type      = typename parent_t::scalar_type;
     using blas_wrap_type   = typename Backend::blas_wrap_type;
     using solver_wrap_type = typename Backend::solver_wrap_type;
+    using memory_type      = typename Backend::memory_type;
 
 public:
     dense_operations_cuda_hip() = default;
@@ -70,7 +71,7 @@ public:
 
     void solve( const matrix_type &mat, const vector_type &b, vector_type &x ) const
     {
-        auto &cusolver = solver_wrap_type::inst();
+        auto &solver = solver_wrap_type::inst();
 
         const auto n = mat.size_nd()[0];
         parent_t::verify_max_loc_size( n * n + n );
@@ -78,14 +79,11 @@ public:
         scalar_type *const A_buf = parent_t::vt_.get_raw_ptr( parent_t::helper_ );
         scalar_type *const tau   = A_buf + n * n;
 
-        CUDA_SAFE_CALL( cudaMemcpy( A_buf, mat.raw_ptr(), sizeof( scalar_type ) * n * n, cudaMemcpyDeviceToDevice ) );
-        CUDA_SAFE_CALL( cudaMemcpy(
-            parent_t::vt_.get_raw_ptr( x ), parent_t::vt_.get_raw_ptr( b ), sizeof( scalar_type ) * n,
-            cudaMemcpyDeviceToDevice
-        ) );
+        memory_type::copy( sizeof( scalar_type ) * n * n, mat.raw_ptr(), A_buf );
+        memory_type::copy( sizeof( scalar_type ) * n, b.raw_ptr(), parent_t::vt_.get_raw_ptr( x ) );
 
-        cusolver.geqrf( n, n, A_buf, tau );
-        cusolver.gesv_apply_qr( n, A_buf, tau, parent_t::vt_.get_raw_ptr( x ) );
+        solver.geqrf( n, n, A_buf, tau );
+        solver.gesv_apply_qr( n, A_buf, tau, parent_t::vt_.get_raw_ptr( x ) );
     }
 };
 
