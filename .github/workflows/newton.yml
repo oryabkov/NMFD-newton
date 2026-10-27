@@ -50,6 +50,7 @@ jobs:
           - operator_binding
           - dependency_ownership
           - linsolvers
+          - product_space
           - ch_serial
           - ch_omp
           - ch_original

@@ -24,7 +24,7 @@ OPERATIONS_HEADERS := $(shell find $(NMFD_OPERATIONS_ROOT)/include -type f \( -n
 LINSOLVER_HEADERS := $(shell find $(NMFD_LINSOLVERS_ROOT)/include -type f -name '*.h' 2>/dev/null)
 TEST_HEADERS := $(CORE_HEADERS) $(LINSOLVER_HEADERS) $(OPERATIONS_HEADERS) $(wildcard test/solvers/*.h)
 
-REGRESSIONS := failure_reporting backtracking convergence inexact_increment residual_norm vector_ownership configuration operator_binding dependency_ownership linsolvers
+REGRESSIONS := failure_reporting backtracking convergence inexact_increment residual_norm vector_ownership configuration operator_binding dependency_ownership linsolvers product_space
 REGRESSION_BINS := $(addprefix $(BUILD_DIR)/test_newton_,$(addsuffix .bin,$(REGRESSIONS)))
 JSON_BINS := $(BUILD_DIR)/test_newton_backtracking_json.bin $(BUILD_DIR)/test_newton_configuration_json.bin $(BUILD_DIR)/test_newton_linsolvers_json.bin $(BUILD_DIR)/test_newton_inexact_increment_json.bin
 DENSE_TESTS := gmres nonlinear_solver direct_solver newton_direct_solver
