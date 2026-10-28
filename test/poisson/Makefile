@@ -1,22 +1,32 @@
 -include ../common.mk
 
-$(BUILD_DIR):
-	mkdir -p $(BUILD_DIR)
-
 EXTRA_INCLUDE = -I./headers
 
-all: test_jacobi
+# ----- Poisson Jacobi -----
 
-test_jacobi: test_jacobi.cpp | $(BUILD_DIR)
-	$(PLATFORMCXX) $(PLATFORMCXX_FLAGS) $(INCLUDE_CONTRIB) $(PLATFORM_INCLUDE) $(EXTRA_INCLUDE) $(PLATFORM_DEFINE) $(PRECISION_DEFINE) $(PROFILE_DEFINE) -c test_jacobi.cpp -o $(BUILD_DIR)/test_jacobi_$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o
-	$(PLATFORMLINKER) $(BUILD_DIR)/test_jacobi_$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o $(PLATFORMLINKER_FLAGS) -o $(BUILD_DIR)/test_jacobi_$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).bin
+test_poisson_jacobi_cpu: test_poisson_jacobi.cpp
+	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRA_INCLUDE) -DPLATFORM_SERIAL_CPU $(PRECISION_DEFINE) test_poisson_jacobi.cpp -o test_poisson_jacobi_cpu_$(PRECISION_SUFFIX).bin
 
-test_jacobi_mpi:
-	$(MAKE) test_jacobi PLATFORM_MPI=1
+test_poisson_jacobi_omp: test_poisson_jacobi.cpp
+	$(HOSTCOMPILER) $(OMP_FLAGS) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRA_INCLUDE) -DPLATFORM_OMP $(PRECISION_DEFINE) test_poisson_jacobi.cpp -o test_poisson_jacobi_omp_$(PRECISION_SUFFIX).bin
 
-test_gmres: test_gmres.cpp | $(BUILD_DIR)
-	$(PLATFORMCXX) $(PLATFORMCXX_FLAGS) $(INCLUDE_CONTRIB) $(PLATFORM_INCLUDE) $(EXTRA_INCLUDE) $(PLATFORM_DEFINE) $(PRECISION_DEFINE) $(PROFILE_DEFINE) -c test_gmres.cpp -o $(BUILD_DIR)/test_jacobi_$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o
-	$(PLATFORMLINKER) $(BUILD_DIR)/test_jacobi_$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o $(PLATFORMLINKER_FLAGS) -o $(BUILD_DIR)/test_gmres_$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).bin
+test_poisson_jacobi_cuda: test_poisson_jacobi.cpp
+	$(CUDACOMPILER) $(CUDAFLAGS) $(INCLUDE_CONTRIB) $(EXTRA_INCLUDE) -DPLATFORM_CUDA -x cu $(PRECISION_DEFINE) test_poisson_jacobi.cpp -o test_poisson_jacobi_cuda_$(PRECISION_SUFFIX).bin
 
-test_gmresi_mpi:
-	$(MAKE) test_gmres PLATFORM_MPI=1
+
+test_poisson_jacobi_all: test_poisson_jacobi_cpu test_poisson_jacobi_omp test_poisson_jacobi_cuda
+
+# ----- Poissson GMRES -----
+
+test_poisson_gmres_cpu: test_poisson_gmres.cpp
+	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRA_INCLUDE) -DPLATFORM_SERIAL_CPU $(PRECISION_DEFINE) test_poisson_gmres.cpp -o test_poisson_gmres_cpu_$(PRECISION_SUFFIX).bin
+
+test_poisson_gmres_omp: test_poisson_gmres.cpp
+	$(HOSTCOMPILER) $(OMP_FLAGS) $(HOSTFLAGS) $(INCLUDE_CONTRIB) $(EXTRA_INCLUDE) -DPLATFORM_OMP $(PRECISION_DEFINE) test_poisson_gmres.cpp -o test_poisson_gmres_omp_$(PRECISION_SUFFIX).bin
+
+test_poisson_gmres_cuda: test_poisson_gmres.cpp
+	$(CUDACOMPILER) $(CUDAFLAGS) $(INCLUDE_CONTRIB) $(EXTRA_INCLUDE) -DPLATFORM_CUDA -x cu $(PRECISION_DEFINE) test_poisson_gmres.cpp -o test_poisson_gmres_cuda_$(PRECISION_SUFFIX).bin
+
+
+test_poisson_gmres_all: test_poisson_gmres_cpu test_poisson_gmres_omp test_poisson_gmres_cuda
+
