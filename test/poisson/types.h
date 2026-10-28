@@ -8,6 +8,7 @@
 #include <nmfd/solvers/monitor_krylov.h>
 #include <nmfd/solvers/default_monitor.h>
 #include <nmfd/solvers/gmres.h>
+#include <nmfd/solvers/jacobi.h>
 
 #include "device_vector_space.h"
 #include "device_restrictor.h"
@@ -18,7 +19,7 @@
 #include "device_coarsening.h"
 
 #include "include/boundary.h"
-#include "solvers/jacobi.h" //TODO move to nmfd
+// #include "solvers/jacobi.h" //TODO move to nmfd
 
 #include "backend.h"
 
@@ -53,7 +54,7 @@ using mg_params_t = mg_t::params_hierarchy;
 using mg_utils_t  = mg_t::utils_hierarchy;
 
 
-using jacobi_solver    =                jacobi<vec_ops_t, lin_op_t, precond_interface, default_monitor_t, log_t>;
+using jacobi_solver    = nmfd::solvers::jacobi<vec_ops_t, lin_op_t, precond_interface, default_monitor_t, log_t>;
 using gmres_solver     = nmfd::solvers::gmres <vec_ops_t, krylov_monitor_t, log_t, lin_op_t, precond_interface>;
 
 using vector_t         = typename vec_ops_t::vector_type;

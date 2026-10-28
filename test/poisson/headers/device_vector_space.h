@@ -92,14 +92,6 @@ public:
 
 
 public: // Implementing Vector_Operations interface
-    [[nodiscard]] vector_type at(multivector_type& x, ordinal_type m, ordinal_type k_) const //осталось из прошлых версий
-    {
-        if ( k_ < 0 || k_>=m  )
-            throw std::out_of_range("device_vector_space: multivector.at");
-        // assert preferable ?
-        return x.at(k_);
-    }
-
     // multivector interface
     void assign( const multivector_type &mx, ordinal_type m, ordinal_type k_, vector_type &x ) const override
     {
@@ -125,7 +117,7 @@ public: // Implementing Vector_Operations interface
     [[nodiscard]] scalar_type
     scalar_prod_l2( const multivector_type &mx, ordinal_type m, ordinal_type k_, const vector_type &y ) const override
     {
-        return 0;
+        return 0; //TODO
     }
     void add_lin_comb(
         const scalar_type mul_x, const multivector_type &mx, ordinal_type m, ordinal_type k_, const scalar_type mul_y, vector_type &y
