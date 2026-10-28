@@ -51,6 +51,7 @@ jobs:
           - dependency_ownership
           - linsolvers
           - product_space
+          - multiprecision
           - ch_serial
           - ch_omp
           - ch_original
@@ -65,7 +66,7 @@ jobs:
       - name: Install compiler
         run: |
           sudo apt-get update
-          packages=(build-essential make)
+          packages=(build-essential make libboost-dev)
           if [[ '${{ matrix.compiler }}' == clang ]]; then
             packages+=(clang libomp-dev)
           fi
@@ -138,7 +139,7 @@ jobs:
           git submodule update --init --remote --no-fetch --checkout
           git rev-parse HEAD
           git submodule status
-      - run: sudo apt-get update && sudo apt-get install -y build-essential make openmpi-bin libopenmpi-dev
+      - run: sudo apt-get update && sudo apt-get install -y build-essential make libboost-dev openmpi-bin libopenmpi-dev
       - name: Verify latest dependencies without changing pins
         run: |
           make -j2 test_cpu check_headers_cpu check_ch_original check_ch_mpi \

@@ -31,6 +31,7 @@ convergence rules for Newton iterator for continuation process
 #include <scfd/utils/logged_obj_base.h>
 #include <nmfd/operations/ident_operator.h>
 #include <nmfd/operations/zero_functional.h>
+#include <nmfd/operations/backend/math.h>
 #include <nmfd/detail/algo_hierarchy_macro.h>
 #include <nmfd/detail/algo_hierarchy_creator.h>
 #include <nmfd/detail/vector_wrap.h>
@@ -63,6 +64,7 @@ class default_convergence_strategy : public scfd::utils::logged_obj_base<Log>
 {
 private:
     using T             = typename VectorSpace::scalar_type;
+    using math_type     = nmfd::operations::backend::math<void, T>;
     using T_vec         = typename VectorSpace::vector_type;
     using vec_wrap_type = nmfd::detail::vector_wrap<VectorSpace, false, false>;
 
@@ -284,7 +286,7 @@ public:
             return false;
         const T    rhs_norm    = vec_space_->norm_l2( rhs );
         const T    defect_norm = vec_space_->norm_l2( *x1 );
-        const bool accepted    = std::isfinite( rhs_norm ) && std::isfinite( defect_norm ) &&
+        const bool accepted    = math_type::is_finite( rhs_norm ) && math_type::is_finite( defect_norm ) &&
                               defect_norm <= prm_.maximum_relative_linear_residual * rhs_norm;
         if ( accepted )
         {
@@ -314,7 +316,7 @@ public:
             }
         }
         T normFx = ResidualNorm::evaluate( *vec_space_, *nonlin_op, x, *Fx );
-        if ( !std::isfinite( normFx ) ) //set result_status = 2 if the provided vector is inconsistent
+        if ( !math_type::is_finite( normFx ) ) //set result_status = 2 if the provided vector is inconsistent
         {
             result_status = 2;
             //finish = true;
@@ -375,7 +377,7 @@ public:
                 static_cast<double>( normFx1 ), static_cast<double>( newton_weight ),
                 static_cast<double>( prm_.newton_weight_threshold ), parse_bool( update_ret.second ).c_str()
             );
-            if ( update_ret.second && std::isfinite( normFx1 ) )
+            if ( update_ret.second && math_type::is_finite( normFx1 ) )
             {
                 result_status = 1;
                 if ( normFx1 <= tol() ) //converged
@@ -395,7 +397,7 @@ public:
                 if ( ( normFx1 - normFx ) <= prm_.maximum_norm_increase * normFx )
                 {
                     vec_space_->assign( *x1, x );
-                    if ( std::abs( normFx1 - normFx ) < 1.0e-6 * normFx )
+                    if ( math_type::abs( T( normFx1 - normFx ) ) < T( 1.0e-6 ) * normFx )
                     {
                         stagnation++;
                     }
@@ -436,7 +438,7 @@ public:
             finish        = true;
         }
         const bool can_relax = result_status == 4 || result_status == 5 || result_status == 8 || result_status == 9;
-        if ( finish && can_relax && std::isfinite( Fx1_storage_norm_ ) )
+        if ( finish && can_relax && math_type::is_finite( Fx1_storage_norm_ ) )
         {
             vec_space_->assign( *x1_storage, x );
             normFx1 = Fx1_storage_norm_;
@@ -597,7 +599,8 @@ private:
 
     static void validate_tolerances( T abs_tol, T rel_tol )
     {
-        if ( !std::isfinite( abs_tol ) || !std::isfinite( rel_tol ) || abs_tol < T( 0 ) || rel_tol < T( 0 ) )
+        if ( !math_type::is_finite( abs_tol ) || !math_type::is_finite( rel_tol ) || abs_tol < T( 0 ) ||
+             rel_tol < T( 0 ) )
         {
             throw std::invalid_argument( "Newton tolerances must be finite and nonnegative" );
         }
@@ -606,8 +609,8 @@ private:
     static void validate_parameters( const params &prm )
     {
         validate_tolerances( prm.abs_tol, prm.rel_tol );
-        if ( !std::isfinite( prm.maximum_relative_linear_residual ) || prm.maximum_relative_linear_residual <= T( 0 ) ||
-             prm.maximum_relative_linear_residual >= T( 1 ) )
+        if ( !math_type::is_finite( prm.maximum_relative_linear_residual ) ||
+             prm.maximum_relative_linear_residual <= T( 0 ) || prm.maximum_relative_linear_residual >= T( 1 ) )
         {
             throw std::invalid_argument( "Inexact increments require 0 < maximum_relative_linear_residual < 1" );
         }
@@ -617,15 +620,15 @@ private:
         {
             throw std::invalid_argument( "max_iters_num must be in [1, INT_MAX]" );
         }
-        if ( !std::isfinite( prm.relax_tolerance_factor ) || prm.relax_tolerance_factor <= T( 0 ) )
+        if ( !math_type::is_finite( prm.relax_tolerance_factor ) || prm.relax_tolerance_factor <= T( 0 ) )
         {
             throw std::invalid_argument( "relax_tolerance_factor must be finite and positive" );
         }
-        if ( !std::isfinite( prm.maximum_norm_increase ) )
+        if ( !math_type::is_finite( prm.maximum_norm_increase ) )
         {
             throw std::invalid_argument( "maximum_norm_increase must be finite" );
         }
-        if ( !std::isfinite( prm.newton_weight_mul ) || prm.newton_weight_mul <= T( 0 ) ||
+        if ( !math_type::is_finite( prm.newton_weight_mul ) || prm.newton_weight_mul <= T( 0 ) ||
              prm.newton_weight_mul >= T( 1 ) )
         {
             throw std::invalid_argument( "Backtracking requires 0 < newton_weight_mul < 1" );
@@ -657,7 +660,7 @@ private:
         {
             throw std::invalid_argument( "max_backtracking_trials must be positive" );
         }
-        if ( !std::isfinite( initial_weight ) || !std::isfinite( threshold ) || threshold <= T( 0 ) ||
+        if ( !math_type::is_finite( initial_weight ) || !math_type::is_finite( threshold ) || threshold <= T( 0 ) ||
              initial_weight < threshold )
         {
             throw std::invalid_argument( "Backtracking requires finite weights with 0 < threshold <= initial_weight" );
