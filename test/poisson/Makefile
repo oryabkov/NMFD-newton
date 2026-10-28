@@ -13,3 +13,10 @@ test_jacobi: test_jacobi.cpp | $(BUILD_DIR)
 
 test_jacobi_mpi:
 	$(MAKE) test_jacobi PLATFORM_MPI=1
+
+test_gmres: test_gmres.cpp | $(BUILD_DIR)
+	$(PLATFORMCXX) $(PLATFORMCXX_FLAGS) $(INCLUDE_CONTRIB) $(PLATFORM_INCLUDE) $(EXTRA_INCLUDE) $(PLATFORM_DEFINE) $(PRECISION_DEFINE) $(PROFILE_DEFINE) -c test_gmres.cpp -o $(BUILD_DIR)/test_jacobi_$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o
+	$(PLATFORMLINKER) $(BUILD_DIR)/test_jacobi_$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o $(PLATFORMLINKER_FLAGS) -o $(BUILD_DIR)/test_gmres_$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).bin
+
+test_gmresi_mpi:
+	$(MAKE) test_gmres PLATFORM_MPI=1
