@@ -59,7 +59,7 @@ struct static_vector_space
     void stop_use_vectors(Args&&...args)const
     {
     }
-    bool check_is_valid_number(const vector_type &x)const
+    bool is_valid_number(const vector_type &x)const
     {
         for (size_t i = 0;i < Dim;++i)
         {

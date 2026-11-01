@@ -104,9 +104,9 @@ public:
     {
         // TODO: implement
     }
-    bool check_is_valid_number(const vector_type &x)const
+    bool is_valid_number(const vector_type &x)const
     {
-        return vs1->check_is_valid_number(x.first) && vs2->check_is_valid_number(x.second);
+        return vs1->is_valid_number(x.first) && vs2->is_valid_number(x.second);
     }
 
 

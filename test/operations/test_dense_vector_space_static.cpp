@@ -81,14 +81,14 @@ int main( int argc, char const *args[] )
 
     // Test number validity checking
     {
-        if ( vec_space->check_is_valid_number( x ) )
+        if ( vec_space->is_valid_number( x ) )
         {
-            log.info( "✓ `check_is_valid_number(x)` method test passed" );
+            log.info( "✓ `is_valid_number(x)` method test passed" );
             passed_counter++;
         }
         else
         {
-            log.error( "✗ `check_is_valid_number(x)` method test failed" );
+            log.error( "✗ `is_valid_number(x)` method test failed" );
             failed_counter++;
         }
     }

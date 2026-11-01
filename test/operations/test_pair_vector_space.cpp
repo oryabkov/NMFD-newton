@@ -67,14 +67,14 @@ int main(int argc, char const *args[])
     // Test number validity checking
     {
         vector_type x = vector_type(vector1_type{1, 2, 3}, vector2_type{4, 5});
-        if (pair_vec_space.check_is_valid_number(x))
+        if (pair_vec_space.is_valid_number(x))
         {
-            log.info("✓ `check_is_valid_number(x)` method test passed");
+            log.info("✓ `is_valid_number(x)` method test passed");
             passed_counter++;
         }
         else
         {
-            log.error("✗ `check_is_valid_number(x)` method test failed");
+            log.error("✗ `is_valid_number(x)` method test failed");
             failed_counter++;
         }
     }
