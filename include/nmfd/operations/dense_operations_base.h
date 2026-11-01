@@ -9,6 +9,7 @@
 #include <nmfd/operations/detail/scfd_array_traits.h>
 #include <nmfd/operations/dense_vector_space.h>
 #include <nmfd/operations/kernels/dense_operations.h>
+#include <nmfd/operations/detail/backend_traits.h>
 
 namespace nmfd
 {
@@ -79,24 +80,39 @@ public:
         const scalar_type alpha, const matrix_type &mat, const vector_type &x, const scalar_type beta, vector_type &y
     ) const
     {
-        const auto mat_view = mat.create_view( true );
-        const auto x_view   = x.create_view( true );
-        auto       y_view   = y.create_view( true );
-
-        auto sz   = mat.size_nd();
-        auto rows = sz[0];
-        auto cols = sz[1];
-
-        for ( size_t i = 0; i < rows; ++i )
+        if constexpr ( detail::backend_has_cublas_like_wrap<Backend>::value )
         {
-            scalar_type sum = scalar_type{ 0 };
-            for ( size_t j = 0; j < cols; ++j )
-            {
-                sum += mat_view( i, j ) * x_view( j );
-            }
-            y_view( i ) = alpha * sum + beta * y_view( i );
+            using blas_wrap_type = typename Backend::blas_wrap_type;
+            auto      &device_blas = blas_wrap_type::inst();
+            const auto sz          = mat.size_nd();
+            const auto rows        = sz[0];
+            const auto cols        = sz[1];
+            device_blas.gemv(
+                'N', rows, mat.raw_ptr(), cols, rows, alpha, parent_t::vt_.get_raw_ptr( x ), beta,
+                parent_t::vt_.get_raw_ptr( y )
+            );
         }
-        y_view.release( true );
+        else
+        {
+            const auto mat_view = mat.create_view( true );
+            const auto x_view   = x.create_view( true );
+            auto       y_view   = y.create_view( true );
+
+            auto sz   = mat.size_nd();
+            auto rows = sz[0];
+            auto cols = sz[1];
+
+            for ( size_t i = 0; i < rows; ++i )
+            {
+                scalar_type sum = scalar_type{ 0 };
+                for ( size_t j = 0; j < cols; ++j )
+                {
+                    sum += mat_view( i, j ) * x_view( j );
+                }
+                y_view( i ) = alpha * sum + beta * y_view( i );
+            }
+            y_view.release( true );
+        }
     }
     //calc: z := alpha*mat*x + beta*y
     void assign_matrix_vector_prod(
@@ -156,32 +172,58 @@ public:
     [[nodiscard]] std::shared_ptr<matrix_type>
     matrix_matrix_prod( const matrix_type &mat_a, const matrix_type &mat_b ) const
     {
-        auto sz_a = mat_a.size_nd();
-        auto sz_b = mat_b.size_nd();
-        auto m    = sz_a[0];
-        auto k    = sz_a[1];
-        auto n    = sz_b[1];
-
-        auto result = std::make_shared<matrix_type>();
-        result->init( m, n );
-
-        const auto a_view = mat_a.create_view( true );
-        const auto b_view = mat_b.create_view( true );
-        auto       c_view = result->create_view( false );
-
-        for ( size_t i = 0; i < m; ++i )
+        if constexpr ( detail::backend_has_cublas_like_wrap<Backend>::value )
         {
-            for ( size_t j = 0; j < n; ++j )
-            {
-                scalar_type sum = scalar_type{ 0 };
-                for ( size_t p = 0; p < k; ++p )
-                    sum += a_view( i, p ) * b_view( p, j );
-                c_view( i, j ) = sum;
-            }
-        }
+            using blas_wrap_type = typename Backend::blas_wrap_type;
+            auto &device_blas = blas_wrap_type::inst();
 
-        c_view.release( true );
-        return result;
+            const auto sz_a = mat_a.size_nd();
+            const auto sz_b = mat_b.size_nd();
+
+            const auto rows_a        = sz_a[0];
+            const auto cols_a_rows_b = sz_a[1];
+            const auto cols_b        = sz_b[1];
+
+            auto result = std::make_shared<matrix_type>();
+            result->init( rows_a, cols_b );
+            assign_zero_matrix( *result );
+
+            device_blas.gemm(
+                'N', 'N', rows_a, cols_b, cols_a_rows_b, scalar_type{ 1 }, mat_a.raw_ptr(), rows_a, mat_b.raw_ptr(),
+                cols_a_rows_b, scalar_type{ 0 }, result->raw_ptr(), rows_a
+            );
+
+            return result;
+        }
+        else
+        {
+            auto sz_a = mat_a.size_nd();
+            auto sz_b = mat_b.size_nd();
+            auto m    = sz_a[0];
+            auto k    = sz_a[1];
+            auto n    = sz_b[1];
+
+            auto result = std::make_shared<matrix_type>();
+            result->init( m, n );
+
+            const auto a_view = mat_a.create_view( true );
+            const auto b_view = mat_b.create_view( true );
+            auto       c_view = result->create_view( false );
+
+            for ( size_t i = 0; i < m; ++i )
+            {
+                for ( size_t j = 0; j < n; ++j )
+                {
+                    scalar_type sum = scalar_type{ 0 };
+                    for ( size_t p = 0; p < k; ++p )
+                        sum += a_view( i, p ) * b_view( p, j );
+                    c_view( i, j ) = sum;
+                }
+            }
+
+            c_view.release( true );
+            return result;
+        }
     }
 
     /// C = alpha * A + beta * B
@@ -269,23 +311,43 @@ public:
 
     void solve( const matrix_type &mat, const vector_type &b, vector_type &x ) const
     {
-        const auto n = mat.size_nd()[0];
-        parent_t::verify_max_loc_size( n * n );
+        if constexpr ( detail::backend_has_cusolver_like_wrap<Backend>::value )
+        {
+            using solver_wrap_type = typename Backend::solver_wrap_type;
+            auto &solver = solver_wrap_type::inst();
 
-        matrix_type A;
-        A.init_by_raw_data( parent_t::vt_.get_raw_ptr( parent_t::helper_ ), mat.size_nd() );
+            const auto n = mat.size_nd()[0];
+            parent_t::verify_max_loc_size( n * n + n );
 
-        parent_t::assign( b, x );
-        assign_matrix( mat, A );
+            scalar_type *const A_buf = parent_t::vt_.get_raw_ptr( parent_t::helper_ );
+            scalar_type *const tau   = A_buf + n * n;
 
-        auto A_view = A.create_view( true );
-        auto x_view = x.create_view( true );
+            memory_type::copy( sizeof( scalar_type ) * n * n, mat.raw_ptr(), A_buf );
+            memory_type::copy( sizeof( scalar_type ) * n, b.raw_ptr(), parent_t::vt_.get_raw_ptr( x ) );
 
-        gaussian_elimination( A_view, x_view, n );
-        solve_upper_triangular( A_view, x_view, n );
+            solver.geqrf( n, n, A_buf, tau );
+            solver.gesv_apply_qr( n, A_buf, tau, parent_t::vt_.get_raw_ptr( x ) );
+        }
+        else
+        {
+            const auto n = mat.size_nd()[0];
+            parent_t::verify_max_loc_size( n * n );
 
-        A_view.release( false );
-        x_view.release( true );
+            matrix_type A;
+            A.init_by_raw_data( parent_t::vt_.get_raw_ptr( parent_t::helper_ ), mat.size_nd() );
+
+            parent_t::assign( b, x );
+            assign_matrix( mat, A );
+
+            auto A_view = A.create_view( true );
+            auto x_view = x.create_view( true );
+
+            gaussian_elimination( A_view, x_view, n );
+            solve_upper_triangular( A_view, x_view, n );
+
+            A_view.release( false );
+            x_view.release( true );
+        }
     }
 
 

@@ -39,7 +39,10 @@ test_dense_operations_cpu: test_dense_operations.cpp
 test_dense_operations_cuda: test_dense_operations.cpp
 	$(CUDACOMPILER) $(CUDAFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA -x cu $(PRECISION_DEFINE) test_dense_operations.cpp -o test_dense_operations_cuda_$(PRECISION_SUFFIX).bin
 
-# test_dense_operations_cublas (cuBLAS-accelerated)
+# Dense operations benchmarks (CPU or cuBLAS/cuSOLVER)
+
+test_dense_operations_cublas_cpu: test_dense_operations_cublas.cpp
+	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) -DPLATFORM_SERIAL_CPU $(PRECISION_DEFINE) test_dense_operations_cublas.cpp -o test_dense_operations_cublas_cpu_$(PRECISION_SUFFIX).bin
 
 test_dense_operations_cublas: test_dense_operations_cublas.cpp
-	$(CUDACOMPILER) $(CUDAFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA -x cu $(PRECISION_DEFINE) test_dense_operations_cublas.cpp -o test_dense_operations_cublas_$(PRECISION_SUFFIX).bin -lcublas
+	$(CUDACOMPILER) $(CUDAFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA -x cu $(PRECISION_DEFINE) test_dense_operations_cublas.cpp -o test_dense_operations_cublas_$(PRECISION_SUFFIX).bin $(CUDA_SOLVER_LIBS)

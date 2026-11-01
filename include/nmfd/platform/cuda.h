@@ -22,7 +22,7 @@
 #include <scfd/utils/log_std.h>
 #include <scfd/backend/cuda.h>
 
-#include <nmfd/operations/dense_operations_cuda_hip.h>
+#include <nmfd/operations/dense_operations_base.h>
 #include <nmfd/operations/dense_vector_space.h>
 
 namespace nmfd
@@ -43,7 +43,7 @@ private:
 
 public:
     using vector_space_type     = operations::dense_vector_space<traits_type, scfd_backend_type>;
-    using dense_operations_type = operations::dense_operations_cuda_hip<Type, scfd_backend_type>;
+    using dense_operations_type = operations::dense_operations<Type, scfd_backend_type>;
 
 public:
     log_type &log()
@@ -52,7 +52,7 @@ public:
     }
 
 protected:
-    log_type            log_;
+    log_type log_;
 };
 
 } /// namespace platform
