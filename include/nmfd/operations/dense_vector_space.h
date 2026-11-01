@@ -6,6 +6,7 @@
 #include <nmfd/operations/kernels/dense_vector_space.h>
 #include <nmfd/operations/dense_vector_operations.h>
 #include <nmfd/operations/default_multivector_space_base.h>
+#include <nmfd/operations/detail/scfd_array_traits.h>
 
 namespace nmfd
 {
@@ -14,14 +15,14 @@ namespace operations
 
 
 template <class VectorTraits, class Backend, class Ordinal = std::ptrdiff_t>
-class dense_vector_space : public dense_vector_operations<VectorTraits, Backend, Ordinal>,
-                           public default_multivector_factory_base<
-                               dense_vector_space<VectorTraits, Backend, Ordinal>, typename VectorTraits::scalar_type,
-                               typename VectorTraits::vector_type, Ordinal>
+class dense_vector_space_base : public dense_vector_operations_base<VectorTraits, Backend, Ordinal>,
+                                public default_multivector_factory_base<
+                                    dense_vector_space_base<VectorTraits, Backend, Ordinal>,
+                                    typename VectorTraits::scalar_type, typename VectorTraits::vector_type, Ordinal>
 {
 public:
     using vector_type      = typename VectorTraits::vector_type;
-    using parent_t         = dense_vector_operations<VectorTraits, Backend, Ordinal>;
+    using parent_t         = dense_vector_operations_base<VectorTraits, Backend, Ordinal>;
     using scalar_type      = typename VectorTraits::scalar_type;
     using Ord              = Ordinal;
     using ordinal_type     = Ordinal;
@@ -33,11 +34,11 @@ public:
     using parent_t::scalar_prod;
     using parent_t::scalar_prod_l2;
 
-    dense_vector_space() = default;
+    dense_vector_space_base() = default;
 
     template <typename... Args>
-    dense_vector_space( Args &&...args )
-        : dense_vector_operations<VectorTraits, Backend, Ordinal>( std::forward<Args>( args )... )
+    dense_vector_space_base( Args &&...args )
+        : dense_vector_operations_base<VectorTraits, Backend, Ordinal>( std::forward<Args>( args )... )
     {
     }
 
@@ -83,6 +84,10 @@ public:
         return parent_t::vt_.size();
     }
 };
+
+template <class Type, class Backend, class Ordinal = std::ptrdiff_t>
+using dense_vector_space =
+    dense_vector_space_base<detail::scfd_array_traits<Type, typename Backend::memory_type>, Backend, Ordinal>;
 
 } // namespace operations
 

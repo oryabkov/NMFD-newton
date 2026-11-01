@@ -1,11 +1,12 @@
-#ifndef __NMFD_DENSE_VECTOR_OPERATIONS_H__
-#define __NMFD_DENSE_VECTOR_OPERATIONS_H__
+#ifndef __NMFD_DENSE_VECTOR_OPERATIONS_BASE_H__
+#define __NMFD_DENSE_VECTOR_OPERATIONS_BASE_H__
 
 #include <scfd/utils/todo.h>
 
 #include <nmfd/operations/kernels/dense_vector_space.h>
 #include <nmfd/operations/vector_operations_base.h>
 #include <nmfd/operations/default_multivector_operations_base.h>
+#include <nmfd/operations/detail/scfd_array_traits.h>
 
 namespace nmfd
 {
@@ -13,12 +14,13 @@ namespace operations
 {
 
 template <class VectorTraits, class Backend, class Ordinal = std::ptrdiff_t>
-class dense_vector_operations : public default_multivector_operations_base<
-                                    dense_vector_operations<VectorTraits, Backend, Ordinal>,
-                                    typename VectorTraits::scalar_type, typename VectorTraits::vector_type, Ordinal>
+class dense_vector_operations_base
+    : public default_multivector_operations_base<
+          dense_vector_operations_base<VectorTraits, Backend, Ordinal>, typename VectorTraits::scalar_type,
+          typename VectorTraits::vector_type, Ordinal>
 {
     using multivector_operations_base = default_multivector_operations_base<
-        dense_vector_operations<VectorTraits, Backend, Ordinal>, typename VectorTraits::scalar_type,
+        dense_vector_operations_base<VectorTraits, Backend, Ordinal>, typename VectorTraits::scalar_type,
         typename VectorTraits::vector_type, Ordinal>;
 
 public:
@@ -59,10 +61,10 @@ public:
     using multivector_operations_base::scalar_prod_l2;
 
 public:
-    dense_vector_operations() = default;
+    dense_vector_operations_base() = default;
 
     template <typename... Args>
-    dense_vector_operations( Args &&...args ) : vt_( std::forward<Args>( args )... )
+    dense_vector_operations_base( Args &&...args ) : vt_( std::forward<Args>( args )... )
     {
         vt_.alloc( vt_.loc_size(), helper_ );
     }
@@ -373,6 +375,10 @@ protected:
     for_each_type        for_each_inst_;
     reduce_type          reduce_inst_;
 };
+
+template <class Type, class Backend, class Ordinal = std::ptrdiff_t>
+using dense_vector_operations =
+    dense_vector_operations_base<detail::scfd_array_traits<Type, typename Backend::memory_type>, Backend, Ordinal>;
 
 } // namespace operations
 

@@ -20,11 +20,11 @@ template <
     class Type, class Backend, class Ordinal = std::ptrdiff_t,
     /************* Internal usage only ********************************************/
     class VectorTraits = detail::scfd_array_traits<Type, typename Backend::memory_type>>
-class dense_operations : public dense_vector_operations<VectorTraits, Backend, Ordinal>
+class dense_operations : public dense_vector_operations_base<VectorTraits, Backend, Ordinal>
 {
     static constexpr int Dim = 2;
 
-    using parent_t    = dense_vector_operations<VectorTraits, Backend, Ordinal>;
+    using parent_t    = dense_vector_operations_base<VectorTraits, Backend, Ordinal>;
     using traits_type = VectorTraits;
 
 public:
@@ -53,7 +53,7 @@ public:
     using reduce_type      = typename Backend::reduce_type;
     using matrix_type = scfd::arrays::array_nd<scalar_type, Dim, memory_type, scfd::arrays::first_index_fast_arranger>;
     using multivector_type  = typename std::vector<vector_type>;
-    using vector_space_type = dense_vector_space<traits_type, Backend, Ordinal>;
+    using vector_space_type = dense_vector_space_base<traits_type, Backend, Ordinal>;
 
     using matrix_transpose_2d_kernel     = kernels::matrix_transpose_2d<matrix_type>;
     using matrix_assign_2d_kernel        = kernels::matrix_assign_2d<matrix_type>;

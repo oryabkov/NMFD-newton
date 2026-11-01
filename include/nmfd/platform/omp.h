@@ -40,7 +40,7 @@ private:
     using traits_type = operations::detail::scfd_array_traits<Type, memory_type>;
 
 public:
-    using vector_space_type     = operations::dense_vector_space<traits_type, scfd_backend_type>;
+    using vector_space_type     = operations::dense_vector_space<Type, scfd_backend_type>;
     using dense_operations_type = operations::dense_operations<Type, scfd_backend_type>;
 
 public:
