@@ -1,9 +1,16 @@
 #!/bin/bash
 
+set -e
+
+CONFIG_FILE="${1}"
+BUILD_DIR="${2}"
+PLATFORM="${3}"
+PLATFORM_MPI="${4}"
+
 cd solvers
-make test
+make test CONFIG_FILE="${CONFIG_FILE}" BUILD_DIR="${BUILD_DIR}" PLATFORM="${PLATFORM}" PLATFORM_MPI="${PLATFORM_MPI}"
 cd ..
 
-cd detail
-make test
+cd operations
+make test CONFIG_FILE="${CONFIG_FILE}" BUILD_DIR="${BUILD_DIR}" PLATFORM="${PLATFORM}" PLATFORM_MPI="${PLATFORM_MPI}"
 cd ..

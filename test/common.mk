@@ -9,29 +9,33 @@ endif
 
 -include $(CONFIG_FILE)
 
-ifndef TARGET_GCC
-TARGET_GCC =
-endif
 
-ifndef TARGET_NVCC
-TARGET_NVCC =
-endif
+# ----- Config defaults -----
 
-ifndef CUDA_ROOT_PATH
-CUDA_ROOT_PATH =
-endif
+TARGET_GCC ?=
+TARGET_NVCC ?=
+CUDA_ROOT_PATH ?=
+BOOST_INCLUDE ?=
+AMGCL_INCLUDE ?=
+FLOAT_TYPE ?= float
+USE_APPLE_OMP ?= False
+PLATFORM ?= cpu
+PLATFORM_MPI ?= 0
+CUDA_AWARE_MPI ?= False
+ENABLE_PROFILING ?= False
+BUILD_DIR ?= bin
 
-ifndef BOOST_INCLUDE
-BOOST_INCLUDE =
-endif
 
-ifndef AMGCL_INCLUDE
-AMGCL_INCLUDE =
-endif
+# ----- Paths -----
 
-ifndef FLOAT_TYPE
-FLOAT_TYPE = float
-endif
+PROJECT_ROOT_PATH = ../..
+SCFD_INCLUDE = $(PROJECT_ROOT_PATH)/contrib/SCFD/include
+NMFD_INCLUDE = $(PROJECT_ROOT_PATH)/include
+CLI11_INCLUDE = $(PROJECT_ROOT_PATH)/contrib/CLI11/include
+INCLUDE_CONTRIB = -I$(SCFD_INCLUDE) -I$(NMFD_INCLUDE) -I$(CLI11_INCLUDE)
+
+
+# ----- Precision -----
 
 ifeq ($(FLOAT_TYPE),double)
 PRECISION_SUFFIX = d
@@ -41,42 +45,106 @@ PRECISION_SUFFIX = f
 PRECISION_DEFINE =
 endif
 
-ifndef USE_APPLE_OMP
-USE_APPLE_OMP = False
+
+# ----- Profiling -----
+
+ifeq ($(ENABLE_PROFILING),True)
+PROFILE_DEFINE = -DSCFD_ENABLE_PROFILING
+else
+PROFILE_DEFINE =
 endif
 
-PROJECT_ROOT_PATH = ../..
-SCFD_INCLUDE = $(PROJECT_ROOT_PATH)/contrib/SCFD/include
-NMFD_INCLUDE = $(PROJECT_ROOT_PATH)/include
-#INCLUDE_ROOT = -I$(PROJECT_ROOT_PATH)/sourse
-#INCLUDE_LOCAL = -I$(PROJECT_ROOT_PATH)/sourse/solver
-INCLUDE_CONTRIB = -I$(SCFD_INCLUDE) -I$(NMFD_INCLUDE)
+
+# ----- Host -----
+
+HOSTCOMPILER = g++
+HOSTFLAGS = $(TARGET_GCC) -std=c++17
 
 ifeq ($(USE_APPLE_OMP),True)
-	OMP_FLAGS = -Xpreprocessor -fopenmp -lomp -I/opt/homebrew/opt/libomp/include -L/opt/homebrew/opt/libomp/lib
+OMP_FLAGS = -Xpreprocessor -fopenmp -lomp -I/opt/homebrew/opt/libomp/include -L/opt/homebrew/opt/libomp/lib
 else
-	OMP_FLAGS = -fopenmp
+OMP_FLAGS = -fopenmp
 endif
 
-HOSTFLAGS = $(TARGET_GCC) -std=c++17
-HOSTCOMPILER = g++
+
+# ----- CUDA -----
 
 ifneq ($(strip $(CUDA_ARCH)),)
-CUDA_ARCH_FLAG = -arch=$(CUDA_ARCH)
+# CUDA_ARCH_FLAG = -arch=$(CUDA_ARCH)
+# CUDA_ARCH may list several sm_XX targets (e.g. "sm_70 sm_80") to build one fat binary
+# that runs on all of them, instead of a single -arch=sm_XX tied to one GPU generation.
+CUDA_ARCH_FLAG = $(foreach arch,$(CUDA_ARCH),-gencode arch=compute_$(patsubst sm_%,%,$(arch)),code=$(arch))
 endif
 CUDAFLAGS = $(TARGET_NVCC) -std=c++17 $(CUDA_ARCH_FLAG)
+
 ifneq ($(strip $(CUDA_ROOT_PATH)),)
 CUDACOMPILER = $(CUDA_ROOT_PATH)/bin/nvcc
+CUDA_LIB_PATH = -L$(CUDA_ROOT_PATH)/lib64
 else
 CUDACOMPILER = nvcc
+# Resolve PATH entries and symlinks so an MPI linker can find the CUDA libraries.
+CUDA_NVCC_PATH := $(realpath $(shell command -v $(CUDACOMPILER) 2>/dev/null))
+ifneq ($(CUDA_NVCC_PATH),)
+CUDA_LIB_PATH = -L$(abspath $(dir $(CUDA_NVCC_PATH))/../lib64)
+else
+CUDA_LIB_PATH =
+endif
 endif
 
-CUDA_SOLVER_LIBS = -lcublas -lcusolver
+CUDA_SOLVER_LIBS = $(CUDA_LIB_PATH) -lcublas -lcusolver
 
-#MPICOMPILER = $(MPI_ROOT_PATH)/bin/mpic++
-#SM = $(CUDA_ARCH)
-#MPI = $(MPI_ROOT_PATH)
-#HYPRELIBRARY = -lHYPRE
-#CUDALIBRARIES = -lcudart -lcurand -lcusparse -lcublas
+
+# ----- MPI -----
+
+MPICXX ?= mpic++
+INCLUDE_MPI := $(filter -I%,$(shell $(MPICXX) -show 2>/dev/null))
+
+
+# ----- Platform -----
+
+ifeq ($(PLATFORM),cpu)
+PLATFORMCXX = $(HOSTCOMPILER)
+PLATFORMCXX_FLAGS = $(HOSTFLAGS)
+PLATFORMCXX_LINK_FLAGS =
+PLATFORM_DEFINE = -DPLATFORM_SERIAL_CPU
+PLATFORM_SUFFIX = cpu
+MPICXX_FLAGS =
+else ifeq ($(PLATFORM),omp)
+PLATFORMCXX = $(HOSTCOMPILER)
+PLATFORMCXX_FLAGS = $(HOSTFLAGS) $(OMP_FLAGS)
+PLATFORMCXX_LINK_FLAGS = $(OMP_FLAGS)
+PLATFORM_DEFINE = -DPLATFORM_OMP
+PLATFORM_SUFFIX = omp
+MPICXX_FLAGS = $(OMP_FLAGS)
+else ifeq ($(PLATFORM),cuda)
+PLATFORMCXX = $(CUDACOMPILER)
+PLATFORMCXX_FLAGS = $(CUDAFLAGS) -x cu
+PLATFORMCXX_LINK_FLAGS = $(CUDA_SOLVER_LIBS)
+PLATFORM_DEFINE = -DPLATFORM_CUDA
+PLATFORM_SUFFIX = cuda
+MPICXX_FLAGS = $(CUDA_SOLVER_LIBS) -lcudart
+else
+$(error Unknown PLATFORM '$(PLATFORM)'. Supported values: cpu, omp, cuda)
+endif
+
+
+# ----- Platform linker -----
+
+ifeq ($(PLATFORM_MPI),1)
+PLATFORMLINKER = $(MPICXX)
+PLATFORMLINKER_FLAGS = $(MPICXX_FLAGS)
+PLATFORM_INCLUDE = $(INCLUDE_MPI)
+PLATFORM_DEFINE += -DSCFD_BACKEND_ENABLE_MPI
+ifeq ($(CUDA_AWARE_MPI),True)
+PLATFORM_DEFINE += -DSCFD_COMMUNICATION_ENABLE_CUDA_AWARE_MPI
+endif
+PLATFORM_SUFFIX := $(PLATFORM_SUFFIX)_mpi
+else
+PLATFORMLINKER = $(PLATFORMCXX)
+PLATFORMLINKER_FLAGS = $(PLATFORMCXX_LINK_FLAGS)
+PLATFORM_INCLUDE =
+endif
+
+# Compatibility with existing test Makefiles.
 IPROJECT = ${INCLUDE_CONTRIB}
 LPROJECT = -ldl

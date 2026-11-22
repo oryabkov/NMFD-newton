@@ -1,48 +1,44 @@
 -include ../common.mk
 
-all: test_static_vector_space test_pair_vector_space test_dense1_extended_operator
+.DEFAULT_GOAL := all
 
-test_static_vector_space: test_static_vector_space.cpp
-	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) test_static_vector_space.cpp -o test_static_vector_space.bin
+EXTRA_FLAGS = -DSCFD_ARRAYS_ENABLE_INDEX_SHIFT=1
 
-test_pair_vector_space: test_pair_vector_space.cpp
-	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) test_pair_vector_space.cpp -o test_pair_vector_space.bin
+.PHONY: all test_static_vector_space test_pair_vector_space test_dense1_extended_operator test_rect_vector_space test_dense_vector_space test_dense_vector_space_static test_dense_operations test_dense_operations_benchmarks
 
-test_dense1_extended_operator: test_dense1_extended_operator.cpp
-	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) test_dense1_extended_operator.cpp -o test_dense1_extended_operator.bin
+all: test_static_vector_space test_pair_vector_space test_dense1_extended_operator test_rect_vector_space test_dense_vector_space test_dense_vector_space_static test_dense_operations test_dense_operations_benchmarks
 
-test_rect_vector_space: test_rect_vector_space.cpp
-	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) test_rect_vector_space.cpp -o test_rect_vector_space.bin
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
 
-# test_dense_vector_space
+test_static_vector_space: test_static_vector_space.cpp | $(BUILD_DIR)
+	$(PLATFORMCXX) $(PLATFORMCXX_FLAGS) $(INCLUDE_CONTRIB) $(PLATFORM_INCLUDE) $(PLATFORM_DEFINE) $(PRECISION_DEFINE) $(PROFILE_DEFINE) $(EXTRA_FLAGS) -c test_static_vector_space.cpp -o $(BUILD_DIR)/test_static_vector_space_$(PRECISION_SUFFIX).o
+	$(PLATFORMLINKER) $(BUILD_DIR)/test_static_vector_space_$(PRECISION_SUFFIX).o $(PLATFORMLINKER_FLAGS) -o $(BUILD_DIR)/test_static_vector_space_$(PRECISION_SUFFIX).bin
 
-test_dense_vector_space_all: test_dense_vector_space_cpu test_dense_vector_space_cuda
+test_pair_vector_space: test_pair_vector_space.cpp | $(BUILD_DIR)
+	$(PLATFORMCXX) $(PLATFORMCXX_FLAGS) $(INCLUDE_CONTRIB) $(PLATFORM_INCLUDE) $(PLATFORM_DEFINE) $(PRECISION_DEFINE) $(PROFILE_DEFINE) $(EXTRA_FLAGS) -c test_pair_vector_space.cpp -o $(BUILD_DIR)/test_pair_vector_space_$(PRECISION_SUFFIX).o
+	$(PLATFORMLINKER) $(BUILD_DIR)/test_pair_vector_space_$(PRECISION_SUFFIX).o $(PLATFORMLINKER_FLAGS) -o $(BUILD_DIR)/test_pair_vector_space_$(PRECISION_SUFFIX).bin
 
-test_dense_vector_space_cpu: test_dense_vector_space.cpp
-	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) -DPLATFORM_SERIAL_CPU $(PRECISION_DEFINE) test_dense_vector_space.cpp -o test_dense_vector_space_cpu_$(PRECISION_SUFFIX).bin
+test_dense1_extended_operator: test_dense1_extended_operator.cpp | $(BUILD_DIR)
+	$(PLATFORMCXX) $(PLATFORMCXX_FLAGS) $(INCLUDE_CONTRIB) $(PLATFORM_INCLUDE) $(PLATFORM_DEFINE) $(PRECISION_DEFINE) $(PROFILE_DEFINE) $(EXTRA_FLAGS) -c test_dense1_extended_operator.cpp -o $(BUILD_DIR)/test_dense1_extended_operator_$(PRECISION_SUFFIX).o
+	$(PLATFORMLINKER) $(BUILD_DIR)/test_dense1_extended_operator_$(PRECISION_SUFFIX).o $(PLATFORMLINKER_FLAGS) -o $(BUILD_DIR)/test_dense1_extended_operator_$(PRECISION_SUFFIX).bin
 
-test_dense_vector_space_cuda: test_dense_vector_space.cpp
-	$(CUDACOMPILER) $(CUDAFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA -x cu $(PRECISION_DEFINE) test_dense_vector_space.cpp -o test_dense_vector_space_cuda_$(PRECISION_SUFFIX).bin
+test_rect_vector_space: test_rect_vector_space.cpp | $(BUILD_DIR)
+	$(PLATFORMCXX) $(PLATFORMCXX_FLAGS) $(INCLUDE_CONTRIB) $(PLATFORM_INCLUDE) $(PLATFORM_DEFINE) $(PRECISION_DEFINE) $(PROFILE_DEFINE) $(EXTRA_FLAGS) -c test_rect_vector_space.cpp -o $(BUILD_DIR)/test_rect_vector_space_$(PRECISION_SUFFIX).o
+	$(PLATFORMLINKER) $(BUILD_DIR)/test_rect_vector_space_$(PRECISION_SUFFIX).o $(PLATFORMLINKER_FLAGS) -o $(BUILD_DIR)/test_rect_vector_space_$(PRECISION_SUFFIX).bin
 
-# test_dense_vector_space_static
+test_dense_vector_space: test_dense_vector_space.cpp | $(BUILD_DIR)
+	$(PLATFORMCXX) $(PLATFORMCXX_FLAGS) $(INCLUDE_CONTRIB) $(PLATFORM_INCLUDE) $(PLATFORM_DEFINE) $(PRECISION_DEFINE) $(PROFILE_DEFINE) $(EXTRA_FLAGS) -c test_dense_vector_space.cpp -o $(BUILD_DIR)/test_dense_vector_space_$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o
+	$(PLATFORMLINKER) $(BUILD_DIR)/test_dense_vector_space_$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o $(PLATFORMLINKER_FLAGS) -o $(BUILD_DIR)/test_dense_vector_space_$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).bin
 
-test_dense_vector_space_static_cpu: test_dense_vector_space_static.cpp
-	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) -DPLATFORM_SERIAL_CPU $(PRECISION_DEFINE) test_dense_vector_space_static.cpp -o test_dense_vector_space_static_cpu_$(PRECISION_SUFFIX).bin
+test_dense_vector_space_static: test_dense_vector_space_static.cpp | $(BUILD_DIR)
+	$(PLATFORMCXX) $(PLATFORMCXX_FLAGS) $(INCLUDE_CONTRIB) $(PLATFORM_INCLUDE) $(PLATFORM_DEFINE) $(PRECISION_DEFINE) $(PROFILE_DEFINE) $(EXTRA_FLAGS) -c test_dense_vector_space_static.cpp -o $(BUILD_DIR)/test_dense_vector_space_static_$(PRECISION_SUFFIX).o
+	$(PLATFORMLINKER) $(BUILD_DIR)/test_dense_vector_space_static_$(PRECISION_SUFFIX).o $(PLATFORMLINKER_FLAGS) -o $(BUILD_DIR)/test_dense_vector_space_static_$(PRECISION_SUFFIX).bin
 
-# test_dense_operations
+test_dense_operations: test_dense_operations.cpp | $(BUILD_DIR)
+	$(PLATFORMCXX) $(PLATFORMCXX_FLAGS) $(INCLUDE_CONTRIB) $(PLATFORM_INCLUDE) $(PLATFORM_DEFINE) $(PRECISION_DEFINE) $(PROFILE_DEFINE) $(EXTRA_FLAGS) -c test_dense_operations.cpp -o $(BUILD_DIR)/test_dense_operations_$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o
+	$(PLATFORMLINKER) $(BUILD_DIR)/test_dense_operations_$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o $(PLATFORMLINKER_FLAGS) -o $(BUILD_DIR)/test_dense_operations_$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).bin
 
-test_dense_operations_all: test_dense_operations_cpu test_dense_operations_cuda
-
-test_dense_operations_cpu: test_dense_operations.cpp
-	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) -DPLATFORM_SERIAL_CPU $(PRECISION_DEFINE) test_dense_operations.cpp -o test_dense_operations_cpu_$(PRECISION_SUFFIX).bin
-
-test_dense_operations_cuda: test_dense_operations.cpp
-	$(CUDACOMPILER) $(CUDAFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA -x cu $(PRECISION_DEFINE) test_dense_operations.cpp -o test_dense_operations_cuda_$(PRECISION_SUFFIX).bin
-
-# Dense operations benchmarks (CPU or cuBLAS/cuSOLVER)
-
-test_dense_operations_cublas_cpu: test_dense_operations_cublas.cpp
-	$(HOSTCOMPILER) $(HOSTFLAGS) $(INCLUDE_CONTRIB) -DPLATFORM_SERIAL_CPU $(PRECISION_DEFINE) test_dense_operations_cublas.cpp -o test_dense_operations_cublas_cpu_$(PRECISION_SUFFIX).bin
-
-test_dense_operations_cublas: test_dense_operations_cublas.cpp
-	$(CUDACOMPILER) $(CUDAFLAGS) $(INCLUDE_CONTRIB) $(EXTRAFLAGS) -DPLATFORM_CUDA -x cu $(PRECISION_DEFINE) test_dense_operations_cublas.cpp -o test_dense_operations_cublas_$(PRECISION_SUFFIX).bin $(CUDA_SOLVER_LIBS)
+test_dense_operations_benchmarks: test_dense_operations_benchmarks.cpp | $(BUILD_DIR)
+	$(PLATFORMCXX) $(PLATFORMCXX_FLAGS) $(INCLUDE_CONTRIB) $(PLATFORM_INCLUDE) $(PLATFORM_DEFINE) $(PRECISION_DEFINE) $(PROFILE_DEFINE) $(EXTRA_FLAGS) -c test_dense_operations_benchmarks.cpp -o $(BUILD_DIR)/test_dense_operations_benchmarks_$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o
+	$(PLATFORMLINKER) $(BUILD_DIR)/test_dense_operations_benchmarks_$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).o $(PLATFORMLINKER_FLAGS) -o $(BUILD_DIR)/test_dense_operations_benchmarks_$(PLATFORM_SUFFIX)_$(PRECISION_SUFFIX).bin
