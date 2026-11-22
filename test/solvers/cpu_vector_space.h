@@ -314,9 +314,13 @@ public:
     {
         return std::sqrt(scalar_prod(x,x));
     }
-    [[nodiscard]] scalar_type norm2(const vector_type &x) const
+    [[nodiscard]] scalar_type norm_l2(const vector_type &x) const override
     {
         return std::sqrt( scalar_prod(x,x)/static_cast<Type>(sz_) );
+    }
+    [[nodiscard]] scalar_type norm2(const vector_type &x) const
+    {
+        return norm_l2(x);
     }
     [[nodiscard]] scalar_type norm_sq(const vector_type &x) const
     {
@@ -361,6 +365,13 @@ public:
         {
             y[j] = mul_x*x[j];
         }        
+    }
+    void assign_lin_comb(const scalar_type mul_x, const vector_type& x, const scalar_type mul_y, const vector_type& y, vector_type& z) const override
+    {
+        for(Ord j=0;j<sz_;j++)
+        {
+            z[j] = mul_x*x[j] + mul_y*y[j];
+        }
     }
     void add_lin_comb(const scalar_type mul_x, const vector_type& x, const scalar_type mul_y, vector_type& y) const
     {

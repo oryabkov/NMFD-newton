@@ -107,7 +107,6 @@ int main(int argc, char const *args[])
     {
     public:
         using scalar_type = T;
-        using vector_type = vector_type;
         using jacobi_operator_type = dense1_extended_operator_type;
         using orig_operator_type = operator_type;
 
@@ -201,7 +200,6 @@ int main(int argc, char const *args[])
     {
     public:
         using scalar_type = T;
-        using vector_type = vector_type;
         using jacobi_operator_type = dense1_extended_operator_type;
         using orig_operator_type = operator_type;
 
@@ -300,7 +298,6 @@ int main(int argc, char const *args[])
     {
     public:
         using scalar_type = T;
-        using vector_type = vector_type;
         using jacobi_operator_type = dense1_extended_operator_type;
         using orig_operator_type = operator_type;
 
